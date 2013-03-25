@@ -29,7 +29,7 @@
 #define __VSYNC_EVENT_OBSERVER_H__
 
 #include <utils/threads.h>
-#include <VsyncControl.h>
+#include <IVsyncControl.h>
 
 namespace android {
 namespace intel {
@@ -38,7 +38,7 @@ class DisplayDevice;
 
 class VsyncEventObserver : public Thread {
 public:
-    VsyncEventObserver(DisplayDevice& disp, VsyncControl& vsync);
+    VsyncEventObserver(DisplayDevice& disp, IVsyncControl& vsync);
     virtual ~VsyncEventObserver();
     void control(int enabled);
 private:
@@ -49,7 +49,7 @@ private:
     mutable Mutex mLock;
     Condition mCondition;
     DisplayDevice& mDisplayDevice;
-    VsyncControl& mVsync;
+    IVsyncControl& mVsync;
     int mEnabled;
 };
 

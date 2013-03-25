@@ -25,22 +25,21 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <Log.h>
+#include <cutils/log.h>
+
 #include <VsyncEventObserver.h>
 #include <DisplayDevice.h>
 
 namespace android {
 namespace intel {
 
-static Log& log = Log::getInstance();
-
 VsyncEventObserver::VsyncEventObserver(DisplayDevice& disp,
-                                          VsyncControl& vsync)
+                                          IVsyncControl& vsync)
     : mDisplayDevice(disp),
       mVsync(vsync),
       mEnabled(0)
 {
-    log.v("VsyncEventObserver()");
+    LOGV("VsyncEventObserver()");
 }
 
 VsyncEventObserver::~VsyncEventObserver()
@@ -50,7 +49,7 @@ VsyncEventObserver::~VsyncEventObserver()
 
 void VsyncEventObserver::control(int enabled)
 {
-    log.v("control: enabled %s", enabled ? "True" : "False");
+    LOGV("control: enabled %s", enabled ? "True" : "False");
 
     Mutex::Autolock _l(mLock);
     mEnabled = enabled;
@@ -70,7 +69,7 @@ bool VsyncEventObserver::threadLoop()
     bool ret = mVsync.wait(mDisplayDevice.getType(), timestamp);
 
     if (ret == false) {
-        log.w("threadLoop: failed to wait for vsync, check vsync enabling...");
+        LOGW("threadLoop: failed to wait for vsync, check vsync enabling...");
         return true;
     }
 
@@ -81,13 +80,13 @@ bool VsyncEventObserver::threadLoop()
 
 status_t VsyncEventObserver::readyToRun()
 {
-    log.v("VsyncEventObserver: readyToRun. disp %d", mDisplayDevice.getType());
+    LOGV("VsyncEventObserver: readyToRun. disp %d", mDisplayDevice.getType());
     return NO_ERROR;
 }
 
 void VsyncEventObserver::onFirstRef()
 {
-    log.v("VsyncEventObserver: onFirstRef. disp %d", mDisplayDevice.getType());
+    LOGV("VsyncEventObserver: onFirstRef. disp %d", mDisplayDevice.getType());
     run("VsyncEventObserver", PRIORITY_URGENT_DISPLAY);
 }
 

@@ -25,75 +25,32 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <Log.h>
+#include <cutils/log.h>
+
 #include <tangier/TngGrallocBuffer.h>
 
 namespace android {
 namespace intel {
 
-static Log& log = Log::getInstance();
 TngGrallocBuffer::TngGrallocBuffer(uint32_t handle)
-    :DataBuffer(handle)
+    :GrallocBufferBase(handle)
 {
-    struct IMGGrallocBuffer *grallocHandle = (struct IMGGrallocBuffer*)handle;
-    int bpp;
-    int yStride, uvStride;
+    struct TngIMGGrallocBuffer *grallocHandle =
+        (struct TngIMGGrallocBuffer*)handle;
 
-    log.v("TngGrallocBuffer: handle 0x%x\n");
-
-    memset(&mCrop, 0, sizeof(crop_t));
+    LOGV("TngGrallocBuffer");
 
     if (!grallocHandle)
-        goto invalid_handle;
+        return;
 
-    mHandle = handle;
-    mFormat = grallocHandle->format;
-    mWidth = grallocHandle->width;
-    mHeight = grallocHandle->height;
+    mFormat = grallocHandle->pixelFormat;
+    mWidth = grallocHandle->w;
+    mHeight = grallocHandle->h;
     mUsage = grallocHandle->usage;
     mKey = grallocHandle->ui64Stamp;
-    bpp = grallocHandle->bpp;
+    mBpp = grallocHandle->bytesPerPixel;
 
-    // setup stride
-    switch (mFormat) {
-    case HAL_PIXEL_FORMAT_YV12:
-    case HAL_PIXEL_FORMAT_I420:
-        yStride = align_to(align_to(mWidth, 32), 64);
-        uvStride = align_to(yStride >> 1, 64);
-        mStride.yuv.yStride = yStride;
-        mStride.yuv.uvStride = uvStride;
-        break;
-    case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:
-        yStride = align_to(align_to(mWidth, 32), 64);
-        uvStride = yStride;
-        mStride.yuv.yStride = yStride;
-        mStride.yuv.uvStride = uvStride;
-        break;
-    case HAL_PIXEL_FORMAT_YUY2:
-    case HAL_PIXEL_FORMAT_UYVY:
-        yStride = align_to((align_to(mWidth, 32) << 1), 64);
-        uvStride = 0;
-        mStride.yuv.yStride = yStride;
-        mStride.yuv.uvStride = uvStride;
-        break;
-    default:
-        mStride.rgb.stride = align_to(((bpp >> 3) * align_to(mWidth, 32)), 64);
-        break;
-    }
-
-    return;
-invalid_handle:
-    log.e("TngGrallocBuffer: invalid gralloc handle");
-    mHandle = 0;
-    mFormat = FORMAT_INVALID;
-    mWidth = 0;
-    mHeight = 0;
-    mUsage = 0;
-}
-
-TngGrallocBuffer::~TngGrallocBuffer()
-{
-
+    initialize();
 }
 
 }

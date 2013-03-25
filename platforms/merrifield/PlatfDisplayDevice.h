@@ -45,9 +45,9 @@ public:
                  void *contexts,
                  int& count);
 protected:
-    VsyncControl* createVsyncControl();
-    BlankControl* createBlankControl();
-    HotplugControl* createHotplugControl();
+    IVsyncControl* createVsyncControl();
+    IBlankControl* createBlankControl();
+    IHotplugControl* createHotplugControl();
 };
 
 }

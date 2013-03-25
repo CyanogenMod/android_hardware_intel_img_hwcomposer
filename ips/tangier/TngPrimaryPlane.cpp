@@ -25,32 +25,31 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <Log.h>
+#include <cutils/log.h>
+
 #include <Drm.h>
 #include <tangier/TngPrimaryPlane.h>
 #include <tangier/TngGrallocBuffer.h>
-#include <penwell/PnwPixelFormat.h>
+#include <common/PixelFormat.h>
 
 namespace android {
 namespace intel {
 
-static Log& log = Log::getInstance();
-
 TngPrimaryPlane::TngPrimaryPlane(int index, int disp)
     : TngSpritePlane(index, disp)
 {
-    log.v("TngPrimaryPlane");
+    LOGV("TngPrimaryPlane");
     mType = PLANE_PRIMARY;
 }
 
 TngPrimaryPlane::~TngPrimaryPlane()
 {
-    log.v("~TngPrimaryPlane");
+    LOGV("~TngPrimaryPlane");
 }
 
 void TngPrimaryPlane::setFramebufferTarget(DataBuffer& buf)
 {
-    log.v("TngPrimaryPlane::setFramebufferTarget");
+    LOGV("TngPrimaryPlane::setFramebufferTarget");
 
     // don't need to map data buffer for primary plane
     mContext.type = DC_PRIMARY_PLANE;
@@ -64,7 +63,7 @@ void TngPrimaryPlane::setFramebufferTarget(DataBuffer& buf)
         ((mPosition.h - 1) & 0xfff) << 16 | ((mPosition.w - 1) & 0xfff);
     mContext.ctx.prim_ctx.surf = 0;
 
-    mContext.ctx.prim_ctx.cntr = PnwPixelFormat::PLANE_PIXEL_FORMAT_BGRA8888;
+    mContext.ctx.prim_ctx.cntr = PixelFormat::PLANE_PIXEL_FORMAT_BGRA8888;
     mContext.ctx.prim_ctx.cntr |= 0x80000000;
     if (mForceBottom)
         mContext.ctx.prim_ctx.cntr |= 0x00000004;
@@ -75,7 +74,7 @@ bool TngPrimaryPlane::setDataBuffer(uint32_t handle)
     TngGrallocBuffer tmpBuf(handle);
     uint32_t usage;
 
-    log.v("TngPrimaryPlane::setDataBuffer: handle = %d");
+    LOGV("TngPrimaryPlane::setDataBuffer: handle = %d");
 
     usage = tmpBuf.getUsage();
     if (!handle || (GRALLOC_USAGE_HW_FB & usage)) {

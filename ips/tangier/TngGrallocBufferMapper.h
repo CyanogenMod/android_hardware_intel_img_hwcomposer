@@ -30,12 +30,13 @@
 
 #include <BufferMapper.h>
 #include <hal_public.h>
+#include <common/GrallocBufferMapperBase.h>
 #include <tangier/TngGrallocBuffer.h>
 
 namespace android {
 namespace intel {
 
-class TngGrallocBufferMapper : public BufferMapper {
+class TngGrallocBufferMapper : public GrallocBufferMapperBase {
 public:
     TngGrallocBufferMapper(IMG_gralloc_module_public_t& module,
                                DataBuffer& buffer);
@@ -43,20 +44,12 @@ public:
 public:
     bool map();
     bool unmap();
-
-    uint32_t getGttOffsetInPage(int subIndex) const;
-    void* getCpuAddress(int subIndex) const;
-    uint32_t getSize(int subIndex) const;
 private:
     bool gttMap(void *vaddr, uint32_t size, uint32_t gttAlign, int *offset);
     bool gttUnmap(void *vaddr);
 private:
     IMG_gralloc_module_public_t& mIMGGrallocModule;
     void* mBufferObject;
-    // mapped info
-    uint32_t mGttOffsetInPage[SUB_BUFFER_MAX];
-    void* mCpuAddress[SUB_BUFFER_MAX];
-    uint32_t mSize[SUB_BUFFER_MAX];
 };
 
 } // namespace intel

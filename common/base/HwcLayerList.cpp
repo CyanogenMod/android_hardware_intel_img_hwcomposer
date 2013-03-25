@@ -25,17 +25,17 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <Log.h>
+#include <cutils/log.h>
+
 #include <Drm.h>
 #include <Hwcomposer.h>
 #include <HwcConfig.h>
 #include <HwcLayerList.h>
 #include <DisplayDevice.h>
+#include <PlaneCapabilities.h>
 
 namespace android {
 namespace intel {
-
-static Log& log = Log::getInstance();
 
 HwcLayer::HwcLayer(int index, hwc_layer_1_t *layer)
     : mIndex(index),
@@ -49,7 +49,7 @@ HwcLayer::HwcLayer(int index, hwc_layer_1_t *layer)
 bool HwcLayer::attachPlane(DisplayPlane* plane)
 {
     if (mPlane) {
-        log.e("attachPlane: failed to attach plane, plane exists");
+        LOGE("attachPlane: failed to attach plane, plane exists");
         return false;
     }
 
@@ -136,21 +136,20 @@ HwcLayerList::HwcLayerList(hwc_display_contents_1_t *list,
                             int disp)
     : mList(list),
       mLayerCount(0),
-      mForcePrimaryFlip(false),
       mDisplayPlaneManager(dpm),
       mPrimaryPlane(primary),
       mFramebufferTarget(0),
       mDisplayIndex(disp)
 {
-    log.v("HwcLayerList: layer count = %d", list->numHwLayers);
+    LOGV("HwcLayerList: layer count = %d", list->numHwLayers);
 
     if (mList) {
         mLayers.setCapacity(list->numHwLayers);
         mOverlayLayers.setCapacity(list->numHwLayers);
         mFBLayers.setCapacity(list->numHwLayers);
         mLayerCount = list->numHwLayers;
-        // analysis list
-        analyze();
+        // analysis list from the top layer
+        analyze(mLayerCount - 1);
     }
 }
 
@@ -186,39 +185,61 @@ int HwcLayerList::HwcLayerVector::do_compare(const void* lhs,
     return l->getIndex() - r->getIndex();
 }
 //------------------------------------------------------------------------------
-bool HwcLayerList::check(DisplayPlane& plane, hwc_layer_1_t& layer)
+bool HwcLayerList::check(int planeType, hwc_layer_1_t& layer)
 {
     bool valid = false;
+    BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
+    DataBuffer *buffer;
+    uint32_t format;
+    bool ret = false;
+
+    if (!bm) {
+        LOGE("HwcLayerList::check: failed to get buffer manager");
+        return false;
+    }
+
+    // get buffer source format
+    buffer = bm->get((uint32_t)layer.handle);
+    if (!buffer) {
+        LOGE("HwcLayerList::check:failed to get buffer");
+        return false;
+    }
+    format = buffer->getFormat();
+    bm->put(*buffer);
 
     // check layer flags
     if (layer.flags & HWC_SKIP_LAYER) {
-        log.v("plane type %d: (skip layer flag was set)", plane.getType());
+        LOGV("plane type %d: (skip layer flag was set)", planeType);
         goto check_out;
     }
 
     // check buffer format
-    valid = plane.isValidBuffer((uint32_t)layer.handle);
+    valid = PlaneCapabilities::isFormatSupported(planeType, format);
     if (!valid) {
-        log.v("plane type %d: (bad buffer format)", plane.getType());
+        LOGV("plane type %d: (bad buffer format)", planeType);
         goto check_out;
     }
 
-    valid = plane.isValidTransform(layer.transform);
+    valid = PlaneCapabilities::isTransformSupported(planeType,
+                                                    layer.transform);
     if (!valid) {
-        log.v("plane type $d: (bad transform)", plane.getType());
+        LOGV("plane type $d: (bad transform)", planeType);
     }
 
     // check layer blending
-    valid = plane.isValidBlending((uint32_t)layer.blending);
+    valid = PlaneCapabilities::isBlendingSupported(planeType,
+                                                  (uint32_t)layer.blending);
     if (!valid) {
-        log.v("plane type %d: layer %d: (bad blending)", plane.getType());
+        LOGV("plane type %d: (bad blending)", planeType);
         goto check_out;
     }
 
     // check layer scaling
-    valid = plane.isValidScaling(layer.sourceCrop, layer.displayFrame);
+    valid = PlaneCapabilities::isScalingSupported(planeType,
+                                                  layer.sourceCrop,
+                                                  layer.displayFrame);
     if (!valid) {
-        log.v("plane type %d: layer %d: (bad scaling)", plane.getType());
+        LOGV("plane type %d: (bad scaling)", planeType);
         goto check_out;
     }
 
@@ -227,18 +248,19 @@ check_out:
     return valid;
 }
 
-void HwcLayerList::setZOrder(bool& primaryAvailable)
+void HwcLayerList::setZOrder()
 {
     ZOrderConfig zorder;
     int primaryIndex;
     int overlayCount;
     int planeCount;
+    bool primaryAvailable;
 
     // set the primary to bottom by default;
     primaryIndex = -1;
     overlayCount = 0;
     planeCount = 0;
-
+    primaryAvailable = true;
     for (int i = mOverlayLayers.size() - 1; i >= 0; i--) {
         HwcLayer *hwcLayer = mOverlayLayers.itemAt(i);
         if (!hwcLayer)
@@ -262,13 +284,9 @@ void HwcLayerList::setZOrder(bool& primaryAvailable)
         }
     }
 
-    // primary wasn't found
-    if (primaryAvailable) {
-        // set primary plane to the bottom
+    // primary wasn't found, set primary plane to the bottom
+    if (primaryAvailable)
         primaryIndex = 0;
-        // set force primary flip
-        mForcePrimaryFlip = true;
-    }
 
     // generate final z order config and pass it to all active planes
     zorder.layerCount = mLayers.size();
@@ -295,7 +313,6 @@ void HwcLayerList::setZOrder(bool& primaryAvailable)
 // NOTE: current implementation will treat overlay Layer as higher priority.
 void HwcLayerList::revisit()
 {
-    bool primaryAvailable = true;
     // check whether we can take over the layer by using primary
     // we can use primary plane only when:
     // 0) Be able to be accepted by primary plane which this list layer
@@ -303,8 +320,8 @@ void HwcLayerList::revisit()
     // 1) all the other layers have been set to OVERLAY layer.
     if ((mFBLayers.size() == 1)) {
         HwcLayer *hwcLayer = mFBLayers.itemAt(0);
-        if (check(*mPrimaryPlane, *(hwcLayer->getLayer()))) {
-            log.v("primary check passed for primary layer");
+        if (check(DisplayPlane::PLANE_PRIMARY, *(hwcLayer->getLayer()))) {
+            LOGV("primary check passed for primary layer");
             // attach primary to hwc layer
             hwcLayer->attachPlane(mPrimaryPlane);
             // set the layer type to primary
@@ -318,19 +335,17 @@ void HwcLayerList::revisit()
 
     // attach frame buffer target
     if (!mPrimaryPlane) {
-        log.w("HwcLayerList::revisit: no primary plane");
+        LOGW("HwcLayerList::revisit: no primary plane");
         return;
     }
 
     if (!mFramebufferTarget) {
-        log.w("HwcLayerList::revisit: no frame buffer target");
+        LOGW("HwcLayerList::revisit: no frame buffer target");
         return;
     }
 
     if (mFBLayers.size()) {
-        log.v("analyzeFrom: using frame buffer target");
-        hwc_layer_1_t *layer = mFramebufferTarget->getLayer();
-
+        LOGV("analyzeFrom: using frame buffer target");
         // attach primary plane
         mFramebufferTarget->attachPlane(mPrimaryPlane);
         mFramebufferTarget->setType(HwcLayer::LAYER_PRIMARY);
@@ -339,17 +354,16 @@ void HwcLayerList::revisit()
     }
 
     // generate z order config
-    setZOrder(primaryAvailable);
+    setZOrder();
 }
 
-void HwcLayerList::analyzeFrom(uint32_t index)
+void HwcLayerList::analyze(uint32_t index)
 {
     int freeSpriteCount = 0;
     int freeOverlayCount = 0;
-    bool primaryAvailable = true;
     int supportExtendVideo = 0;
     DisplayPlane *plane;
-    Drm& drm(Hwcomposer::getInstance().getDrm());
+    Drm *drm = Hwcomposer::getInstance().getDrm();
 
     if (!mList || index >= mLayerCount)
         return;
@@ -360,13 +374,6 @@ void HwcLayerList::analyzeFrom(uint32_t index)
     freeSpriteCount = mDisplayPlaneManager.getFreeSpriteCount();
     freeOverlayCount = mDisplayPlaneManager.getFreeOverlayCount();
 
-    // if no primary plane
-    if (!mPrimaryPlane)
-        primaryAvailable = false;
-    // if the number of layers > the number of all free planes
-    if (mLayerCount > (freeSpriteCount + freeOverlayCount + 1))
-        primaryAvailable = false;
-
     // go through layer list from top to bottom
     for (int i = index; i >= 0; i--) {
         hwc_layer_1_t *layer = &mList->hwLayers[i];
@@ -376,7 +383,7 @@ void HwcLayerList::analyzeFrom(uint32_t index)
         // new hwc layer
         HwcLayer *hwcLayer = new HwcLayer(i, layer);
         if (!hwcLayer) {
-            log.e("failed to allocate hwc layer");
+            LOGE("failed to allocate hwc layer");
             continue;
         }
 
@@ -391,11 +398,8 @@ void HwcLayerList::analyzeFrom(uint32_t index)
 
         // check whether the layer can be handled by sprite plane
         if (freeSpriteCount) {
-            plane = mDisplayPlaneManager.getDummySpritePlane();
-            if (!plane)
-                log.e("failed to get dummy sprite plane");
-            else if (check(*plane, *layer)) {
-                log.v("sprite check passed for layer %d", i);
+            if (check(DisplayPlane::PLANE_SPRITE, *layer)) {
+                LOGV("sprite check passed for layer %d", i);
                 plane = mDisplayPlaneManager.getSpritePlane();
                 if (plane) {
                     // attach plane to hwc layer
@@ -408,11 +412,8 @@ void HwcLayerList::analyzeFrom(uint32_t index)
 
         // check whether the layer can be handled by overlay plane
         if (freeOverlayCount) {
-            plane = mDisplayPlaneManager.getDummyOverlayPlane();
-            if (!plane) {
-                log.e("failed to get dummy sprite plane");
-            } else if (check(*plane, *layer)) {
-                log.v("overlay check passed for layer %d", i);
+            if (check(DisplayPlane::PLANE_OVERLAY, *layer)) {
+                LOGV("overlay check passed for layer %d", i);
                 plane = mDisplayPlaneManager.getOverlayPlane();
                 if (plane) {
                     // attach plane to hwc layer
@@ -422,9 +423,9 @@ void HwcLayerList::analyzeFrom(uint32_t index)
                 }
 
                 // check wheter we are supporting extend video mode
-                if (supportExtendVideo) {
+                if (drm && supportExtendVideo) {
                     bool extConnected =
-                        drm.outputConnected(Drm::OUTPUT_EXTERNAL);
+                        drm->outputConnected(Drm::OUTPUT_EXTERNAL);
                     if (extConnected && plane && !mDisplayIndex) {
                         hwcLayer->detachPlane();
                         mDisplayPlaneManager.putOverlayPlane(*plane);
@@ -445,28 +446,22 @@ void HwcLayerList::analyzeFrom(uint32_t index)
     revisit();
 }
 
-void HwcLayerList::analyze()
-{
-    analyzeFrom(mLayerCount - 1);
-}
-
 bool HwcLayerList::update(hwc_display_contents_1_t *list)
 {
     bool ret;
     bool updateError = false;
 
-    log.v("HwcLayerList::update");
+    LOGV("HwcLayerList::update");
 
     // basic check to make sure the consistance
     if (!list) {
-        log.e("update: null layer list");
+        LOGE("update: null layer list");
         return false;
     }
 
-    if (list->numHwLayers != mLayerCount ||
-        list->numHwLayers != mLayers.size()) {
-        log.e("update: update layer count doesn't match (%d, %d, %d)",
-              list->numHwLayers, mLayerCount, mLayers.size());
+    if (list->numHwLayers != mLayerCount) {
+        LOGE("update: update layer count doesn't match (%d, %d)",
+              list->numHwLayers, mLayerCount);
         return false;
     }
 
@@ -476,16 +471,16 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
     do {
         updateError = false;
         // update all layers, call each layer's update()
-        for (size_t i = 0; i < list->numHwLayers; i++) {
+        for (size_t i = 0; i < mLayers.size(); i++) {
             HwcLayer *hwcLayer = mLayers.itemAt(i);
             if (!hwcLayer) {
-                log.e("update: no HWC layer for layer %d", i);
+                LOGE("update: no HWC layer for layer %d", i);
                 continue;
             }
 
             ret = hwcLayer->update(&list->hwLayers[i], mDisplayIndex);
             if (ret == false) {
-                log.i("update: failed to update layer %d", i);
+                LOGI("update: failed to update layer %d", i);
                 updateError = true;
                 // set layer to FB layer
                 hwcLayer->setType(HwcLayer::LAYER_FB);
@@ -505,7 +500,7 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
 DisplayPlane* HwcLayerList::getPlane(uint32_t index) const
 {
     if (index >= mLayers.size()) {
-        log.e("HwcLayerList::getPlane: invalid layer index %d", index);
+        LOGE("HwcLayerList::getPlane: invalid layer index %d", index);
         return 0;
     }
 

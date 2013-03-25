@@ -34,8 +34,6 @@
 namespace android {
 namespace intel {
 
-static Log& log = Log::getInstance();
-
 Hwcomposer* Hwcomposer::sInstance(0);
 
 Hwcomposer::Hwcomposer()
@@ -45,14 +43,15 @@ Hwcomposer::Hwcomposer()
       mBufferManager(0),
       mInitialized(false)
 {
-    log.d("Hwcomposer");
+    LOGD("Hwcomposer");
 
     mDisplayDevices.setCapacity(DisplayDevice::DEVICE_COUNT);
 }
 
 Hwcomposer::~Hwcomposer()
 {
-    log.d("~Hwcomposer");
+    LOGD("~Hwcomposer");
+    deinitialize();
 }
 
 bool Hwcomposer::initCheck() const
@@ -67,13 +66,13 @@ bool Hwcomposer::prepare(size_t numDisplays,
 
     //Mutex::Autolock _l(mLock);
 
-    log.v("prepare display count %d\n", numDisplays);
+    LOGV("prepare display count %d\n", numDisplays);
 
     if (!initCheck())
         return false;
 
     if (!numDisplays || !displays) {
-        log.e("prepare: invalid parameters");
+        LOGE("prepare: invalid parameters");
         return false;
     }
 
@@ -85,12 +84,12 @@ bool Hwcomposer::prepare(size_t numDisplays,
     for (size_t i = 0; i < numDisplays; i++) {
         DisplayDevice *device = mDisplayDevices.itemAt(i);
         if (!device) {
-            log.v("prepare: device %d doesn't exist", i);
+            LOGV("prepare: device %d doesn't exist", i);
             continue;
         }
 
         if (!device->isConnected()) {
-            log.v("prepare: device %d is disconnected", i);
+            LOGV("prepare: device %d is disconnected", i);
             continue;
         }
 
@@ -100,18 +99,18 @@ bool Hwcomposer::prepare(size_t numDisplays,
     for (size_t i = 0; i < numDisplays; i++) {
         DisplayDevice *device = mDisplayDevices.itemAt(i);
         if (!device) {
-            log.v("prepare: device %d doesn't exist", i);
+            LOGV("prepare: device %d doesn't exist", i);
             continue;
         }
 
         if (!device->isConnected()) {
-            log.v("prepare: device %d is disconnected", i);
+            LOGV("prepare: device %d is disconnected", i);
             continue;
         }
 
         ret = device->prepare(displays[i]);
         if (ret == false) {
-            log.e("prepare: failed to do prepare for device %d", i);
+            LOGE("prepare: failed to do prepare for device %d", i);
             continue;
         }
     }
@@ -124,7 +123,7 @@ bool Hwcomposer::commit(size_t numDisplays,
 {
     bool ret = true;
 
-    log.v("commit display count %d\n", numDisplays);
+    LOGV("commit display count %d\n", numDisplays);
 
     //Mutex::Autolock _l(mLock);
 
@@ -132,32 +131,32 @@ bool Hwcomposer::commit(size_t numDisplays,
         return false;
 
     if (!numDisplays || !displays) {
-        log.e("commit: invalid parameters");
+        LOGE("commit: invalid parameters");
         return false;
     }
 
     void *hwContexts = getContexts();
     int count = 0;
     if (!hwContexts) {
-        log.e("Hwcomposer::commit: invalid hwContexts");
+        LOGE("Hwcomposer::commit: invalid hwContexts");
         return false;
     }
 
     for (size_t i = 0; i < numDisplays; i++) {
         DisplayDevice *device = mDisplayDevices.itemAt(i);
         if (!device) {
-            log.v("commit: device %d doesn't exist", i);
+            LOGV("commit: device %d doesn't exist", i);
             continue;
         }
 
         if (!device->isConnected()) {
-            log.v("commit: device %d is disconnected", i);
+            LOGV("commit: device %d is disconnected", i);
             continue;
         }
 
         ret = device->commit(displays[i], hwContexts, count);
         if (ret == false) {
-            log.e("commit: failed to do commit for device %d", i);
+            LOGE("commit: failed to do commit for device %d", i);
             continue;
         }
     }
@@ -165,7 +164,7 @@ bool Hwcomposer::commit(size_t numDisplays,
     // commit hwContexts to hardware
     ret = commitContexts(hwContexts, count);
     if (ret == false) {
-        log.e("Hwcomposer::commit: failed to commit hwContexts");
+        LOGE("Hwcomposer::commit: failed to commit hwContexts");
         return false;
     }
 
@@ -174,19 +173,19 @@ bool Hwcomposer::commit(size_t numDisplays,
 
 bool Hwcomposer::vsyncControl(int disp, int enabled)
 {
-    log.v("vsyncControl: disp %d, enabled %d", disp, enabled);
+    LOGV("vsyncControl: disp %d, enabled %d", disp, enabled);
 
     if (!initCheck())
         return false;
 
     if (disp < 0 || disp >= DisplayDevice::DEVICE_COUNT) {
-        log.e("vsyncControl: invalid disp %d", disp);
+        LOGE("vsyncControl: invalid disp %d", disp);
         return false;
     }
 
     DisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
-        log.e("vsyncControl: no device found");
+        LOGE("vsyncControl: no device found");
         return false;
     }
 
@@ -195,19 +194,19 @@ bool Hwcomposer::vsyncControl(int disp, int enabled)
 
 bool Hwcomposer::blank(int disp, int blank)
 {
-    log.v("blank: disp %d, blank %d", disp, blank);
+    LOGV("blank: disp %d, blank %d", disp, blank);
 
     if (!initCheck())
         return false;
 
     if (disp < 0 || disp >= DisplayDevice::DEVICE_COUNT) {
-        log.e("blank: invalid disp %d", disp);
+        LOGE("blank: invalid disp %d", disp);
         return false;
     }
 
     DisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
-        log.e("blank: no device found");
+        LOGE("blank: no device found");
         return false;
     }
 
@@ -218,19 +217,19 @@ bool Hwcomposer::getDisplayConfigs(int disp,
                                       uint32_t *configs,
                                       size_t *numConfigs)
 {
-    log.v("getDisplayConfig");
+    LOGV("getDisplayConfig");
 
     if (!initCheck())
         return false;
 
     if (disp < 0 || disp >= DisplayDevice::DEVICE_COUNT) {
-        log.e("getDisplayConfigs: invalid disp %d", disp);
+        LOGE("getDisplayConfigs: invalid disp %d", disp);
         return false;
     }
 
     DisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
-        log.e("getDisplayConfigs: no device %d found", disp);
+        LOGE("getDisplayConfigs: no device %d found", disp);
         return false;
     }
 
@@ -242,19 +241,19 @@ bool Hwcomposer::getDisplayAttributes(int disp,
                                          const uint32_t *attributes,
                                          int32_t *values)
 {
-    log.v("getDisplayAttributes");
+    LOGV("getDisplayAttributes");
 
     if (!initCheck())
         return false;
 
     if (disp < 0 || disp >= DisplayDevice::DEVICE_COUNT) {
-        log.e("getDisplayAttributes: invalid disp %d", disp);
+        LOGE("getDisplayAttributes: invalid disp %d", disp);
         return false;
     }
 
     DisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
-        log.e("getDisplayAttributes: no device found");
+        LOGE("getDisplayAttributes: no device found");
         return false;
     }
 
@@ -263,19 +262,19 @@ bool Hwcomposer::getDisplayAttributes(int disp,
 
 bool Hwcomposer::compositionComplete(int disp)
 {
-    log.v("compositionComplete");
+    LOGV("compositionComplete");
 
     if (!initCheck())
         return false;
 
     if (disp < 0 || disp >= DisplayDevice::DEVICE_COUNT) {
-        log.e("compositionComplete: invalid disp %d", disp);
+        LOGE("compositionComplete: invalid disp %d", disp);
         return false;
     }
 
     DisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
-        log.e("compositionComplete: no device found");
+        LOGE("compositionComplete: no device found");
         return false;
     }
 
@@ -290,7 +289,7 @@ void Hwcomposer::vsync(int disp, int64_t timestamp)
         return;
 
     if (mProcs && mProcs->vsync) {
-        log.v("report vsync disp %d timestamp %llu", disp, timestamp);
+        LOGV("report vsync disp %d timestamp %llu", disp, timestamp);
         mProcs->vsync(const_cast<hwc_procs_t*>(mProcs), disp, timestamp);
     }
 }
@@ -303,14 +302,14 @@ void Hwcomposer::hotplug(int disp, int connected)
         return;
 
     if (mProcs && mProcs->hotplug) {
-        log.v("report hotplug disp %d connected %d", disp, connected);
+        LOGV("report hotplug disp %d connected %d", disp, connected);
         mProcs->hotplug(const_cast<hwc_procs_t*>(mProcs), disp, connected);
     }
 }
 
 bool Hwcomposer::release()
 {
-    log.d("release");
+    LOGD("release");
 
     if (!initCheck())
         return false;
@@ -320,7 +319,7 @@ bool Hwcomposer::release()
 
 bool Hwcomposer::dump(char *buff, int buff_len, int *cur_len)
 {
-    log.d("dump");
+    LOGD("dump");
 
     if (!initCheck())
         return false;
@@ -345,44 +344,44 @@ bool Hwcomposer::dump(char *buff, int buff_len, int *cur_len)
 
 void Hwcomposer::registerProcs(hwc_procs_t const *procs)
 {
-    log.d("registerProcs");
+    LOGD("registerProcs");
 
     if (!procs)
-        log.w("registerProcs: procs is NULL");
+        LOGW("registerProcs: procs is NULL");
 
     mProcs = procs;
 }
 
 bool Hwcomposer::initialize()
 {
-    log.d("initialize");
+    LOGD("initialize");
 
     // create drm
-    mDrm = new Drm(); //createDrm();
+    mDrm = new Drm();
     if (!mDrm) {
-        log.e("%s: failed to create DRM");
+        LOGE("%s: failed to create DRM", __func__);
         return false;
     }
 
     // create display plane manager
     mPlaneManager = createDisplayPlaneManager();
     if (!mPlaneManager || !mPlaneManager->initialize()) {
-        log.e("initialize: failed to create display plane manager");
-        goto dpm_create_err;
+        LOGE("initialize: failed to create display plane manager");
+        goto init_err;
     }
 
     // create buffer manager
     mBufferManager = createBufferManager();
     if (!mBufferManager || !mBufferManager->initialize()) {
-        log.e("initialize: failed to create buffer manager");
-        goto bm_create_err;
+        LOGE("initialize: failed to create buffer manager");
+        goto init_err;
     }
 
     // create display device
     for (int i = 0; i < DisplayDevice::DEVICE_COUNT; i++) {
         DisplayDevice *device = createDisplayDevice(i, *mPlaneManager);
         if (!device || !device->initialize()) {
-            log.e("initialize: failed to create device %d", i);
+            LOGE("initialize: failed to create device %d", i);
             continue;
         }
         // add this device
@@ -391,32 +390,55 @@ bool Hwcomposer::initialize()
 
     mInitialized = true;
     return true;
-device_create_err:
-    for (size_t i = 0; i < mDisplayDevices.size(); i++) {
-        DisplayDevice *device = mDisplayDevices.itemAt(i);
-        delete device;
-    }
-bm_create_err:
-    delete mPlaneManager;
-dpm_create_err:
-    delete mDrm;
-    mInitialized = false;
+init_err:
+    deinitialize();
     return false;
 }
 
-Drm& Hwcomposer::getDrm()
+void Hwcomposer::deinitialize()
 {
-    return *mDrm;
+    // destroy display devices
+    for (size_t i = 0; i < mDisplayDevices.size(); i++) {
+        DisplayDevice *device = mDisplayDevices.itemAt(i);
+        if (device)
+            delete device;
+    }
+    mDisplayDevices.clear();
+
+    // destroy buffer manager
+    if (mBufferManager) {
+        delete mBufferManager;
+        mBufferManager = 0;
+    }
+
+    // destroy display plane manager
+    if (mPlaneManager) {
+        delete mPlaneManager;
+        mPlaneManager = 0;
+    }
+
+    // destroy drm
+    if (mDrm) {
+        delete mDrm;
+        mDrm = 0;
+    }
+
+    mInitialized = false;
 }
 
-DisplayPlaneManager& Hwcomposer::getPlaneManager()
+Drm* Hwcomposer::getDrm()
 {
-    return *mPlaneManager;
+    return mDrm;
 }
 
-BufferManager& Hwcomposer::getBufferManager()
+DisplayPlaneManager* Hwcomposer::getPlaneManager()
 {
-    return *mBufferManager;
+    return mPlaneManager;
+}
+
+BufferManager* Hwcomposer::getBufferManager()
+{
+    return mBufferManager;
 }
 
 } // namespace intel

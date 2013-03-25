@@ -25,14 +25,12 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
+#include <cutils/log.h>
 
-#include <Log.h>
 #include <BufferCache.h>
 
 namespace android {
 namespace intel {
-
-static Log& log = Log::getInstance();
 
 BufferCache::BufferCache(int size)
 {
@@ -49,21 +47,34 @@ bool BufferCache::addMapper(uint64_t handle, BufferMapper* mapper)
 {
     ssize_t index = mBufferPool.indexOfKey(handle);
     if (index >= 0) {
-        log.e("addMapper: buffer 0x%llx exists\n", handle);
+        LOGE("addMapper: buffer 0x%llx exists\n", handle);
         return false;
     }
 
     // add mapper
-    mBufferPool.add(handle, mapper);
+    index = mBufferPool.add(handle, mapper);
+    if (index < 0) {
+        LOGE("addMapper: failed to add mapper. err = %ld", index);
+        return false;
+    }
+
     return true;
 }
 
-void BufferCache::removeMapper(BufferMapper* mapper)
+bool BufferCache::removeMapper(BufferMapper* mapper)
 {
-    if (!mapper)
-        return;
+    ssize_t index;
 
-    mBufferPool.removeItem(mapper->getKey());
+    if (!mapper)
+        return false;
+
+    index = mBufferPool.removeItem(mapper->getKey());
+    if (index < 0) {
+        LOGW("removeMapper:: failed to remove mapper. err = %ld", index);
+        return false;
+    }
+
+    return true;
 }
 
 BufferMapper* BufferCache::getMapper(uint64_t handle)

@@ -34,18 +34,17 @@
 #include <DisplayPlane.h>
 
 #include <displayclass_interface.h>
-#include <penwell/PnwSpritePlaneBase.h>
+#include <common/SpritePlaneBase.h>
 
 namespace android {
 namespace intel {
 
-class TngSpritePlane : public PnwSpritePlaneBase {
+class TngSpritePlane : public SpritePlaneBase {
 public:
     TngSpritePlane(int index, int disp);
     virtual ~TngSpritePlane();
 public:
     virtual void* getContext() const;
-    virtual bool initialize();
 protected:
     virtual bool setDataBuffer(BufferMapper& mapper);
 protected:

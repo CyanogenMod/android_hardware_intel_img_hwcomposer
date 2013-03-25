@@ -30,33 +30,28 @@
 
 #include <DataBuffer.h>
 #include <hal_public.h>
-#include <OMX_IVCommon.h>
-#include <penwell/PnwGrallocSubBuffer.h>
+#include <common/GrallocSubBuffer.h>
+#include <common/GrallocBufferBase.h>
 
 namespace android {
 namespace intel {
 
-struct IMGGrallocBuffer{
+struct TngIMGGrallocBuffer{
     native_handle_t base;
     int syncFD;
-    int fd[SUB_BUFFER_MAX];
+    int bufFd[SUB_BUFFER_MAX];
     unsigned long long ui64Stamp;
     int usage;
-    int width;
-    int height;
-    int format;
-    int bpp;
+    int w;
+    int h;
+    int pixelFormat;
+    int bytesPerPixel;
 }__attribute__((aligned(sizeof(int)),packed));
 
 
-class TngGrallocBuffer : public DataBuffer {
+class TngGrallocBuffer : public GrallocBufferBase {
 public:
     TngGrallocBuffer(uint32_t handle);
-    ~TngGrallocBuffer();
-    // gralloc buffer operation
-    uint32_t getUsage() const { return mUsage; };
-private:
-    uint32_t mUsage;
 };
 
 } // namespace intel

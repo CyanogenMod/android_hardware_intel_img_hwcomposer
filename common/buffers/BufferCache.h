@@ -42,7 +42,7 @@ public:
     // add a new mapper into buffer cache
     virtual bool addMapper(uint64_t handle, BufferMapper* mapper);
     //remove mapper
-    virtual void removeMapper(BufferMapper* mapper);
+    virtual bool removeMapper(BufferMapper* mapper);
     // get a buffer mapper
     virtual BufferMapper* getMapper(uint64_t handle);
     // get cache size

@@ -34,12 +34,9 @@
 #include <cutils/atomic.h>
 
 #include <Hwcomposer.h>
-#include <Log.h>
 
 namespace android {
 namespace intel {
-
-static Log& log = Log().getInstance();
 
 static int hwc_prepare(struct hwc_composer_device_1 *dev,
                           size_t numDisplays,
@@ -47,22 +44,22 @@ static int hwc_prepare(struct hwc_composer_device_1 *dev,
 {
     int status = 0;
 
-    log.v("hwc_prepare");
+    LOGV("hwc_prepare");
 
     Hwcomposer *hwc = static_cast<Hwcomposer*>(dev);
 
     if (!hwc) {
-        log.e("hwc_prepare: Invalid HWC device\n");
+        LOGE("hwc_prepare: Invalid HWC device\n");
         status = -EINVAL;
         goto prepare_out;
     }
 
-    if (hwc->prepare(numDisplays, displays) == false) {
+    if (!hwc->prepare(numDisplays, displays)) {
         status = -EINVAL;
         goto prepare_out;
     }
 prepare_out:
-    return 0;
+    return status;
 }
 
 static int hwc_set(struct hwc_composer_device_1 *dev,
@@ -71,24 +68,24 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
 {
     int status = 0;
 
-    log.v("hwc_set\n");
+    LOGV("hwc_set\n");
 
     Hwcomposer *hwc = static_cast<Hwcomposer*>(dev);
 
     if (!hwc) {
-        log.e("hwc_set: Invalid HWC device\n");
+        LOGE("hwc_set: Invalid HWC device\n");
         status = -EINVAL;
         goto set_out;
     }
 
-    if (hwc->commit(numDisplays, displays) == false) {
-        log.e("hwc_set: failed to commit\n");
+    if (!hwc->commit(numDisplays, displays)) {
+        LOGE("hwc_set: failed to commit\n");
         status = HWC_EGL_ERROR;
         goto set_out;
     }
 
 set_out:
-    return 0;
+    return status;
 }
 
 static void hwc_dump(struct hwc_composer_device_1 *dev,
@@ -104,12 +101,12 @@ static void hwc_dump(struct hwc_composer_device_1 *dev,
 void hwc_registerProcs(struct hwc_composer_device_1 *dev,
                           hwc_procs_t const *procs)
 {
-    log.v("hwc_registerProcs\n");
+    LOGV("hwc_registerProcs\n");
 
     Hwcomposer *hwc = static_cast<Hwcomposer*>(dev);
 
     if (!hwc) {
-        log.e("hwc_registerProcs: Invalid HWC device\n");
+        LOGE("hwc_registerProcs: Invalid HWC device\n");
         return;
     }
 
@@ -118,6 +115,12 @@ void hwc_registerProcs(struct hwc_composer_device_1 *dev,
 
 static int hwc_device_close(struct hw_device_t *dev)
 {
+    // delete Hwcomposer
+    Hwcomposer& hwc = Hwcomposer::getInstance();
+
+    LOGV("hwc_device_close\n");
+    delete &hwc;
+
     return 0;
 }
 
@@ -125,7 +128,7 @@ static int hwc_query(struct hwc_composer_device_1 *dev,
                        int what,
                        int* value)
 {
-    log.v("hwc_query: what %d\n", what);
+    LOGV("hwc_query: what %d\n", what);
     return -EINVAL;
 }
 
@@ -137,11 +140,11 @@ static int hwc_eventControl(struct hwc_composer_device_1 *dev,
     int err = 0;
     bool ret;
 
-    log.v("hwc_eventControl: event %d, enabled %d\n", event, enabled);
+    LOGV("hwc_eventControl: event %d, enabled %d\n", event, enabled);
     Hwcomposer *hwc = static_cast<Hwcomposer*>(dev);
 
     if (!hwc) {
-        log.e("hwc_eventControl: Invalid HWC device\n");
+        LOGE("hwc_eventControl: Invalid HWC device\n");
         return -EINVAL;
     }
 
@@ -149,12 +152,12 @@ static int hwc_eventControl(struct hwc_composer_device_1 *dev,
     case HWC_EVENT_VSYNC:
         ret = hwc->vsyncControl(disp, enabled);
         if (ret == false) {
-            log.e("hwc_eventControl: failed to enable/disable vsync\n");
+            LOGE("hwc_eventControl: failed to enable/disable vsync\n");
             err = -EINVAL;
         }
         break;
     default:
-        log.e("hwc_eventControl: unsupported event %d\n", event);
+        LOGE("hwc_eventControl: unsupported event %d\n", event);
     }
 
     return err;
@@ -166,13 +169,13 @@ static int hwc_blank(hwc_composer_device_1_t *dev, int disp, int blank)
     bool ret;
 
     if (!hwc) {
-        log.e("hwc_blank: invalid HWC device");
+        LOGE("hwc_blank: invalid HWC device");
         return -EINVAL;
     }
 
     ret = hwc->blank(disp, blank);
     if (ret == false) {
-        log.e("hwc_blank: failed to blank disp %d, blank %d", disp, blank);
+        LOGE("hwc_blank: failed to blank disp %d, blank %d", disp, blank);
         return -EINVAL;
     }
 
@@ -188,13 +191,13 @@ static int hwc_getDisplayConfigs(hwc_composer_device_1_t *dev,
     bool ret;
 
     if (!hwc) {
-        log.e("hwc_getDisplayConfigs: invalid HWC device");
+        LOGE("hwc_getDisplayConfigs: invalid HWC device");
         return -EINVAL;
     }
 
     ret = hwc->getDisplayConfigs(disp, configs, numConfigs);
     if (ret == false) {
-        log.e("hwc_getDisplayConfigs: failed to get configs of disp %d", disp);
+        LOGE("hwc_getDisplayConfigs: failed to get configs of disp %d", disp);
         return -EINVAL;
     }
 
@@ -211,13 +214,13 @@ static int hwc_getDisplayAttributes(hwc_composer_device_1_t *dev,
     bool ret;
 
     if (!hwc) {
-        log.e("hwc_getDisplayAttributes: invalid HWC device");
+        LOGE("hwc_getDisplayAttributes: invalid HWC device");
         return -EINVAL;
     }
 
     ret = hwc->getDisplayAttributes(disp, config, attributes, values);
     if (ret == false) {
-        log.e("hwc_getDisplayAttributes: failed to get attributes of disp %d",
+        LOGE("hwc_getDisplayAttributes: failed to get attributes of disp %d",
               disp);
         return -EINVAL;
     }
@@ -231,13 +234,13 @@ static int hwc_compositionComplete(hwc_composer_device_1_t *dev, int disp)
     bool ret;
 
     if (!hwc) {
-        log.e("hwc_compositionComplete: invalid HWC device");
+        LOGE("hwc_compositionComplete: invalid HWC device");
         return -EINVAL;
     }
 
     ret = hwc->compositionComplete(disp);
     if (ret == false) {
-        log.e("hwc_compositionComplete: faild for disp %d", disp);
+        LOGE("hwc_compositionComplete: faild for disp %d", disp);
         return -EINVAL;
     }
 
@@ -252,13 +255,13 @@ static int hwc_device_open(const struct hw_module_t* module,
 {
     int status = -EINVAL;
 
-    log.d("hwc_device_open: open device %s", name);
+    LOGD("hwc_device_open: open device %s", name);
 
     if (!strcmp(name, HWC_HARDWARE_COMPOSER)) {
         Hwcomposer& hwc = Hwcomposer::getInstance();
         /* initialize our state here */
         if (hwc.initialize() == false) {
-            log.e("hwc_device_open: failed to intialize HWCompower\n");
+            LOGE("hwc_device_open: failed to intialize HWCompower\n");
             status = -EINVAL;
             goto hwc_init_out;
         }

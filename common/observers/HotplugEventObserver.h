@@ -29,7 +29,7 @@
 #define HOTPLUGEVENTOBSERVER_H_
 
 #include <utils/threads.h>
-#include <HotplugControl.h>
+#include <IHotplugControl.h>
 
 namespace android {
 namespace intel {
@@ -39,7 +39,7 @@ class DisplayDevice;
 class HotplugEventObserver : public Thread
 {
 public:
-    HotplugEventObserver(DisplayDevice& disp, HotplugControl& hotplug);
+    HotplugEventObserver(DisplayDevice& disp, IHotplugControl& hotplug);
     virtual ~HotplugEventObserver();
 private:
     virtual bool threadLoop();
@@ -47,7 +47,7 @@ private:
     virtual void onFirstRef();
 private:
     DisplayDevice& mDisplayDevice;
-    HotplugControl& mHotplug;
+    IHotplugControl& mHotplug;
 }; // HotplugEventObserver
 }
 }

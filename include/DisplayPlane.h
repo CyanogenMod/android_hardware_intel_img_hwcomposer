@@ -28,12 +28,14 @@
 #ifndef DISPLAYPLANE_H_
 #define DISPLAYPLANE_H_
 
-#include <BufferCache.h>
+#include <utils/KeyedVector.h>
+#include <BufferMapper.h>
 
 namespace android {
 namespace intel {
 
 typedef struct {
+    // align with android, using 'int' here
     int x;
     int y;
     int w;
@@ -76,6 +78,8 @@ public:
         PLANE_PRIMARY,
         PLANE_MAX,
     };
+    // align with android's back buffer count
+    static const uint32_t defaultDataBufferCount = 3;
 public:
     DisplayPlane(int index, int type, int disp);
     virtual ~DisplayPlane();
@@ -96,12 +100,6 @@ public:
     // display device
     virtual bool assignToDevice(int disp);
 
-    // check
-    virtual bool isValidBuffer(uint32_t handle) = 0;
-    virtual bool isValidTransform(uint32_t trans) = 0;
-    virtual bool isValidBlending(uint32_t blending) = 0;
-    virtual bool isValidScaling(hwc_rect_t& src, hwc_rect_t& dest) = 0;
-
     // hardware operations
     virtual bool reset() = 0;
     virtual bool flip() = 0;
@@ -113,7 +111,9 @@ public:
 
     virtual void* getContext() const = 0;
 
-    virtual bool initialize();
+    virtual bool initialize(uint32_t bufferCount);
+protected:
+    virtual void deinitialize();
 protected:
     virtual bool setDataBuffer(BufferMapper& mapper) = 0;
 protected:
@@ -121,7 +121,7 @@ protected:
     int mType;
     int mDevice;
     bool mInitialized;
-    BufferCache *mGrallocBufferCache;
+    KeyedVector<uint64_t, BufferMapper*> mDataBuffers;
     PlanePosition mPosition;
     crop_t mSrcCrop;
     int mTransform;

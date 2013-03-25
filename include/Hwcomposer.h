@@ -32,7 +32,6 @@
 #include <hardware/hwcomposer.h>
 #include <utils/Vector.h>
 
-#include <Log.h>
 #include <DisplayDevice.h>
 #include <BufferManager.h>
 #include <Drm.h>
@@ -41,6 +40,8 @@ namespace android {
 namespace intel {
 
 class Hwcomposer : public hwc_composer_device_1_t {
+public:
+    virtual ~Hwcomposer();
 public:
     // callbacks implementation
     virtual bool prepare(size_t numDisplays,
@@ -68,13 +69,16 @@ public:
 
     virtual bool initCheck() const;
     virtual bool initialize();
+protected:
+    virtual void deinitialize();
 
-    Drm& getDrm();
-    DisplayPlaneManager& getPlaneManager();
-    BufferManager& getBufferManager();
+public:
+    Drm* getDrm();
+    DisplayPlaneManager* getPlaneManager();
+    BufferManager* getBufferManager();
+
 protected:
     Hwcomposer();
-    virtual ~Hwcomposer();
 
 public:
     static Hwcomposer& getInstance() {

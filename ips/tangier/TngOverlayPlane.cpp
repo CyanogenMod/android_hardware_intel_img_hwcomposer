@@ -25,45 +25,37 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
+#include <cutils/log.h>
 #include <math.h>
 
-#include <Log.h>
 #include <Drm.h>
 #include <Hwcomposer.h>
 
 #include <tangier/TngOverlayPlane.h>
 #include <tangier/TngGrallocBuffer.h>
-#include <penwell/PnwPlaneCapabilities.h>
-
 
 namespace android {
 namespace intel {
 
-static Log& log = Log::getInstance();
 TngOverlayPlane::TngOverlayPlane(int index, int disp)
-    : PnwOverlayPlaneBase(index, disp)
+    : OverlayPlaneBase(index, disp)
 {
-    log.v("TngOverlayPlane");
+    LOGV("TngOverlayPlane");
 
     memset(&mContext, 0, sizeof(mContext));
 }
 
 TngOverlayPlane::~TngOverlayPlane()
 {
-    log.v("~TngOverlayPlane");
-}
-
-bool TngOverlayPlane::initialize()
-{
-    return PnwOverlayPlaneBase::initialize();
+    LOGV("~TngOverlayPlane");
 }
 
 bool TngOverlayPlane::flip()
 {
-    log.v("TngOverlayPlane:flip");
+    LOGV("TngOverlayPlane:flip");
 
     if (!initCheck()) {
-        log.e("TngOverlayPlane::setDataBuffer: overlay wasn't initialized");
+        LOGE("TngOverlayPlane::setDataBuffer: overlay wasn't initialized");
         return false;
     }
 
@@ -71,10 +63,10 @@ bool TngOverlayPlane::flip()
     mContext.ctx.ov_ctx.ovadd = 0x0;
     mContext.ctx.ov_ctx.ovadd = (mBackBuffer->gttOffsetInPage << 12);
     mContext.ctx.ov_ctx.index = mIndex;
-    mContext.ctx.ov_ctx.pipe = mPipe;
+    mContext.ctx.ov_ctx.pipe = mPipeConfig;
     mContext.ctx.ov_ctx.ovadd |= 0x1;
 
-    log.v("TngOverlayPlane::flip: ovadd = 0x%x, index = %d, pipe = %d",
+    LOGV("TngOverlayPlane::flip: ovadd = 0x%x, index = %d, pipe = %d",
           mContext.ctx.ov_ctx.ovadd,
           mIndex,
           mPipe);
@@ -84,7 +76,7 @@ bool TngOverlayPlane::flip()
 
 void* TngOverlayPlane::getContext() const
 {
-    log.v("TngOverlayPlane::getContext");
+    LOGV("TngOverlayPlane::getContext");
     return (void *)&mContext;
 }
 
