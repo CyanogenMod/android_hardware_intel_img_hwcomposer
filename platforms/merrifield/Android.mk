@@ -73,8 +73,8 @@ LOCAL_C_INCLUDES := $(addprefix $(LOCAL_PATH)/../../../, $(SGX_INCLUDES)) \
     hardware/libhardware_legacy/include/hardware_legacy \
     $(KERNEL_SRC_DIR)/drivers/staging/mrfl/drv \
     $(KERNEL_SRC_DIR)/drivers/staging/mrfl/interface \
-    hardware/intel/PRIVATE/rgx/rogue/android/graphicshal \
-    hardware/intel/PRIVATE/rgx/rogue/include/ \
+    vendor/intel/hardware/PRIVATE/rgx/rogue/android/graphicshal \
+    vendor/intel/hardware/PRIVATE/rgx/rogue/include/ \
     $(TARGET_OUT_HEADERS)/drm \
     $(TARGET_OUT_HEADERS)/libdrm \
     $(TARGET_OUT_HEADERS)/libdrm/shared-core \
