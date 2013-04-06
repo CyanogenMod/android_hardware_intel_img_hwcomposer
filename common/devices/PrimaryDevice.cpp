@@ -27,46 +27,23 @@
  */
 #include <cutils/log.h>
 
-#include <HotplugEventObserver.h>
-#include <ExternalDevice.h>
+#include <Drm.h>
+#include <Hwcomposer.h>
+#include <PrimaryDevice.h>
 
 namespace android {
 namespace intel {
 
-HotplugEventObserver::HotplugEventObserver(ExternalDevice& disp,
-                                              IHotplugControl& hotplug)
-    : mDisplayDevice(disp),
-      mHotplug(hotplug)
+PrimaryDevice::PrimaryDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
+    : PhysicalDevice(DEVICE_PRIMARY, hwc, dpm)
 {
-    LOGD("HotplugEventObserver");
+    LOGV("Entering %s", __func__);
 }
 
-HotplugEventObserver::~HotplugEventObserver()
+PrimaryDevice::~PrimaryDevice()
 {
-    LOGD("~HotplugEventObserver");
-}
-
-bool HotplugEventObserver::threadLoop()
-{
-    int event;
-
-    // wait for hotplug event
-    if (mHotplug.wait(mDisplayDevice.getType(), event))
-        mDisplayDevice.onHotplug();
-
-    return true;
-}
-
-status_t HotplugEventObserver::readyToRun()
-{
-    LOGD("HotplugEventObserver::readyToRun");
-    return NO_ERROR;
-}
-
-void HotplugEventObserver::onFirstRef()
-{
-    LOGD("HotplugEventObserver::onFirstRef");
-    run("HotplugEventObserver", PRIORITY_URGENT_DISPLAY);
+    LOGV("Entering %s", __func__);
+    deinitialize();
 }
 
 } // namespace intel

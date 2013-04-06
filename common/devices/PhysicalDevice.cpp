@@ -29,27 +29,25 @@
 
 #include <Drm.h>
 #include <Hwcomposer.h>
-#include <DisplayDevice.h>
+#include <PhysicalDevice.h>
 
 namespace android {
 namespace intel {
 
-DisplayDevice::DisplayDevice(uint32_t type, Hwcomposer& hwc, DisplayPlaneManager& dpm)
+PhysicalDevice::PhysicalDevice(uint32_t type, Hwcomposer& hwc, DisplayPlaneManager& dpm)
     : mType(type),
       mHwc(hwc),
       mDisplayPlaneManager(dpm),
       mActiveDisplayConfig(-1),
       mVsyncControl(0),
       mBlankControl(0),
-      mHotplugControl(0),
-      mHotplugObserver(0),
       mVsyncObserver(0),
       mLayerList(0),
       mPrimaryPlane(0),
       mConnection(DEVICE_DISCONNECTED),
       mInitialized(false)
 {
-    LOGV("DisplayDevice()");
+    LOGV("PhysicalDevice()");
 
     switch (type) {
     case DEVICE_PRIMARY:
@@ -58,9 +56,6 @@ DisplayDevice::DisplayDevice(uint32_t type, Hwcomposer& hwc, DisplayPlaneManager
     case DEVICE_EXTERNAL:
         mName = "External";
         break;
-    case DEVICE_VIRTUAL:
-        mName = "Virtual";
-        break;
     default:
         mName = "Unknown";
     }
@@ -68,20 +63,19 @@ DisplayDevice::DisplayDevice(uint32_t type, Hwcomposer& hwc, DisplayPlaneManager
     mDisplayConfigs.setCapacity(DEVICE_COUNT);
 }
 
-DisplayDevice::~DisplayDevice()
+PhysicalDevice::~PhysicalDevice()
 {
-    LOGV("~DisplayDevice()");
+    LOGV("~PhysicalDevice()");
     deinitialize();
 }
 
-void DisplayDevice::onGeometryChanged(hwc_display_contents_1_t *list)
+void PhysicalDevice::onGeometryChanged(hwc_display_contents_1_t *list)
 {
-    LOGD("DisplayDevice::onGeometryChanged, disp %d, %d",
-         mType, list->numHwLayers);
+    LOGV("%s: disp %d,layer number %d", __func__, mType, list->numHwLayers);
 
     // NOTE: should NOT be here
     if (mLayerList) {
-        LOGW("DisplayDevice::onGeometryChanged: mLayerList exists");
+        LOGW("PhysicalDevice::onGeometryChanged: mLayerList exists");
         delete mLayerList;
     }
 
@@ -94,23 +88,23 @@ void DisplayDevice::onGeometryChanged(hwc_display_contents_1_t *list)
         LOGW("onGeometryChanged: failed to create layer list");
 }
 
-void DisplayDevice::prePrepare(hwc_display_contents_1_t *display)
+bool PhysicalDevice::prePrepare(hwc_display_contents_1_t *display)
 {
-    LOGV("DisplayDevice::prepare");
+    LOGV("PhysicalDevice::prepare");
 
     if (!initCheck())
-        return;
+        return false;
 
     Mutex::Autolock _l(mLock);
 
     if (mConnection != DEVICE_CONNECTED)
-        return;
+        return false;
 
     // for a null list, delete hwc list
     if (!display) {
         delete mLayerList;
         mLayerList = 0;
-        return;
+        return true;
     }
 
     // check if geometry is changed, if changed delete list
@@ -118,12 +112,13 @@ void DisplayDevice::prePrepare(hwc_display_contents_1_t *display)
         delete mLayerList;
         mLayerList = 0;
     }
+    return true;
 }
 
-bool DisplayDevice::prepare(hwc_display_contents_1_t *display)
+bool PhysicalDevice::prepare(hwc_display_contents_1_t *display)
 {
 
-    LOGV("DisplayDevice::prepare");
+    LOGV("PhysicalDevice::prepare");
 
     if (!initCheck())
         return false;
@@ -149,7 +144,7 @@ bool DisplayDevice::prepare(hwc_display_contents_1_t *display)
     return mLayerList->update(display);
 }
 
-bool DisplayDevice::vsyncControl(int enabled)
+bool PhysicalDevice::vsyncControl(int enabled)
 {
     bool ret;
 
@@ -160,11 +155,11 @@ bool DisplayDevice::vsyncControl(int enabled)
 
     //Mutex::Autolock _l(mLock);
 
-    LOGV("DisplayDevice::vsyncControl: disp %d, enabled %d", mType, enabled);
+    LOGV("PhysicalDevice::vsyncControl: disp %d, enabled %d", mType, enabled);
 
     ret = mVsyncControl->control(mType, enabled);
     if (ret == false) {
-        LOGE("DisplayDevice::vsyncControl: failed set vsync");
+        LOGE("PhysicalDevice::vsyncControl: failed set vsync");
         return false;
     }
 
@@ -172,7 +167,7 @@ bool DisplayDevice::vsyncControl(int enabled)
     return true;
 }
 
-bool DisplayDevice::blank(int blank)
+bool PhysicalDevice::blank(int blank)
 {
     bool ret;
 
@@ -188,14 +183,14 @@ bool DisplayDevice::blank(int blank)
 
     ret = mBlankControl->blank(mType, blank);
     if (ret == false) {
-        LOGE("DisplayDevice::blank: failed to blank device");
+        LOGE("PhysicalDevice::blank: failed to blank device");
         return false;
     }
 
     return true;
 }
 
-bool DisplayDevice::getDisplayConfigs(uint32_t *configs,
+bool PhysicalDevice::getDisplayConfigs(uint32_t *configs,
                                          size_t *numConfigs)
 {
     LOGV("getDisplayConfigs");
@@ -219,7 +214,7 @@ bool DisplayDevice::getDisplayConfigs(uint32_t *configs,
     return true;
 }
 
-bool DisplayDevice::getDisplayAttributes(uint32_t configs,
+bool PhysicalDevice::getDisplayAttributes(uint32_t configs,
                                             const uint32_t *attributes,
                                             int32_t *values)
 {
@@ -272,14 +267,14 @@ bool DisplayDevice::getDisplayAttributes(uint32_t configs,
     return true;
 }
 
-bool DisplayDevice::compositionComplete()
+bool PhysicalDevice::compositionComplete()
 {
     LOGV("compositionComplete");
     // do nothing by default
     return true;
 }
 
-void DisplayDevice::removeDisplayConfigs()
+void PhysicalDevice::removeDisplayConfigs()
 {
     for (size_t i = 0; i < mDisplayConfigs.size(); i++) {
         DisplayConfig *config = mDisplayConfigs.itemAt(i);
@@ -290,7 +285,7 @@ void DisplayDevice::removeDisplayConfigs()
     mActiveDisplayConfig = -1;
 }
 
-bool DisplayDevice::updateDisplayConfigs(struct Output *output)
+bool PhysicalDevice::updateDisplayConfigs(struct Output *output)
 {
     drmModeConnectorPtr drmConnector;
     drmModeCrtcPtr drmCrtc;
@@ -308,7 +303,7 @@ bool DisplayDevice::updateDisplayConfigs(struct Output *output)
 
     drmConnector = output->connector;
     if (!drmConnector) {
-        LOGE("DisplayDevice::updateDisplayConfigs:Output has no connector");
+        LOGE("PhysicalDevice::updateDisplayConfigs:Output has no connector");
         return false;
     }
 
@@ -419,7 +414,7 @@ use_preferred_mode:
     return true;
 }
 
-bool DisplayDevice::detectDisplayConfigs()
+bool PhysicalDevice::detectDisplayConfigs()
 {
     int outputIndex = -1;
     struct Output *output;
@@ -441,8 +436,6 @@ bool DisplayDevice::detectDisplayConfigs()
     case DEVICE_EXTERNAL:
         outputIndex = Drm::OUTPUT_EXTERNAL;
         break;
-    case DEVICE_VIRTUAL:
-        return true;
     default:
         LOGE("detectDisplayConfigs: invalid display device");
         return false;
@@ -471,11 +464,11 @@ bool DisplayDevice::detectDisplayConfigs()
     return updateDisplayConfigs(output);
 }
 
-bool DisplayDevice::initialize()
+bool PhysicalDevice::initialize()
 {
     bool ret;
 
-    LOGV("DisplayDevice::initialize");
+    LOGV("PhysicalDevice::initialize");
 
     // detect display configs
     ret = detectDisplayConfigs();
@@ -505,22 +498,6 @@ bool DisplayDevice::initialize()
         goto init_err;
     }
 
-    // create hotplug control/observer for external display
-    if (mType == DEVICE_EXTERNAL) {
-        mHotplugControl = createHotplugControl();
-        if (!mHotplugControl) {
-            LOGE("initialize(): failed to create hotplug control");
-            goto init_err;
-        }
-
-        // create hotplug observer
-        mHotplugObserver = new HotplugEventObserver(*this, *mHotplugControl);
-        if (!mHotplugObserver.get()) {
-            LOGE("initialize(): failed to create hotplug observer");
-            goto init_err;
-        }
-    }
-
     // create vsync event observer
     mVsyncObserver = new VsyncEventObserver(*this, *mVsyncControl);
     if (!mVsyncObserver.get()) {
@@ -535,24 +512,12 @@ init_err:
     return false;
 }
 
-void DisplayDevice::deinitialize()
+void PhysicalDevice::deinitialize()
 {
     // destroy vsync event observer
     if (mVsyncObserver.get()) {
         mVsyncObserver->requestExit();
         mVsyncObserver = 0;
-    }
-
-    // destroy hotplug event observer
-    if (mHotplugObserver.get()) {
-        mHotplugObserver->requestExit();
-        mHotplugObserver = 0;
-    }
-
-    // destroy hotplug control
-    if (mHotplugControl) {
-        delete mHotplugControl;
-        mHotplugControl = 0;
     }
 
     // destroy blank control
@@ -573,7 +538,7 @@ void DisplayDevice::deinitialize()
     mInitialized = false;
 }
 
-bool DisplayDevice::isConnected() const
+bool PhysicalDevice::isConnected() const
 {
     if (!initCheck())
         return false;
@@ -581,44 +546,19 @@ bool DisplayDevice::isConnected() const
     return (mConnection == DEVICE_CONNECTED) ? true : false;
 }
 
-const char* DisplayDevice::getName() const
+const char* PhysicalDevice::getName() const
 {
     return mName;
 }
 
-int DisplayDevice::getType() const
+int PhysicalDevice::getType() const
 {
     return mType;
 }
 
-void DisplayDevice::onHotplug()
+void PhysicalDevice::onVsync(int64_t timestamp)
 {
-    bool ret;
-
-    LOGD("DisplayDevice::onHotplug");
-
-    // detect display configs
-    ret = detectDisplayConfigs();
-    if (ret == false) {
-        LOGD("DisplayDevice::onHotplug: failed to detect display config");
-        return;
-    }
-
-    {   // lock scope
-        Mutex::Autolock _l(mLock);
-        // delete device layer list
-        if (!mConnection && mLayerList){
-            delete mLayerList;
-            mLayerList = 0;
-        }
-    }
-    // notify hwcomposer
-    mHwc.hotplug(mType, mConnection);
-}
-
-void DisplayDevice::onVsync(int64_t timestamp)
-{
-    LOGV("DisplayDevice::timestamp");
+    LOGV("PhysicalDevice::timestamp");
 
     if (!initCheck())
         return;
@@ -632,7 +572,7 @@ void DisplayDevice::onVsync(int64_t timestamp)
     mHwc.vsync(mType, timestamp);
 }
 
-void DisplayDevice::dump(Dump& d)
+void PhysicalDevice::dump(Dump& d)
 {
     d.append("-------------------------------------------------------------\n");
     d.append("Device Name: %s (%s)\n", mName,

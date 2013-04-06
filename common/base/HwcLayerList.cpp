@@ -31,7 +31,7 @@
 #include <Hwcomposer.h>
 #include <HwcConfig.h>
 #include <HwcLayerList.h>
-#include <DisplayDevice.h>
+#include <IDisplayDevice.h>
 #include <PlaneCapabilities.h>
 
 namespace android {

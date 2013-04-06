@@ -27,47 +27,36 @@
  */
 #include <cutils/log.h>
 
-#include <HotplugEventObserver.h>
-#include <ExternalDevice.h>
+#include <Hwcomposer.h>
+#include <DisplayPlaneManager.h>
+#include <PlatfVirtualDevice.h>
+#include <HwcUtils.h>
 
 namespace android {
 namespace intel {
 
-HotplugEventObserver::HotplugEventObserver(ExternalDevice& disp,
-                                              IHotplugControl& hotplug)
-    : mDisplayDevice(disp),
-      mHotplug(hotplug)
+PlatfVirtualDevice::PlatfVirtualDevice(Hwcomposer& hwc,
+                                       DisplayPlaneManager& dpm)
+    : VirtualDevice(hwc, dpm)
 {
-    LOGD("HotplugEventObserver");
+    LOGV("Entering %s", __func__);
 }
 
-HotplugEventObserver::~HotplugEventObserver()
+PlatfVirtualDevice::~PlatfVirtualDevice()
 {
-    LOGD("~HotplugEventObserver");
+    LOGV("Entering %s", __func__);
 }
 
-bool HotplugEventObserver::threadLoop()
+bool PlatfVirtualDevice::commit(hwc_display_contents_1_t *display,
+                             void *contexts,
+                             int& count)
 {
-    int event;
-
-    // wait for hotplug event
-    if (mHotplug.wait(mDisplayDevice.getType(), event))
-        mDisplayDevice.onHotplug();
-
+    LOGV("Entering %s", __func__);
+    INIT_CHECK();
     return true;
-}
-
-status_t HotplugEventObserver::readyToRun()
-{
-    LOGD("HotplugEventObserver::readyToRun");
-    return NO_ERROR;
-}
-
-void HotplugEventObserver::onFirstRef()
-{
-    LOGD("HotplugEventObserver::onFirstRef");
-    run("HotplugEventObserver", PRIORITY_URGENT_DISPLAY);
 }
 
 } // namespace intel
 } // namespace android
+
+

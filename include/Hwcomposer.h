@@ -25,16 +25,17 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef __INTEL_HWCOMPOSER_CPP__
-#define __INTEL_HWCOMPOSER_CPP__
+#ifndef HWCOMPOSER_H
+#define HWCOMPOSER_H
 
 #include <EGL/egl.h>
 #include <hardware/hwcomposer.h>
 #include <utils/Vector.h>
 
-#include <DisplayDevice.h>
+#include <IDisplayDevice.h>
 #include <BufferManager.h>
 #include <Drm.h>
+#include <DisplayPlaneManager.h>
 
 namespace android {
 namespace intel {
@@ -96,7 +97,7 @@ public:
 protected:
     virtual DisplayPlaneManager* createDisplayPlaneManager() = 0;
     virtual BufferManager* createBufferManager() = 0;
-    virtual DisplayDevice* createDisplayDevice(int disp,
+    virtual IDisplayDevice* createDisplayDevice(int disp,
                                                  DisplayPlaneManager& dpm) = 0;
     virtual void* getContexts() = 0;
     virtual bool commitContexts(void *context, int count) = 0;
@@ -105,7 +106,7 @@ protected:
     Drm *mDrm;
     DisplayPlaneManager *mPlaneManager;
     BufferManager *mBufferManager;
-    Vector<DisplayDevice*> mDisplayDevices;
+    Vector<IDisplayDevice*> mDisplayDevices;
     Mutex mLock;
     bool mInitialized;
 private:
@@ -115,4 +116,4 @@ private:
 } // namespace intel
 }
 
-#endif /*__INTEL_HWCOMPOSER_CPP__*/
+#endif /*HWCOMPOSER_H*/

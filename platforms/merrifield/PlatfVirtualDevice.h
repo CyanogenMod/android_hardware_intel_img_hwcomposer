@@ -25,49 +25,26 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
+#ifndef PLATF_VIRTUAL_DEVICE_H
+#define PLATF_VIRTUAL_DEVICE_H
 
-#include <HotplugEventObserver.h>
-#include <ExternalDevice.h>
+#include <hal_public.h>
+#include <VirtualDevice.h>
 
 namespace android {
 namespace intel {
 
-HotplugEventObserver::HotplugEventObserver(ExternalDevice& disp,
-                                              IHotplugControl& hotplug)
-    : mDisplayDevice(disp),
-      mHotplug(hotplug)
-{
-    LOGD("HotplugEventObserver");
+class PlatfVirtualDevice : public VirtualDevice {
+public:
+    PlatfVirtualDevice(Hwcomposer& hwc,
+                        DisplayPlaneManager& dpm);
+    ~PlatfVirtualDevice();
+public:
+    bool commit(hwc_display_contents_1_t *display,
+                 void *contexts,
+                 int& count);
+};
+
 }
-
-HotplugEventObserver::~HotplugEventObserver()
-{
-    LOGD("~HotplugEventObserver");
 }
-
-bool HotplugEventObserver::threadLoop()
-{
-    int event;
-
-    // wait for hotplug event
-    if (mHotplug.wait(mDisplayDevice.getType(), event))
-        mDisplayDevice.onHotplug();
-
-    return true;
-}
-
-status_t HotplugEventObserver::readyToRun()
-{
-    LOGD("HotplugEventObserver::readyToRun");
-    return NO_ERROR;
-}
-
-void HotplugEventObserver::onFirstRef()
-{
-    LOGD("HotplugEventObserver::onFirstRef");
-    run("HotplugEventObserver", PRIORITY_URGENT_DISPLAY);
-}
-
-} // namespace intel
-} // namespace android
+#endif /* PLATF_VIRTUAL_DEVICE_H */

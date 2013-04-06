@@ -25,15 +25,10 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef DISPLAYDEVICE_H_
-#define DISPLAYDEVICE_H_
+#ifndef IDISPLAY_DEVICE_H
+#define IDISPLAY_DEVICE_H
 
-#include <DisplayPlane.h>
-#include <IVsyncControl.h>
-#include <IBlankControl.h>
-#include <VsyncEventObserver.h>
-#include <HotplugEventObserver.h>
-#include <HwcLayerList.h>
+#include <Dump.h>
 
 namespace android {
 namespace intel {
@@ -62,10 +57,9 @@ private:
     int mDpiY;
 };
 
-class Hwcomposer;
 
-// generic display device
-class DisplayDevice {
+//  display device interface
+class IDisplayDevice {
 public:
     // display device type
     enum {
@@ -79,84 +73,36 @@ public:
         DEVICE_CONNECTED,
     };
 public:
-    DisplayDevice(uint32_t type, Hwcomposer& hwc, DisplayPlaneManager& dpm);
-    virtual ~DisplayDevice();
+    IDisplayDevice() {}
+    virtual ~IDisplayDevice() {}
 public:
-    virtual void prePrepare(hwc_display_contents_1_t *display);
-    virtual bool prepare(hwc_display_contents_1_t *display);
+    virtual bool prePrepare(hwc_display_contents_1_t *display) = 0;
+    virtual bool prepare(hwc_display_contents_1_t *display) = 0;
     virtual bool commit(hwc_display_contents_1_t *display,
                           void* context,
                           int& count) = 0;
 
-    virtual bool vsyncControl(int enabled);
-    virtual bool blank(int blank);
+    virtual bool vsyncControl(int enabled) = 0;
+    virtual bool blank(int blank) = 0;
     virtual bool getDisplayConfigs(uint32_t *configs,
-                                       size_t *numConfigs);
+                                       size_t *numConfigs) = 0;
     virtual bool getDisplayAttributes(uint32_t config,
                                           const uint32_t *attributes,
-                                          int32_t *values);
-    virtual bool compositionComplete();
+                                          int32_t *values) = 0;
+    virtual bool compositionComplete() = 0;
 
-    // display config operations
-    virtual void removeDisplayConfigs();
-    virtual bool detectDisplayConfigs();
+    virtual bool initialize() = 0;
+    virtual bool isConnected() const = 0;
+    virtual const char* getName() const = 0;
+    virtual int getType() const = 0;
 
-    // device related operations
-    virtual bool initCheck() const { return mInitialized; }
-    virtual bool initialize();
-    virtual bool isConnected() const;
-    virtual const char* getName() const;
-    virtual int getType() const;
+    virtual void dump(Dump& d) = 0;
 
-    //events
-    virtual void onHotplug();
-    virtual void onVsync(int64_t timestamp);
-
-    virtual void dump(Dump& d);
 protected:
-    virtual void deinitialize();
-protected:
-    void onGeometryChanged(hwc_display_contents_1_t *list);
-    bool updateDisplayConfigs(struct Output *output);
-protected:
-    virtual IVsyncControl* createVsyncControl() = 0;
-    virtual IBlankControl* createBlankControl() = 0;
-    virtual IHotplugControl* createHotplugControl() = 0;
-protected:
-    uint32_t mType;
-    const char *mName;
-
-    Hwcomposer& mHwc;
-    DisplayPlaneManager& mDisplayPlaneManager;
-
-    // display configs
-    Vector<DisplayConfig*> mDisplayConfigs;
-    int mActiveDisplayConfig;
-
-    // vsync control
-    IVsyncControl *mVsyncControl;
-    // blank control
-    IBlankControl *mBlankControl;
-    // hotplug control
-    IHotplugControl *mHotplugControl;
-
-    // hotplug event observer
-    sp<HotplugEventObserver> mHotplugObserver;
-    // vsync event observer
-    sp<VsyncEventObserver> mVsyncObserver;
-
-    // layer list
-    HwcLayerList *mLayerList;
-    DisplayPlane *mPrimaryPlane;
-    bool mConnection;
-
-    // lock
-    Mutex mLock;
-
-    bool mInitialized;
+    virtual void deinitialize() = 0;
 };
 
 }
 }
 
-#endif /* DISPLAYDEVICE_H_ */
+#endif /* IDISPLAY_DEVICE_H */

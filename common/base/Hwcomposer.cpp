@@ -45,7 +45,7 @@ Hwcomposer::Hwcomposer()
 {
     LOGD("Hwcomposer");
 
-    mDisplayDevices.setCapacity(DisplayDevice::DEVICE_COUNT);
+    mDisplayDevices.setCapacity(IDisplayDevice::DEVICE_COUNT);
 }
 
 Hwcomposer::~Hwcomposer()
@@ -82,7 +82,7 @@ bool Hwcomposer::prepare(size_t numDisplays,
 
     // reclaim all allocated planes if possible
     for (size_t i = 0; i < numDisplays; i++) {
-        DisplayDevice *device = mDisplayDevices.itemAt(i);
+        IDisplayDevice *device = mDisplayDevices.itemAt(i);
         if (!device) {
             LOGV("prepare: device %d doesn't exist", i);
             continue;
@@ -97,7 +97,7 @@ bool Hwcomposer::prepare(size_t numDisplays,
     }
 
     for (size_t i = 0; i < numDisplays; i++) {
-        DisplayDevice *device = mDisplayDevices.itemAt(i);
+        IDisplayDevice *device = mDisplayDevices.itemAt(i);
         if (!device) {
             LOGV("prepare: device %d doesn't exist", i);
             continue;
@@ -143,7 +143,7 @@ bool Hwcomposer::commit(size_t numDisplays,
     }
 
     for (size_t i = 0; i < numDisplays; i++) {
-        DisplayDevice *device = mDisplayDevices.itemAt(i);
+        IDisplayDevice *device = mDisplayDevices.itemAt(i);
         if (!device) {
             LOGV("commit: device %d doesn't exist", i);
             continue;
@@ -178,12 +178,12 @@ bool Hwcomposer::vsyncControl(int disp, int enabled)
     if (!initCheck())
         return false;
 
-    if (disp < 0 || disp >= DisplayDevice::DEVICE_COUNT) {
+    if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
         LOGE("vsyncControl: invalid disp %d", disp);
         return false;
     }
 
-    DisplayDevice *device = mDisplayDevices.itemAt(disp);
+    IDisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
         LOGE("vsyncControl: no device found");
         return false;
@@ -199,12 +199,12 @@ bool Hwcomposer::blank(int disp, int blank)
     if (!initCheck())
         return false;
 
-    if (disp < 0 || disp >= DisplayDevice::DEVICE_COUNT) {
+    if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
         LOGE("blank: invalid disp %d", disp);
         return false;
     }
 
-    DisplayDevice *device = mDisplayDevices.itemAt(disp);
+    IDisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
         LOGE("blank: no device found");
         return false;
@@ -222,12 +222,12 @@ bool Hwcomposer::getDisplayConfigs(int disp,
     if (!initCheck())
         return false;
 
-    if (disp < 0 || disp >= DisplayDevice::DEVICE_COUNT) {
+    if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
         LOGE("getDisplayConfigs: invalid disp %d", disp);
         return false;
     }
 
-    DisplayDevice *device = mDisplayDevices.itemAt(disp);
+    IDisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
         LOGE("getDisplayConfigs: no device %d found", disp);
         return false;
@@ -246,12 +246,12 @@ bool Hwcomposer::getDisplayAttributes(int disp,
     if (!initCheck())
         return false;
 
-    if (disp < 0 || disp >= DisplayDevice::DEVICE_COUNT) {
+    if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
         LOGE("getDisplayAttributes: invalid disp %d", disp);
         return false;
     }
 
-    DisplayDevice *device = mDisplayDevices.itemAt(disp);
+    IDisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
         LOGE("getDisplayAttributes: no device found");
         return false;
@@ -267,12 +267,12 @@ bool Hwcomposer::compositionComplete(int disp)
     if (!initCheck())
         return false;
 
-    if (disp < 0 || disp >= DisplayDevice::DEVICE_COUNT) {
+    if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
         LOGE("compositionComplete: invalid disp %d", disp);
         return false;
     }
 
-    DisplayDevice *device = mDisplayDevices.itemAt(disp);
+    IDisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
         LOGE("compositionComplete: no device found");
         return false;
@@ -330,7 +330,7 @@ bool Hwcomposer::dump(char *buff, int buff_len, int *cur_len)
     d.append("Intel Hardware Composer state:\n");
     // dump device status
     for (size_t i= 0; i < mDisplayDevices.size(); i++) {
-        DisplayDevice *device = mDisplayDevices.itemAt(i);
+        IDisplayDevice *device = mDisplayDevices.itemAt(i);
         if (device)
             device->dump(d);
     }
@@ -378,8 +378,8 @@ bool Hwcomposer::initialize()
     }
 
     // create display device
-    for (int i = 0; i < DisplayDevice::DEVICE_COUNT; i++) {
-        DisplayDevice *device = createDisplayDevice(i, *mPlaneManager);
+    for (int i = 0; i < IDisplayDevice::DEVICE_COUNT; i++) {
+        IDisplayDevice *device = createDisplayDevice(i, *mPlaneManager);
         if (!device || !device->initialize()) {
             LOGE("initialize: failed to create device %d", i);
             continue;
@@ -399,7 +399,7 @@ void Hwcomposer::deinitialize()
 {
     // destroy display devices
     for (size_t i = 0; i < mDisplayDevices.size(); i++) {
-        DisplayDevice *device = mDisplayDevices.itemAt(i);
+        IDisplayDevice *device = mDisplayDevices.itemAt(i);
         if (device)
             delete device;
     }
