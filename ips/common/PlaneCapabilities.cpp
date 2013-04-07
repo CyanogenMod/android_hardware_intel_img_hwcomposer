@@ -110,6 +110,8 @@ bool PlaneCapabilities::isScalingSupported(int planeType, hwc_rect_t& src, hwc_r
 
 bool PlaneCapabilities::isTransformSupported(int planeType, uint32_t trans)
 {
+    if (planeType == DisplayPlane::PLANE_OVERLAY)
+        return true;
     // don't transform any tranform
     return trans ? false : true;
 }

@@ -76,7 +76,8 @@ DisplayDevice::~DisplayDevice()
 
 void DisplayDevice::onGeometryChanged(hwc_display_contents_1_t *list)
 {
-    LOGV("DisplayDevice::onGeometryChanged, disp %d", mType);
+    LOGD("DisplayDevice::onGeometryChanged, disp %d, %d",
+         mType, list->numHwLayers);
 
     // NOTE: should NOT be here
     if (mLayerList) {
