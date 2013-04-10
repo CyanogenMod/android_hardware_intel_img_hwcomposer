@@ -38,8 +38,6 @@ namespace intel {
 
 // Gralloc Buffer Manager
 class BufferManager {
-// make the buffer pool large enough
-static const uint32_t defaultBufferPoolSize = 128;
 public:
     BufferManager();
     virtual ~BufferManager();
@@ -64,6 +62,10 @@ protected:
     virtual BufferMapper* createBufferMapper(gralloc_module_t *module,
                                                  DataBuffer& buffer) = 0;
 private:
+    enum {
+        // make the buffer pool large enough
+        DEFAULT_BUFFER_POOL_SIZE = 128,
+    };
     gralloc_module_t *mGrallocModule;
     BufferCache *mBufferPool;
     bool mInitialized;

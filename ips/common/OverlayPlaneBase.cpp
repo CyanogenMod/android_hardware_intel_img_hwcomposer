@@ -154,6 +154,7 @@ bool OverlayPlaneBase::assignToDevice(int disp)
         disable();
 
     mPipeConfig = pipeConfig;
+    mDevice = disp;
 
     return true;
 }
@@ -552,11 +553,11 @@ void OverlayPlaneBase::checkPosition(int& x, int& y, int& w, int& h)
     drmModeCrtcPtr drmCrtc;
     Drm *drm = Hwcomposer::getInstance().getDrm();
 
-    switch (mPipeConfig) {
-    case 0:
+    switch (mDevice) {
+    case IDisplayDevice::DEVICE_PRIMARY:
         outputIndex = Drm::OUTPUT_PRIMARY;
         break;
-    case (0x2 << 6) :
+    case IDisplayDevice::DEVICE_EXTERNAL:
         outputIndex = Drm::OUTPUT_EXTERNAL;
         break;
     }

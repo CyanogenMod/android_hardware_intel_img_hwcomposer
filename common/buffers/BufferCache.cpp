@@ -40,7 +40,7 @@ BufferCache::BufferCache(int size)
 
 BufferCache::~BufferCache()
 {
-
+    mBufferPool.clear();
 }
 
 bool BufferCache::addMapper(uint64_t handle, BufferMapper* mapper)

@@ -54,7 +54,7 @@ bool PixelFormat::convertFormat(uint32_t grallocFormat, uint32_t& spriteFormat, 
         bpp = 4;
         break;
     case HAL_PIXEL_FORMAT_RGB_565:
-        spriteFormat = PLANE_FORMAT_BGRX565;
+        spriteFormat = PLANE_PIXEL_FORMAT_BGRX565;
         bpp = 2;
         break;
     default:

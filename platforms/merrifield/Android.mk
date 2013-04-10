@@ -24,7 +24,6 @@ LOCAL_SHARED_LIBRARIES := liblog libcutils libdrm \
                           libwsbm libutils libhardware
 LOCAL_SRC_FILES := \
     ../../common/base/Drm.cpp \
-    ../../common/base/HwcConfig.cpp \
     ../../common/base/HwcLayerList.cpp \
     ../../common/base/Hwcomposer.cpp \
     ../../common/base/HwcModule.cpp \

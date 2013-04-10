@@ -77,10 +77,10 @@ public:
     virtual void dump(Dump& d);
 protected:
     virtual void deinitialize();
-protected:
+
     void onGeometryChanged(hwc_display_contents_1_t *list);
     bool updateDisplayConfigs(struct Output *output);
-protected:
+
     virtual IVsyncControl* createVsyncControl() = 0;
     virtual IBlankControl* createBlankControl() = 0;
 protected:
