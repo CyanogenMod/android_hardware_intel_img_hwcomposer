@@ -25,31 +25,40 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef PLATF_DISPLAY_DEVICE_H
-#define PLATF_DISPLAY_DEVICE_H
+#ifndef TNG_DISPLAY_CONTEXT_H
+#define TNG_DISPLAY_CONTEXT_H
 
+#include <IDisplayContext.h>
 #include <hal_public.h>
-#include <DisplayDevice.h>
 
 namespace android {
 namespace intel {
 
-class PlatfDisplayDevice : public DisplayDevice {
+class TngDisplayContext : public IDisplayContext {
 public:
-    PlatfDisplayDevice(uint32_t type,
-                        Hwcomposer& hwc,
-                        DisplayPlaneManager& dpm);
-    ~PlatfDisplayDevice();
+    TngDisplayContext();
+    ~TngDisplayContext();
 public:
-    bool commit(hwc_display_contents_1_t *display,
-                 void *contexts,
-                 int& count);
+    bool initialize();
+    bool commitBegin();
+    bool commitContents(hwc_display_contents_1_t *display, HwcLayerList* layerList);
+    bool commitEnd();
+    bool compositionComplete();
+
 protected:
-    IVsyncControl* createVsyncControl();
-    IBlankControl* createBlankControl();
-    IHotplugControl* createHotplugControl();
+    void deinitialize();
+
+private:
+    enum {
+        MAXIMUM_LAYER_NUMBER = 20,
+    };
+    IMG_framebuffer_device_public_t *mFBDev;
+    IMG_hwc_layer_t mImgLayers[MAXIMUM_LAYER_NUMBER];
+    bool mInitialized;
+    int mCount;
 };
 
-}
-}
-#endif /* PLATF_DISPLAY_DEVICE_H */
+} // namespace intel
+} // namespace android
+
+#endif /* TNG_DISPLAY_CONTEXT_H */

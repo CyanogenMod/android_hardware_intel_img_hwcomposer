@@ -48,69 +48,6 @@ PlatfExternalDevice::~PlatfExternalDevice()
     LOGV("Entering %s", __func__);
 }
 
-bool PlatfExternalDevice::commit(hwc_display_contents_1_t *display,
-                             void *contexts,
-                             int& count)
-{
-    bool ret;
-
-    LOGV("Entering %s", __func__);
-    INIT_CHECK();
-
-    if (!display || !contexts) {
-        LOGE("%s: invalid parameters", __func__);
-        return false;
-    }
-
-    Mutex::Autolock _l(mLock);
-
-    IMG_hwc_layer_t *imgLayerList = (IMG_hwc_layer_t*)contexts;
-
-    for (size_t i = 0; i < display->numHwLayers; i++) {
-        // check layer parameters
-        if (!display->hwLayers[i].handle)
-            continue;
-
-        DisplayPlane* plane = mLayerList->getPlane(i);
-        if (!plane)
-            continue;
-
-        ret = plane->flip();
-        if (ret == false) {
-            LOGW("%s: failed to flip plane %d", __func__, i);
-            continue;
-        }
-
-        IMG_hwc_layer_t *imgLayer = &imgLayerList[count++];
-        // update IMG layer
-        imgLayer->handle = display->hwLayers[i].handle;
-        imgLayer->transform = display->hwLayers[i].transform;
-        imgLayer->blending = display->hwLayers[i].blending;
-        imgLayer->sourceCrop = display->hwLayers[i].sourceCrop;
-        imgLayer->displayFrame = display->hwLayers[i].displayFrame;
-        imgLayer->custom = (uint32_t)plane->getContext();
-
-        LOGV("%s: type %d, count %d, handle 0x%x, trans 0x%x, blending 0x%x"
-              " sourceCrop %d,%d - %dx%d, dst %d,%d - %dx%d, custom 0x%x",
-              __func__,
-              mType,
-              count,
-              imgLayer->handle,
-              imgLayer->transform,
-              imgLayer->blending,
-              imgLayer->sourceCrop.left,
-              imgLayer->sourceCrop.top,
-              imgLayer->sourceCrop.right - imgLayer->sourceCrop.left,
-              imgLayer->sourceCrop.bottom - imgLayer->sourceCrop.top,
-              imgLayer->displayFrame.left,
-              imgLayer->displayFrame.top,
-              imgLayer->displayFrame.right - imgLayer->displayFrame.left,
-              imgLayer->displayFrame.bottom - imgLayer->displayFrame.top,
-              imgLayer->custom);
-    }
-    return true;
-}
-
 IVsyncControl* PlatfExternalDevice::createVsyncControl()
 {
     return new VsyncControl();

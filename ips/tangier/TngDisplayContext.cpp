@@ -26,64 +26,96 @@
  *
  */
 #include <cutils/log.h>
-
-#include <PlatfDisplayDevice.h>
-#include <common/VsyncControl.h>
-#include <common/BlankControl.h>
-#include <common/HotplugControl.h>
+#include <tangier/TngDisplayContext.h>
+#include <HwcUtils.h>
+#include <DisplayPlane.h>
+#include <IDisplayDevice.h>
+#include <HwcLayerList.h>
 
 namespace android {
 namespace intel {
 
-PlatfDisplayDevice::PlatfDisplayDevice(uint32_t type,
-                                       Hwcomposer& hwc,
-                                       DisplayPlaneManager& dpm)
-    : DisplayDevice(type, hwc, dpm)
+TngDisplayContext::TngDisplayContext()
+    : mFBDev(NULL),
+      mInitialized(false),
+      mCount(0)
 {
-    LOGV("PlatfDisplayDevice(): type %d", type);
+    LOGV("Entering %s", __func__);
 }
 
-PlatfDisplayDevice::~PlatfDisplayDevice()
+TngDisplayContext::~TngDisplayContext()
 {
-    LOGV("~PlatfDisplayDevice");
+    LOGV("Entering %s", __func__);
+    deinitialize();
 }
 
-bool PlatfDisplayDevice::commit(hwc_display_contents_1_t *display,
-                             void *contexts,
-                             int& count)
+bool TngDisplayContext::initialize()
 {
-    bool ret;
+    LOGV("Entering %s", __func__);
 
-    LOGV("PlatfDisplayDevice::commit");
-
-    if (!initCheck())
-        return false;
-
-    if (!display || !contexts) {
-        LOGE("PlatfDisplayDevice::commit: invalid parameters");
+    // open frame buffer device
+    hw_module_t const* module;
+    int err = hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module);
+    if (err) {
+        LOGE("%s: failed to load gralloc module, %d", __func__, err);
         return false;
     }
 
-    Mutex::Autolock _l(mLock);
+    // open frame buffer device
+    err = framebuffer_open(module, (framebuffer_device_t**)&mFBDev);
+    if (err) {
+        LOGE("%s: failed to open frame buffer device, %d", __func__, err);
+        return false;
+    }
 
-    IMG_hwc_layer_t *imgLayerList = (IMG_hwc_layer_t*)contexts;
+    mFBDev->bBypassPost = 1;
+    mCount = 0;
+    mInitialized = true;
+    return true;
+}
+
+bool TngDisplayContext::commitBegin()
+{
+    INIT_CHECK();
+    mCount = 0;
+    return true;
+}
+
+bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLayerList *layerList)
+{
+    bool ret;
+
+    LOGV("Entering %s", __func__);
+    INIT_CHECK();
+
+    if (!display || !layerList) {
+        LOGE("%s: invalid parameters", __func__);
+        return false;
+    }
+
+    IMG_hwc_layer_t *imgLayerList = (IMG_hwc_layer_t*)mImgLayers;
 
     for (size_t i = 0; i < display->numHwLayers; i++) {
+        if (mCount >= MAXIMUM_LAYER_NUMBER) {
+            LOGE("%s: layer count exceeds the limit.", __func__);
+            return false;
+        }
+
         // check layer parameters
         if (!display->hwLayers[i].handle)
             continue;
 
-        DisplayPlane* plane = mLayerList->getPlane(i);
+        DisplayPlane* plane = layerList->getPlane(i);
         if (!plane)
             continue;
 
         ret = plane->flip();
         if (ret == false) {
-            LOGW("PlatfDisplayDevice::commit: failed to flip plane %d", i);
+            LOGW("%s: failed to flip plane %d", __func__, i);
             continue;
         }
 
-        IMG_hwc_layer_t *imgLayer = &imgLayerList[count++];
+        IMG_hwc_layer_t *imgLayer = &imgLayerList[mCount++];
         // update IMG layer
         imgLayer->handle = display->hwLayers[i].handle;
         imgLayer->transform = display->hwLayers[i].transform;
@@ -92,10 +124,10 @@ bool PlatfDisplayDevice::commit(hwc_display_contents_1_t *display,
         imgLayer->displayFrame = display->hwLayers[i].displayFrame;
         imgLayer->custom = (uint32_t)plane->getContext();
 
-        LOGD("PlatfDisplayDevice(%d)::commit %d: handle 0x%x, trans 0x%x, blending 0x%x"
+        LOGV("%s: count %d, handle 0x%x, trans 0x%x, blending 0x%x"
               " sourceCrop %d,%d - %dx%d, dst %d,%d - %dx%d, custom 0x%x",
-              mType,
-              count,
+              __func__,
+              mCount,
               imgLayer->handle,
               imgLayer->transform,
               imgLayer->blending,
@@ -112,22 +144,43 @@ bool PlatfDisplayDevice::commit(hwc_display_contents_1_t *display,
     return true;
 }
 
-IVsyncControl* PlatfDisplayDevice::createVsyncControl()
+bool TngDisplayContext::commitEnd()
 {
-    return new VsyncControl();
+    LOGV("Entering %s: count = %d", __func__, mCount);
+
+    // nothing need to be submitted
+    if (!mCount)
+        return true;
+
+    if (mFBDev) {
+        int err = mFBDev->Post2(&mFBDev->base, mImgLayers, mCount);
+        if (err) {
+            LOGE("%s: Post2 failed, err = %d", __func__, err);
+            return false;
+        }
+    }
+
+    return true;
 }
 
-IBlankControl* PlatfDisplayDevice::createBlankControl()
+bool TngDisplayContext::compositionComplete()
 {
-    return new BlankControl();
+    if (mFBDev) {
+        mFBDev->base.compositionComplete(&mFBDev->base);
+    }
+    return true;
 }
 
-IHotplugControl* PlatfDisplayDevice::createHotplugControl()
+void TngDisplayContext::deinitialize()
 {
-    return new HotplugControl();
+    if (mFBDev) {
+        framebuffer_close((framebuffer_device_t*)mFBDev);
+        mFBDev = NULL;
+    }
+    mCount = 0;
+    mInitialized = false;
 }
+
 
 } // namespace intel
 } // namespace android
-
-

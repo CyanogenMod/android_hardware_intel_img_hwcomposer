@@ -34,6 +34,7 @@
 
 #include <IDisplayDevice.h>
 #include <BufferManager.h>
+#include <IDisplayContext.h>
 #include <Drm.h>
 #include <DisplayPlaneManager.h>
 
@@ -77,6 +78,7 @@ public:
     Drm* getDrm();
     DisplayPlaneManager* getPlaneManager();
     BufferManager* getBufferManager();
+    IDisplayContext* getDisplayContext();
 
 protected:
     Hwcomposer();
@@ -90,6 +92,10 @@ public:
         }
         return *sInstance;
     }
+    static void releaseInstance() {
+        delete sInstance;
+        sInstance = NULL;
+    }
     // Need to be implemented
     static Hwcomposer* createHwcomposer();
     static const char* getDrmPath();
@@ -99,14 +105,15 @@ protected:
     virtual BufferManager* createBufferManager() = 0;
     virtual IDisplayDevice* createDisplayDevice(int disp,
                                                  DisplayPlaneManager& dpm) = 0;
-    virtual void* getContexts() = 0;
-    virtual bool commitContexts(void *context, int count) = 0;
+    virtual IDisplayContext* createDisplayContext() = 0;
+
 protected:
     hwc_procs_t const *mProcs;
     Drm *mDrm;
     DisplayPlaneManager *mPlaneManager;
     BufferManager *mBufferManager;
     Vector<IDisplayDevice*> mDisplayDevices;
+    IDisplayContext *mDisplayContext;
     Mutex mLock;
     bool mInitialized;
 private:
@@ -116,4 +123,4 @@ private:
 } // namespace intel
 }
 
-#endif /*HWCOMPOSER_H*/
+#endif /*HW_COMPOSER_H*/
