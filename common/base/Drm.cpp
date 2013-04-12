@@ -31,13 +31,14 @@
 #include <Drm.h>
 #include <Hwcomposer.h>
 #include <cutils/log.h>
+#include <DrmConfig.h>
 
 namespace android {
 namespace intel {
 
 Drm::Drm()
 {
-    const char *path = Hwcomposer::getDrmPath();
+    const char *path = DrmConfig::getDrmPath();
     int fd = open(path, O_RDWR, 0);
     if (fd < 0) {
         LOGE("Drm(): drmOpen failed. %s", strerror(errno));
@@ -72,9 +73,9 @@ bool Drm::detect()
     struct Output *output = NULL;
 
     const uint32_t primaryConnector =
-        Hwcomposer::getDrmConnector(OUTPUT_PRIMARY);
+        DrmConfig::getDrmConnector(OUTPUT_PRIMARY);
     const uint32_t externalConnector =
-        Hwcomposer::getDrmConnector(OUTPUT_EXTERNAL);
+        DrmConfig::getDrmConnector(OUTPUT_EXTERNAL);
 
     for (int i = 0; i < resources->count_connectors; i++) {
         connector = drmModeGetConnector(mDrmFd, resources->connectors[i]);

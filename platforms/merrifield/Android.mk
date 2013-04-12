@@ -51,6 +51,7 @@ LOCAL_SRC_FILES += \
     ../../ips/common/GrallocBufferBase.cpp \
     ../../ips/common/GrallocBufferMapperBase.cpp \
     ../../ips/common/TTMBufferMapper.cpp \
+    ../../ips/common/DrmConfig.cpp \
     ../../ips/common/Wsbm.cpp \
     ../../ips/common/WsbmWrapper.c
 

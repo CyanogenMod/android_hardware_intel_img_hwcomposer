@@ -95,20 +95,5 @@ Hwcomposer* Hwcomposer::createHwcomposer()
     return new PlatfHwcomposer();
 }
 
-const char* Hwcomposer::getDrmPath()
-{
-    return "/dev/card0";
-}
-
-uint32_t Hwcomposer::getDrmConnector(int32_t output)
-{
-    if (output == Drm::OUTPUT_PRIMARY)
-        return DRM_MODE_CONNECTOR_MIPI;
-    else if (output == Drm::OUTPUT_EXTERNAL)
-        return DRM_MODE_CONNECTOR_DVID;
-
-    return DRM_MODE_CONNECTOR_Unknown;
-}
-
 } //namespace intel
 } //namespace android
