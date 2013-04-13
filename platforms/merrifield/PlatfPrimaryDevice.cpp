@@ -25,12 +25,10 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <PlatfPrimaryDevice.h>
 #include <common/VsyncControl.h>
 #include <common/BlankControl.h>
-#include <HwcUtils.h>
 
 
 namespace android {
@@ -40,12 +38,12 @@ PlatfPrimaryDevice::PlatfPrimaryDevice(Hwcomposer& hwc,
                                        DisplayPlaneManager& dpm)
     : PrimaryDevice(hwc, dpm)
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
 }
 
 PlatfPrimaryDevice::~PlatfPrimaryDevice()
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
 }
 
 IVsyncControl* PlatfPrimaryDevice::createVsyncControl()

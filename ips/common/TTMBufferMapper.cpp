@@ -25,8 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <common/TTMBufferMapper.h>
 
 namespace android {
@@ -41,12 +40,12 @@ TTMBufferMapper::TTMBufferMapper(Wsbm& wsbm, DataBuffer& buffer)
       mCpuAddress(0),
       mSize(0)
 {
-    LOGV("TTMBufferMapper::TTMBufferMapper");
+    CTRACE();
 }
 
 TTMBufferMapper::~TTMBufferMapper()
 {
-    LOGV("TTMBufferMapper::~TTMBufferMapper");
+    CTRACE();
 }
 
 bool TTMBufferMapper::map()
@@ -56,20 +55,20 @@ bool TTMBufferMapper::map()
     void *virtAddr;
     uint32_t gttOffsetInPage;
 
-    LOGV("TTMBufferMapper::map");
+    CTRACE();
 
     handle = getHandle();
 
     bool ret = mWsbm.wrapTTMBuffer(handle, &wsbmBufferObject);
     if (ret == false) {
-        LOGE("TTMBufferMapper::map: failed to map TTM buffer");
+        ETRACE("failed to map TTM buffer");
         return false;
     }
 
     // TODO: review this later
     ret = mWsbm.waitIdleTTMBuffer(wsbmBufferObject);
     if (ret == false) {
-        LOGE("TTMBufferMapper::map: wait ttm buffer idle failed");
+        ETRACE("failed to wait ttm buffer idle");
         return false;
     }
 
@@ -77,8 +76,7 @@ bool TTMBufferMapper::map()
     gttOffsetInPage = mWsbm.getGttOffset(wsbmBufferObject);
 
     if (!gttOffsetInPage || !virtAddr) {
-        LOGW("TTMBufferMapper::map: %x Virtual addr: %p.",
-              gttOffsetInPage, virtAddr);
+        WTRACE("offset = %#x, addr = %p.", gttOffsetInPage, virtAddr);
         return false;
     }
 
@@ -92,7 +90,7 @@ bool TTMBufferMapper::map()
 
 bool TTMBufferMapper::unmap()
 {
-    LOGV("TTMBufferMapper::unmap");
+    CTRACE();
 
     if (!mBufferObject)
         return false;

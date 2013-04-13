@@ -25,12 +25,10 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
 #include <math.h>
-
+#include <HwcTrace.h>
 #include <Drm.h>
 #include <Hwcomposer.h>
-
 #include <tangier/TngOverlayPlane.h>
 #include <tangier/TngGrallocBuffer.h>
 
@@ -40,24 +38,19 @@ namespace intel {
 TngOverlayPlane::TngOverlayPlane(int index, int disp)
     : OverlayPlaneBase(index, disp)
 {
-    LOGV("TngOverlayPlane");
+    CTRACE();
 
     memset(&mContext, 0, sizeof(mContext));
 }
 
 TngOverlayPlane::~TngOverlayPlane()
 {
-    LOGV("~TngOverlayPlane");
+    CTRACE();
 }
 
 bool TngOverlayPlane::flip()
 {
-    LOGV("TngOverlayPlane:flip");
-
-    if (!initCheck()) {
-        LOGE("TngOverlayPlane::setDataBuffer: overlay wasn't initialized");
-        return false;
-    }
+    RETURN_FALSE_IF_NOT_INIT();
 
     mContext.type = DC_OVERLAY_PLANE;
     mContext.ctx.ov_ctx.ovadd = 0x0;
@@ -66,17 +59,17 @@ bool TngOverlayPlane::flip()
     mContext.ctx.ov_ctx.pipe = mPipeConfig;
     mContext.ctx.ov_ctx.ovadd |= 0x1;
 
-    LOGV("TngOverlayPlane::flip: ovadd = 0x%x, index = %d, pipe = %d",
+    VTRACE("ovadd = %#x, index = %d, device = %d",
           mContext.ctx.ov_ctx.ovadd,
           mIndex,
-          mPipe);
+          mDevice);
 
     return true;
 }
 
 void* TngOverlayPlane::getContext() const
 {
-    LOGV("TngOverlayPlane::getContext");
+    CTRACE();
     return (void *)&mContext;
 }
 

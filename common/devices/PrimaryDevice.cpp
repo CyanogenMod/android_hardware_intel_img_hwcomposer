@@ -25,8 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <Drm.h>
 #include <Hwcomposer.h>
 #include <PrimaryDevice.h>
@@ -37,12 +36,12 @@ namespace intel {
 PrimaryDevice::PrimaryDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
     : PhysicalDevice(DEVICE_PRIMARY, hwc, dpm)
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
 }
 
 PrimaryDevice::~PrimaryDevice()
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
     deinitialize();
 }
 

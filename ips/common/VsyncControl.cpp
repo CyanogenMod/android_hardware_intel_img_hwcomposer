@@ -25,8 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <Drm.h>
 #include <Hwcomposer.h>
 #include <common/VsyncControl.h>
@@ -46,10 +45,10 @@ bool VsyncControl::control(int disp, int enabled)
     struct drm_psb_vsync_set_arg arg;
     bool ret;
 
-    LOGV("VsyncControl::control: disp %d, enabled %d", disp, enabled);
+    ATRACE("disp = %d, enabled = %d", disp, enabled);
 
     if (!drm) {
-        LOGE("VsyncControl::control: failed to get drm");
+        ETRACE("failed to get drm");
         return false;
     }
 
@@ -72,10 +71,10 @@ bool VsyncControl::wait(int disp, int64_t& timestamp)
     struct drm_psb_vsync_set_arg arg;
     bool ret;
 
-    LOGV("VsyncControl::wait: disp %d", disp);
+    ATRACE("disp = %d", disp);
 
     if (!drm) {
-        LOGE("VsyncControl::wait: failed to get drm");
+        ETRACE("failed to get drm");
         return false;
     }
 

@@ -25,9 +25,8 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
 #include <hal_public.h>
-
+#include <HwcTrace.h>
 #include <tangier/TngDisplayContext.h>
 #include <PlatfDisplayPlaneManager.h>
 #include <PlatfBufferManager.h>
@@ -45,30 +44,30 @@ namespace intel {
 PlatfHwcomposer::PlatfHwcomposer()
     : Hwcomposer()
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
 }
 
 PlatfHwcomposer::~PlatfHwcomposer()
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
 }
 
 DisplayPlaneManager* PlatfHwcomposer::createDisplayPlaneManager()
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
     return (new PlatfDisplayPlaneManager());
 }
 
 BufferManager* PlatfHwcomposer::createBufferManager()
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
     return (new PlatfBufferManager());
 }
 
 IDisplayDevice* PlatfHwcomposer::createDisplayDevice(int disp,
                                                      DisplayPlaneManager& dpm)
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
 
     switch (disp) {
         case IDisplayDevice::DEVICE_PRIMARY:
@@ -78,20 +77,20 @@ IDisplayDevice* PlatfHwcomposer::createDisplayDevice(int disp,
         case IDisplayDevice::DEVICE_VIRTUAL:
             return new PlatfVirtualDevice(*this, dpm);
         default:
-            LOGE("%s: Invalid display device %d", __func__, disp);
+            ETRACE("invalid display device %d", disp);
             return NULL;
     }
 }
 
 IDisplayContext* PlatfHwcomposer::createDisplayContext()
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
     return new TngDisplayContext();
 }
 
 Hwcomposer* Hwcomposer::createHwcomposer()
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
     return new PlatfHwcomposer();
 }
 

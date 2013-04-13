@@ -25,11 +25,10 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <Drm.h>
-#include <Hwcomposer.h>
 #include <HwcLayerList.h>
+#include <Hwcomposer.h>
 #include <IDisplayDevice.h>
 #include <PlaneCapabilities.h>
 
@@ -48,7 +47,7 @@ HwcLayer::HwcLayer(int index, hwc_layer_1_t *layer)
 bool HwcLayer::attachPlane(DisplayPlane* plane)
 {
     if (mPlane) {
-        LOGE("attachPlane: failed to attach plane, plane exists");
+        ETRACE("failed to attach plane, plane exists");
         return false;
     }
 
@@ -126,7 +125,7 @@ bool HwcLayer::update(hwc_layer_1_t *layer, int disp)
         mPlane->setTransform(layer->transform);
         ret = mPlane->setDataBuffer((uint32_t)layer->handle);
         if (!ret) {
-            LOGE("HwcLayer::update: failed to set data buffer");
+            ETRACE("failed to set data buffer");
             return false;
         }
     }
@@ -146,9 +145,8 @@ HwcLayerList::HwcLayerList(hwc_display_contents_1_t *list,
       mFramebufferTarget(0),
       mDisplayIndex(disp)
 {
-    LOGV("HwcLayerList: layer count = %d", list->numHwLayers);
-
     if (mList) {
+        VTRACE("layer count = %d", list->numHwLayers);
         mLayers.setCapacity(list->numHwLayers);
         mOverlayLayers.setCapacity(list->numHwLayers);
         mFBLayers.setCapacity(list->numHwLayers);
@@ -199,19 +197,19 @@ bool HwcLayerList::check(int planeType, hwc_layer_1_t& layer)
 
     // check layer flags
     if (layer.flags & HWC_SKIP_LAYER) {
-        LOGV("plane type %d: (skip layer flag was set)", planeType);
+        VTRACE("plane type %d: (skip layer flag was set)", planeType);
         return false;
     }
 
     if (!bm) {
-        LOGE("HwcLayerList::check: failed to get buffer manager");
+        ETRACE("failed to get buffer manager");
         return false;
     }
 
     // get buffer source format
     buffer = bm->get((uint32_t)layer.handle);
     if (!buffer) {
-        LOGE("HwcLayerList::check:failed to get buffer");
+        ETRACE("failed to get buffer");
         return false;
     }
 
@@ -221,14 +219,14 @@ bool HwcLayerList::check(int planeType, hwc_layer_1_t& layer)
     // check buffer format
     valid = PlaneCapabilities::isFormatSupported(planeType, format);
     if (!valid) {
-        LOGV("plane type %d: (bad buffer format)", planeType);
+        VTRACE("plane type %d: (bad buffer format)", planeType);
         goto check_out;
     }
 
     valid = PlaneCapabilities::isTransformSupported(planeType,
                                                     layer.transform);
     if (!valid) {
-        LOGV("plane type %d: (bad transform)", planeType);
+        VTRACE("plane type %d: (bad transform)", planeType);
         goto check_out;
     }
 
@@ -236,7 +234,7 @@ bool HwcLayerList::check(int planeType, hwc_layer_1_t& layer)
     valid = PlaneCapabilities::isBlendingSupported(planeType,
                                                   (uint32_t)layer.blending);
     if (!valid) {
-        LOGV("plane type %d: (bad blending)", planeType);
+        VTRACE("plane type %d: (bad blending)", planeType);
         goto check_out;
     }
 
@@ -245,7 +243,7 @@ bool HwcLayerList::check(int planeType, hwc_layer_1_t& layer)
                                                   layer.sourceCrop,
                                                   layer.displayFrame);
     if (!valid) {
-        LOGV("plane type %d: (bad scaling)", planeType);
+        VTRACE("plane type %d: (bad scaling)", planeType);
         goto check_out;
     }
 
@@ -322,7 +320,7 @@ void HwcLayerList::revisit()
     bool primaryPlaneUsed = false;
 
     if (!mPrimaryPlane) {
-        LOGW("HwcLayerList::revisit: no primary plane");
+        WTRACE("no primary plane");
         return;
     }
 
@@ -331,7 +329,7 @@ void HwcLayerList::revisit()
     for (size_t i = 0; i < mLayers.size(); i++) {
         HwcLayer *hwcLayer = mLayers.itemAt(i);
         if (!hwcLayer) {
-            LOGW("revisit: no HWC layer for layer %d", i);
+            WTRACE("no HWC layer for layer %d", i);
             continue;
         }
         // detach primary plane
@@ -353,7 +351,7 @@ void HwcLayerList::revisit()
     if ((mFBLayers.size() == 1)) {
         HwcLayer *hwcLayer = mFBLayers.itemAt(0);
         if (check(DisplayPlane::PLANE_PRIMARY, *(hwcLayer->getLayer()))) {
-            LOGV("primary check passed for primary layer");
+            VTRACE("primary check passed for primary layer");
             // attach primary to hwc layer
             hwcLayer->attachPlane(mPrimaryPlane);
             // set the layer type to overlay
@@ -369,7 +367,7 @@ void HwcLayerList::revisit()
 
     // if there is still FB layers, attach frame buffer target
     if (mFramebufferTarget && !primaryPlaneUsed) {
-        LOGV("analyzeFrom: using frame buffer target");
+        VTRACE("using frame buffer target");
         // attach primary plane
         mFramebufferTarget->attachPlane(mPrimaryPlane);
         mFramebufferTarget->setType(HwcLayer::LAYER_FRAMEBUFFER_TARGET);
@@ -403,7 +401,7 @@ void HwcLayerList::analyze(uint32_t index)
         // new hwc layer
         HwcLayer *hwcLayer = new HwcLayer(i, layer);
         if (!hwcLayer) {
-            LOGE("failed to allocate hwc layer");
+            ETRACE("failed to allocate hwc layer");
             continue;
         }
 
@@ -419,7 +417,7 @@ void HwcLayerList::analyze(uint32_t index)
         // check whether the layer can be handled by sprite plane
         if (freeSpriteCount) {
             if (check(DisplayPlane::PLANE_SPRITE, *layer)) {
-                LOGV("sprite check passed for layer %d", i);
+                VTRACE("sprite check passed for layer %d", i);
                 plane = mDisplayPlaneManager.getSpritePlane();
                 if (plane) {
                     // attach plane to hwc layer
@@ -435,7 +433,7 @@ void HwcLayerList::analyze(uint32_t index)
         // check whether the layer can be handled by overlay plane
         if (freeOverlayCount) {
             if (check(DisplayPlane::PLANE_OVERLAY, *layer)) {
-                LOGV("overlay check passed for layer %d", i);
+                VTRACE("overlay check passed for layer %d", i);
                 plane = mDisplayPlaneManager.getOverlayPlane();
                 if (plane) {
                     // attach plane to hwc layer
@@ -478,17 +476,16 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
     bool ret;
     bool again = false;
 
-    LOGV("HwcLayerList::update");
+    CTRACE();
 
     // basic check to make sure the consistance
     if (!list) {
-        LOGE("update: null layer list");
+        ETRACE("null layer list");
         return false;
     }
 
     if (list->numHwLayers != mLayerCount) {
-        LOGE("update: update layer count doesn't match (%d, %d)",
-              list->numHwLayers, mLayerCount);
+        ETRACE("layer count doesn't match (%d, %d)", list->numHwLayers, mLayerCount);
         return false;
     }
 
@@ -501,7 +498,7 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
         for (size_t i = 0; i < mLayers.size(); i++) {
             HwcLayer *hwcLayer = mLayers.itemAt(i);
             if (!hwcLayer) {
-                LOGE("update: no HWC layer for layer %d", i);
+                ETRACE("no HWC layer for layer %d", i);
                 continue;
             }
 
@@ -509,7 +506,7 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
             if (ret == false) {
                 // layer update failed, fall back to ST and revisit all plane
                 // assignment
-                LOGI("update: failed to update layer %d", i);
+                ITRACE("failed to update layer %d", i);
                 // set layer to FB layer
                 hwcLayer->setType(HwcLayer::LAYER_FB);
                 // remove layer from overlay layer list
@@ -523,7 +520,7 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
                         hwcLayer->getType() == HwcLayer::LAYER_FB) {
                 // layer update success, if the layer was assigned a plane
                 // switch back to overlay and revisit all plane assignment
-                LOGI("update: updated layer %d, switch back to overlay", i);
+                ITRACE("updated layer %d, switch back to overlay", i);
                 // set layer to overlay layer
                 hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
                 // remove layer from Fb layer list
@@ -546,7 +543,7 @@ DisplayPlane* HwcLayerList::getPlane(uint32_t index) const
     HwcLayer *hwcLayer;
 
     if (index >= mLayers.size()) {
-        LOGE("HwcLayerList::getPlane: invalid layer index %d", index);
+        ETRACE("invalid layer index %d", index);
         return 0;
     }
 

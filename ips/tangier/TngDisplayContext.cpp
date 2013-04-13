@@ -25,12 +25,11 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-#include <tangier/TngDisplayContext.h>
-#include <HwcUtils.h>
+#include <HwcTrace.h>
 #include <DisplayPlane.h>
 #include <IDisplayDevice.h>
 #include <HwcLayerList.h>
+#include <tangier/TngDisplayContext.h>
 
 namespace android {
 namespace intel {
@@ -40,31 +39,31 @@ TngDisplayContext::TngDisplayContext()
       mInitialized(false),
       mCount(0)
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
 }
 
 TngDisplayContext::~TngDisplayContext()
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
     deinitialize();
 }
 
 bool TngDisplayContext::initialize()
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
 
     // open frame buffer device
     hw_module_t const* module;
     int err = hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module);
     if (err) {
-        LOGE("%s: failed to load gralloc module, %d", __func__, err);
+        ETRACE("failed to load gralloc module, error = %d", err);
         return false;
     }
 
     // open frame buffer device
     err = framebuffer_open(module, (framebuffer_device_t**)&mFBDev);
     if (err) {
-        LOGE("%s: failed to open frame buffer device, %d", __func__, err);
+        ETRACE("failed to open frame buffer device, error = %d", err);
         return false;
     }
 
@@ -76,7 +75,7 @@ bool TngDisplayContext::initialize()
 
 bool TngDisplayContext::commitBegin()
 {
-    INIT_CHECK();
+    RETURN_FALSE_IF_NOT_INIT();
     mCount = 0;
     return true;
 }
@@ -84,12 +83,10 @@ bool TngDisplayContext::commitBegin()
 bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLayerList *layerList)
 {
     bool ret;
-
-    LOGV("Entering %s", __func__);
-    INIT_CHECK();
+    RETURN_FALSE_IF_NOT_INIT();
 
     if (!display || !layerList) {
-        LOGE("%s: invalid parameters", __func__);
+        ETRACE("invalid parameters");
         return false;
     }
 
@@ -97,7 +94,7 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
 
     for (size_t i = 0; i < display->numHwLayers; i++) {
         if (mCount >= MAXIMUM_LAYER_NUMBER) {
-            LOGE("%s: layer count exceeds the limit.", __func__);
+            ETRACE("layer count exceeds the limit");
             return false;
         }
 
@@ -111,7 +108,7 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
 
         ret = plane->flip();
         if (ret == false) {
-            LOGW("%s: failed to flip plane %d", __func__, i);
+            WTRACE("failed to flip plane %d", i);
             continue;
         }
 
@@ -124,9 +121,8 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
         imgLayer->displayFrame = display->hwLayers[i].displayFrame;
         imgLayer->custom = (uint32_t)plane->getContext();
 
-        LOGV("%s: count %d, handle 0x%x, trans 0x%x, blending 0x%x"
-              " sourceCrop %d,%d - %dx%d, dst %d,%d - %dx%d, custom 0x%x",
-              __func__,
+        VTRACE("count %d, handle %#x, trans %#x, blending %#x"
+              " sourceCrop %d,%d - %dx%d, dst %d,%d - %dx%d, custom %#x",
               mCount,
               (uint32_t)imgLayer->handle,
               imgLayer->transform,
@@ -146,7 +142,7 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
 
 bool TngDisplayContext::commitEnd()
 {
-    LOGV("Entering %s: count = %d", __func__, mCount);
+    VTRACE("count = %d", mCount);
 
     // nothing need to be submitted
     if (!mCount)
@@ -155,7 +151,7 @@ bool TngDisplayContext::commitEnd()
     if (mFBDev) {
         int err = mFBDev->Post2(&mFBDev->base, mImgLayers, mCount);
         if (err) {
-            LOGE("%s: Post2 failed, err = %d", __func__, err);
+            ETRACE("post2 failed, err = %d", err);
             return false;
         }
     }

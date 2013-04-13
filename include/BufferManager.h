@@ -66,6 +66,7 @@ private:
         // make the buffer pool large enough
         DEFAULT_BUFFER_POOL_SIZE = 128,
     };
+
     gralloc_module_t *mGrallocModule;
     BufferCache *mBufferPool;
     bool mInitialized;

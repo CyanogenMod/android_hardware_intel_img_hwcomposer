@@ -25,8 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <Drm.h>
 #include <tangier/TngPrimaryPlane.h>
 #include <tangier/TngGrallocBuffer.h>
@@ -38,18 +37,18 @@ namespace intel {
 TngPrimaryPlane::TngPrimaryPlane(int index, int disp)
     : TngSpritePlane(index, disp)
 {
-    LOGV("TngPrimaryPlane");
+    CTRACE();
     mType = PLANE_PRIMARY;
 }
 
 TngPrimaryPlane::~TngPrimaryPlane()
 {
-    LOGV("~TngPrimaryPlane");
+    CTRACE();
 }
 
 void TngPrimaryPlane::setFramebufferTarget(DataBuffer& buf)
 {
-    LOGV("TngPrimaryPlane::setFramebufferTarget");
+    CTRACE();
 
     // don't need to map data buffer for primary plane
     mContext.type = DC_PRIMARY_PLANE;
@@ -74,7 +73,7 @@ bool TngPrimaryPlane::setDataBuffer(uint32_t handle)
     TngGrallocBuffer tmpBuf(handle);
     uint32_t usage;
 
-    LOGV("TngPrimaryPlane::setDataBuffer: handle = %d");
+    ATRACE("handle = %#x", handle);
 
     usage = tmpBuf.getUsage();
     if (!handle || (GRALLOC_USAGE_HW_FB & usage)) {

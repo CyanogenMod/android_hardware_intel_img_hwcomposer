@@ -25,13 +25,11 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <PlatfExternalDevice.h>
 #include <common/VsyncControl.h>
 #include <common/BlankControl.h>
 #include <common/HotplugControl.h>
-#include <HwcUtils.h>
 
 namespace android {
 namespace intel {
@@ -40,12 +38,12 @@ PlatfExternalDevice::PlatfExternalDevice(Hwcomposer& hwc,
                                        DisplayPlaneManager& dpm)
     : ExternalDevice(hwc, dpm)
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
 }
 
 PlatfExternalDevice::~PlatfExternalDevice()
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
 }
 
 IVsyncControl* PlatfExternalDevice::createVsyncControl()

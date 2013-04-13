@@ -25,8 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <Drm.h>
 #include <Hwcomposer.h>
 #include <penwell/PnwGrallocBufferMapper.h>
@@ -37,12 +36,12 @@ namespace intel {
 PnwGrallocBufferMapper::PnwGrallocBufferMapper(DataBuffer& buffer)
     : GrallocBufferMapperBase(buffer)
 {
-    LOGV("PnwGrallocBufferMapper::PnwGrallocBufferMapper");
+    CTRACE();
 }
 
 PnwGrallocBufferMapper::~PnwGrallocBufferMapper()
 {
-    LOGV("PnwGrallocBufferMapper::~PnwGrallocBufferMapper");
+    CTRACE();
 }
 
 bool PnwGrallocBufferMapper::map()

@@ -30,26 +30,22 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <cutils/log.h>
-#include <cutils/atomic.h>
-
+#include <HwcTrace.h>
 #include <Hwcomposer.h>
 
-#define GET_HWC_RETURN_ERROR_IF_NULL() \
-    LOGV("Entering %s", __func__); \
+#define GET_HWC_RETURN_X_IF_NULL(X) \
+    CTRACE(); \
     Hwcomposer *hwc = static_cast<Hwcomposer*>(dev); \
-    if (!hwc) { \
-        LOGE("%s: Invalid HWC device.", __func__); \
-        return -EINVAL; \
-    }
+    do {\
+        if (!hwc) { \
+            ETRACE("invalid HWC device."); \
+            return X; \
+        } \
+    } while (0)
 
-#define GET_HWC_RETURN_VOID_IF_NULL() \
-    LOGV("Entering %s", __func__); \
-    Hwcomposer *hwc = static_cast<Hwcomposer*>(dev); \
-    if (!hwc) { \
-        LOGE("%s: Invalid HWC device.", __func__); \
-        return; \
-    }
+
+#define GET_HWC_RETURN_ERROR_IF_NULL()        GET_HWC_RETURN_X_IF_NULL(-EINVAL)
+#define GET_HWC_RETURN_VOID_IF_NULL()         GET_HWC_RETURN_X_IF_NULL()
 
 
 namespace android {
@@ -61,7 +57,7 @@ static int hwc_prepare(struct hwc_composer_device_1 *dev,
 {
     GET_HWC_RETURN_ERROR_IF_NULL();
     if (!hwc->prepare(numDisplays, displays)) {
-        LOGE("%s: failed to prepare", __func__);
+        ETRACE("failed to prepare");
         return -EINVAL;
     }
     return 0;
@@ -73,7 +69,7 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
 {
     GET_HWC_RETURN_ERROR_IF_NULL();
     if (!hwc->commit(numDisplays, displays)) {
-        LOGE("%s: failed to commit", __func__);
+        ETRACE("failed to commit");
         return -EINVAL;
     }
     return 0;
@@ -96,7 +92,7 @@ void hwc_registerProcs(struct hwc_composer_device_1 *dev,
 
 static int hwc_device_close(struct hw_device_t *dev)
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
     Hwcomposer::releaseInstance();
     return 0;
 }
@@ -105,7 +101,7 @@ static int hwc_query(struct hwc_composer_device_1 *dev,
                        int what,
                        int* value)
 {
-    LOGV("hwc_query: what %d\n", what);
+    ATRACE("what = %d", what);
     return -EINVAL;
 }
 
@@ -121,12 +117,12 @@ static int hwc_eventControl(struct hwc_composer_device_1 *dev,
     case HWC_EVENT_VSYNC:
         ret = hwc->vsyncControl(disp, enabled);
         if (ret == false) {
-            LOGE("%s: failed to enable/disable vsync", __func__);
+            ETRACE("failed to control vsync");
             return -EINVAL;
         }
         break;
     default:
-        LOGW("%s: unsupported event %d", __func__, event);
+        WTRACE("unsupported event %d", event);
         break;
     }
 
@@ -138,7 +134,7 @@ static int hwc_blank(hwc_composer_device_1_t *dev, int disp, int blank)
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->blank(disp, blank);
     if (ret == false) {
-        LOGE("%s: failed to blank disp %d, blank %d", __func__, disp, blank);
+        ETRACE("failed to blank disp %d, blank %d", disp, blank);
         return -EINVAL;
     }
 
@@ -153,7 +149,7 @@ static int hwc_getDisplayConfigs(hwc_composer_device_1_t *dev,
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->getDisplayConfigs(disp, configs, numConfigs);
     if (ret == false) {
-        LOGE("%s: failed to get configs of disp %d", __func__, disp);
+        ETRACE("failed to get configs of disp %d", disp);
         return -EINVAL;
     }
 
@@ -169,7 +165,7 @@ static int hwc_getDisplayAttributes(hwc_composer_device_1_t *dev,
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->getDisplayAttributes(disp, config, attributes, values);
     if (ret == false) {
-        LOGE("%s: failed to get attributes of disp %d", __func__, disp);
+        ETRACE("failed to get attributes of disp %d", disp);
         return -EINVAL;
     }
 
@@ -181,7 +177,7 @@ static int hwc_compositionComplete(hwc_composer_device_1_t *dev, int disp)
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->compositionComplete(disp);
     if (ret == false) {
-        LOGE("%s: faild for disp %d", __func__, disp);
+        ETRACE("failed for disp %d", disp);
         return -EINVAL;
     }
 
@@ -195,21 +191,21 @@ static int hwc_device_open(const struct hw_module_t* module,
                               struct hw_device_t** device)
 {
     if (!name) {
-        LOGE("%s: Invalid name.", __func__);
+        ETRACE("invalid name.");
         return -EINVAL;
     }
 
-    LOGD("%s: open device %s", __func__, name);
+    ATRACE("open device %s", name);
 
     if (strcmp(name, HWC_HARDWARE_COMPOSER) != 0) {
-        LOGE("%s: try to open unknown HWComposer %s", __func__, name);
+        ETRACE("try to open unknown HWComposer %s", name);
         return -EINVAL;
     }
 
     Hwcomposer& hwc = Hwcomposer::getInstance();
     /* initialize our state here */
     if (hwc.initialize() == false) {
-        LOGE("%s: failed to intialize HWComposer", __func__);
+        ETRACE("failed to intialize HWComposer");
         Hwcomposer::releaseInstance();
         return -EINVAL;
     }
@@ -254,7 +250,7 @@ hwc_module_t HAL_MODULE_INFO_SYM = {
         version_minor: 1,
         id: HWC_HARDWARE_MODULE_ID,
         name: "Intel Hardware Composer",
-        author: "Intel UMSE",
+        author: "Intel",
         methods: &hwc_module_methods,
     }
 };

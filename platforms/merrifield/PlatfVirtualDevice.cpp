@@ -25,12 +25,10 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <Hwcomposer.h>
 #include <DisplayPlaneManager.h>
 #include <PlatfVirtualDevice.h>
-#include <HwcUtils.h>
 
 namespace android {
 namespace intel {
@@ -39,12 +37,12 @@ PlatfVirtualDevice::PlatfVirtualDevice(Hwcomposer& hwc,
                                        DisplayPlaneManager& dpm)
     : VirtualDevice(hwc, dpm)
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
 }
 
 PlatfVirtualDevice::~PlatfVirtualDevice()
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
 }
 
 } // namespace intel

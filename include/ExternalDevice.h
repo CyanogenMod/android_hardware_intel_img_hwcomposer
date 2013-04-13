@@ -28,12 +28,7 @@
 #ifndef EXTERNAL_DEVICE_H
 #define EXTERNAL_DEVICE_H
 
-#include <DisplayPlane.h>
-#include <IVsyncControl.h>
-#include <IBlankControl.h>
-#include <VsyncEventObserver.h>
 #include <HotplugEventObserver.h>
-#include <HwcLayerList.h>
 #include <PhysicalDevice.h>
 
 namespace android {

@@ -25,12 +25,10 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
 #include <math.h>
-
+#include <HwcTrace.h>
 #include <Drm.h>
 #include <Hwcomposer.h>
-
 #include <penwell/PnwOverlayPlane.h>
 #include <penwell/PnwGrallocBuffer.h>
 
@@ -40,12 +38,12 @@ namespace intel {
 PnwOverlayPlane::PnwOverlayPlane(int index, int disp)
     : OverlayPlaneBase(index, disp)
 {
-    LOGV("PnwOverlayPlane");
+    CTRACE();
 }
 
 PnwOverlayPlane::~PnwOverlayPlane()
 {
-    LOGV("~PnwOverlayPlane");
+    CTRACE();
 }
 
 bool PnwOverlayPlane::flip()
@@ -56,7 +54,7 @@ bool PnwOverlayPlane::flip()
 
 void* PnwOverlayPlane::getContext() const
 {
-    LOGV("PnwOverlayPlane::getContext");
+    CTRACE();
     //TODO: return penwell overlay context
     return 0;
 }

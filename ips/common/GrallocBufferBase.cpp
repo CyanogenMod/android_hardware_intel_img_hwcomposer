@@ -25,8 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <common/GrallocBufferBase.h>
 
 namespace android {
@@ -35,7 +34,7 @@ namespace intel {
 GrallocBufferBase::GrallocBufferBase(uint32_t handle)
     :DataBuffer(handle)
 {
-    LOGV("GrallocBufferBase: handle 0x%x\n");
+    ATRACE("handle = %#x", handle);
 }
 
 void GrallocBufferBase::initialize()

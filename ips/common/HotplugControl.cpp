@@ -25,8 +25,6 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -34,6 +32,7 @@
 #include <linux/netlink.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <HwcTrace.h>
 #include <DrmConfig.h>
 #include <common/HotplugControl.h>
 
@@ -44,7 +43,7 @@ HotplugControl::HotplugControl()
     : IHotplugControl(),
       mUeventFd(-1)
 {
-    LOGV("HotplugControl");
+    CTRACE();
 
     // init uevent socket
     struct sockaddr_nl addr;
@@ -59,7 +58,7 @@ HotplugControl::HotplugControl()
 
     mUeventFd = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_KOBJECT_UEVENT);
     if(mUeventFd < 0) {
-        LOGD("HotplugControl: failed create uevent sockect");
+        DTRACE("failed to create uevent socket");
         return;
     }
 

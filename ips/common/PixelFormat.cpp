@@ -25,10 +25,8 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
 #include <hal_public.h>
-
+#include <HwcTrace.h>
 #include <common/PixelFormat.h>
 
 namespace android {
