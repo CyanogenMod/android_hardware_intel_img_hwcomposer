@@ -35,7 +35,7 @@ namespace android {
 namespace intel {
 
 TngDisplayContext::TngDisplayContext()
-    : mFBDev(NULL),
+    : mIMGDisplayDevice(0),
       mInitialized(false),
       mCount(0)
 {
@@ -60,14 +60,13 @@ bool TngDisplayContext::initialize()
         return false;
     }
 
-    // open frame buffer device
-    err = framebuffer_open(module, (framebuffer_device_t**)&mFBDev);
-    if (err) {
-        ETRACE("failed to open frame buffer device, error = %d", err);
+    // init IMG display device
+    mIMGDisplayDevice = (((IMG_gralloc_module_public_t *)module)->psDisplayDevice);
+    if (!mIMGDisplayDevice) {
+        ETRACE("failed to get display device");
         return false;
     }
 
-    mFBDev->bBypassPost = 1;
     mCount = 0;
     mInitialized = true;
     return true;
@@ -114,27 +113,23 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
 
         IMG_hwc_layer_t *imgLayer = &imgLayerList[mCount++];
         // update IMG layer
-        imgLayer->handle = display->hwLayers[i].handle;
-        imgLayer->transform = display->hwLayers[i].transform;
-        imgLayer->blending = display->hwLayers[i].blending;
-        imgLayer->sourceCrop = display->hwLayers[i].sourceCrop;
-        imgLayer->displayFrame = display->hwLayers[i].displayFrame;
+        imgLayer->psLayer = &display->hwLayers[i];
         imgLayer->custom = (uint32_t)plane->getContext();
 
         VTRACE("count %d, handle %#x, trans %#x, blending %#x"
               " sourceCrop %d,%d - %dx%d, dst %d,%d - %dx%d, custom %#x",
               mCount,
-              (uint32_t)imgLayer->handle,
-              imgLayer->transform,
-              imgLayer->blending,
-              imgLayer->sourceCrop.left,
-              imgLayer->sourceCrop.top,
-              imgLayer->sourceCrop.right - imgLayer->sourceCrop.left,
-              imgLayer->sourceCrop.bottom - imgLayer->sourceCrop.top,
-              imgLayer->displayFrame.left,
-              imgLayer->displayFrame.top,
-              imgLayer->displayFrame.right - imgLayer->displayFrame.left,
-              imgLayer->displayFrame.bottom - imgLayer->displayFrame.top,
+              (uint32_t)imgLayer->psLayer->handle,
+              imgLayer->psLayer->transform,
+              imgLayer->psLayer->blending,
+              imgLayer->psLayer->sourceCrop.left,
+              imgLayer->psLayer->sourceCrop.top,
+              imgLayer->psLayer->sourceCrop.right - imgLayer->psLayer->sourceCrop.left,
+              imgLayer->psLayer->sourceCrop.bottom - imgLayer->psLayer->sourceCrop.top,
+              imgLayer->psLayer->displayFrame.left,
+              imgLayer->psLayer->displayFrame.top,
+              imgLayer->psLayer->displayFrame.right - imgLayer->psLayer->displayFrame.left,
+              imgLayer->psLayer->displayFrame.bottom - imgLayer->psLayer->displayFrame.top,
               imgLayer->custom);
     }
     return true;
@@ -148,10 +143,10 @@ bool TngDisplayContext::commitEnd()
     if (!mCount)
         return true;
 
-    if (mFBDev) {
-        int err = mFBDev->Post2(&mFBDev->base, mImgLayers, mCount);
+    if (mIMGDisplayDevice) {
+        int err = mIMGDisplayDevice->post(mIMGDisplayDevice, mImgLayers, mCount);
         if (err) {
-            ETRACE("post2 failed, err = %d", err);
+            ETRACE("post failed, err = %d", err);
             return false;
         }
     }
@@ -161,18 +156,13 @@ bool TngDisplayContext::commitEnd()
 
 bool TngDisplayContext::compositionComplete()
 {
-    if (mFBDev) {
-        mFBDev->base.compositionComplete(&mFBDev->base);
-    }
     return true;
 }
 
 void TngDisplayContext::deinitialize()
 {
-    if (mFBDev) {
-        framebuffer_close((framebuffer_device_t*)mFBDev);
-        mFBDev = NULL;
-    }
+    mIMGDisplayDevice = 0;
+
     mCount = 0;
     mInitialized = false;
 }
