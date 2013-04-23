@@ -25,68 +25,37 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <math.h>
 #include <HwcTrace.h>
-#include <Drm.h>
-#include <Hwcomposer.h>
-#include <tangier/TngOverlayPlane.h>
-#include <tangier/TngGrallocBuffer.h>
+#include <GraphicBuffer.h>
 
 namespace android {
 namespace intel {
 
-TngOverlayPlane::TngOverlayPlane(int index, int disp)
-    : OverlayPlaneBase(index, disp)
+GraphicBuffer::GraphicBuffer(uint32_t handle)
+    : DataBuffer(handle),
+      mUsage(USAGE_INVALID),
+      mBpp(0)
 {
-    CTRACE();
-
-    memset(&mContext, 0, sizeof(mContext));
 }
 
-TngOverlayPlane::~TngOverlayPlane()
+bool GraphicBuffer::isProtectedUsage(uint32_t usage)
 {
-    CTRACE();
-}
-
-bool TngOverlayPlane::flip()
-{
-    RETURN_FALSE_IF_NOT_INIT();
-
-    mContext.type = DC_OVERLAY_PLANE;
-    mContext.ctx.ov_ctx.ovadd = 0x0;
-    mContext.ctx.ov_ctx.ovadd = (mBackBuffer->gttOffsetInPage << 12);
-    mContext.ctx.ov_ctx.index = mIndex;
-    mContext.ctx.ov_ctx.pipe = mPipeConfig;
-    mContext.ctx.ov_ctx.ovadd |= 0x1;
-
-    VTRACE("ovadd = %#x, index = %d, device = %d",
-          mContext.ctx.ov_ctx.ovadd,
-          mIndex,
-          mDevice);
-
-    return true;
-}
-
-void* TngOverlayPlane::getContext() const
-{
-    CTRACE();
-    return (void *)&mContext;
-}
-
-bool TngOverlayPlane::setDataBuffer(BufferMapper& mapper)
-{
-    if (OverlayPlaneBase::setDataBuffer(mapper) == false) {
+    if (usage == USAGE_INVALID) {
         return false;
     }
 
-    if (mIsProtectedBuffer) {
-        // Bit 0: Decryption request, only allowed to change on a synchronous flip
-        // This request will be qualified with the separate decryption enable bit for OV
-        mBackBuffer->buf->OSTART_0Y |= 0x1;
+    return (usage & GRALLOC_USAGE_PROTECTED) != 0;
+}
+
+bool GraphicBuffer::isProtectedBuffer(GraphicBuffer *buffer)
+{
+    if (buffer == NULL) {
+        return false;
     }
-    return true;
+
+    return isProtectedUsage(buffer->mUsage);
 }
 
 
-} // namespace intel
-} // namespace android
+}
+}

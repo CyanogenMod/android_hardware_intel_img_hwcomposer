@@ -128,6 +128,7 @@ protected:
     KeyedVector<uint64_t, BufferMapper*> mDataBuffers;
     PlanePosition mPosition;
     crop_t mSrcCrop;
+    bool mIsProtectedBuffer;
     int mTransform;
 };
 

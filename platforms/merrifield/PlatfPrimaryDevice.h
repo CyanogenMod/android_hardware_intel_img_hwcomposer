@@ -43,6 +43,7 @@ public:
 protected:
     IVsyncControl* createVsyncControl();
     IBlankControl* createBlankControl();
+    IPrepareListener* createPrepareListener();
 };
 
 }

@@ -28,6 +28,7 @@
 #include <HwcTrace.h>
 #include <Hwcomposer.h>
 #include <DisplayPlane.h>
+#include <GraphicBuffer.h>
 
 namespace android {
 namespace intel {
@@ -38,6 +39,7 @@ DisplayPlane::DisplayPlane(int index, int type, int disp)
       mDevice(disp),
       mInitialized(false),
       mDataBuffers(),
+      mIsProtectedBuffer(false),
       mTransform(PLANE_TRANSFORM_0)
 {
     CTRACE();
@@ -143,6 +145,7 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
     // update buffer's source crop
     buffer->setCrop(mSrcCrop.x, mSrcCrop.y, mSrcCrop.w, mSrcCrop.h);
 
+    mIsProtectedBuffer = GraphicBuffer::isProtectedBuffer((GraphicBuffer*)buffer);
     // map buffer if it's not in cache
     index = mDataBuffers.indexOfKey(buffer->getKey());
     if (index < 0) {

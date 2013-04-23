@@ -31,6 +31,7 @@
 #include <DisplayPlane.h>
 #include <IVsyncControl.h>
 #include <IBlankControl.h>
+#include <IPrepareListener.h>
 #include <VsyncEventObserver.h>
 #include <HotplugEventObserver.h>
 #include <HwcLayerList.h>
@@ -83,6 +84,7 @@ protected:
 
     virtual IVsyncControl* createVsyncControl() = 0;
     virtual IBlankControl* createBlankControl() = 0;
+    virtual IPrepareListener* createPrepareListener() = 0;
 protected:
     uint32_t mType;
     const char *mName;
@@ -98,6 +100,8 @@ protected:
     IVsyncControl *mVsyncControl;
     // blank control
     IBlankControl *mBlankControl;
+
+    IPrepareListener *mPrepareListener;
     // vsync event observer
     sp<VsyncEventObserver> mVsyncObserver;
 
