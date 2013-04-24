@@ -34,11 +34,11 @@
 namespace android {
 namespace intel {
 
-class DisplayDevice;
+class PhysicalDevice;
 
 class VsyncEventObserver : public Thread {
 public:
-    VsyncEventObserver(DisplayDevice& disp, IVsyncControl& vsync);
+    VsyncEventObserver(PhysicalDevice& disp, IVsyncControl& vsync);
     virtual ~VsyncEventObserver();
     void control(int enabled);
 private:
@@ -48,7 +48,7 @@ private:
 private:
     mutable Mutex mLock;
     Condition mCondition;
-    DisplayDevice& mDisplayDevice;
+    PhysicalDevice& mDisplayDevice;
     IVsyncControl& mVsync;
     int mEnabled;
 };

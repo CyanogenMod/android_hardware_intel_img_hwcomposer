@@ -25,6 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
+#include <HwcTrace.h>
 #include <Hwcomposer.h>
 #include <DisplayPlane.h>
 
@@ -39,7 +40,7 @@ DisplayPlane::DisplayPlane(int index, int type, int disp)
       mDataBuffers(),
       mTransform(PLANE_TRANSFORM_0)
 {
-    LOGV("DisplayPlane");
+    CTRACE();
 
     mPosition.x = 0;
     mPosition.y = 0;
@@ -54,13 +55,13 @@ DisplayPlane::DisplayPlane(int index, int type, int disp)
 
 DisplayPlane::~DisplayPlane()
 {
-    LOGV("~DisplayPlane");
+    CTRACE();
     deinitialize();
 }
 
 bool DisplayPlane::initialize(uint32_t bufferCount)
 {
-    LOGV("DisplayPlane::initialize");
+    CTRACE();
 
     // create buffer cache
     mDataBuffers.setCapacity(bufferCount);
@@ -71,9 +72,7 @@ bool DisplayPlane::initialize(uint32_t bufferCount)
 
 void DisplayPlane::deinitialize()
 {
-    // reset plane & invalid buffer cache
-    reset();
-
+    // invalid buffer cache
     invalidateBufferCache();
 
     mInitialized = false;
@@ -81,12 +80,8 @@ void DisplayPlane::deinitialize()
 
 void DisplayPlane::setPosition(int x, int y, int w, int h)
 {
-    LOGV("DisplayPlane::setPosition: %d, %d - %dx%d", x, y, w, h);
+    ATRACE("Position = %d, %d - %dx%d", x, y, w, h);
 
-    if (!initCheck()) {
-        LOGE("DisplayPlane::setPosition: plane hasn't been initialized");
-        return;
-    }
 
     mPosition.x = x;
     mPosition.y = y;
@@ -96,12 +91,7 @@ void DisplayPlane::setPosition(int x, int y, int w, int h)
 
 void DisplayPlane::setSourceCrop(int x, int y, int w, int h)
 {
-    LOGV("setSourceCrop: %d, %d - %dx%d", x, y, w, h);
-
-    if (!initCheck()) {
-        LOGE("DisplayPlane::setSourceCrop: plane hasn't been initialized");
-        return;
-    }
+    ATRACE("Source crop = %d, %d - %dx%d", x, y, w, h);
 
     mSrcCrop.x = x;
     mSrcCrop.y = y;
@@ -111,12 +101,7 @@ void DisplayPlane::setSourceCrop(int x, int y, int w, int h)
 
 void DisplayPlane::setTransform(int trans)
 {
-    LOGV("DisplayPlane::setTransform: %d", trans);
-
-    if (!initCheck()) {
-        LOGE("DisplayPlane::setTransform: plane hasn't been initialized");
-        return;
-    }
+    ATRACE("transform = %d", trans);
 
     switch (trans) {
     case PLANE_TRANSFORM_90:
@@ -136,26 +121,22 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
     ssize_t index;
     BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
 
-    LOGV("DisplayPlane::setDataBuffer 0x%x", handle);
-
-    if (!initCheck()) {
-        LOGE("DisplayPlane::setDataBuffer: plane hasn't been initialized");
-        return false;
-    }
+    RETURN_FALSE_IF_NOT_INIT();
+    ATRACE("handle = %#x", handle);
 
     if (!handle) {
-        LOGE("DisplayPlane::setDataBuffer: invalid buffer handle");
+        ETRACE("invalid buffer handle");
         return false;
     }
 
     if (!bm) {
-        LOGE("DisplayPlane::setDataBuffer: failed to get buffer manager");
+        ETRACE("failed to get buffer manager");
         return false;
     }
 
     buffer = bm->get(handle);
     if (!buffer) {
-        LOGE("DisplayPlane::setDataBuffer: failed to get buffer");
+        ETRACE("failed to get buffer");
         return false;
     }
 
@@ -165,21 +146,21 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
     // map buffer if it's not in cache
     index = mDataBuffers.indexOfKey(buffer->getKey());
     if (index < 0) {
-        LOGV("DisplayPlane::setDataBuffer: unmapped buffer, mapping...");
+        VTRACE("unmapped buffer, mapping...");
         mapper = bm->map(*buffer);
         if (!mapper) {
-            LOGE("DisplayPlane::setDataBuffer: failed to map buffer");
+            ETRACE("failed to map buffer");
             goto mapper_err;
         }
 
         // add it to data buffers
         index = mDataBuffers.add(buffer->getKey(), mapper);
         if (index < 0) {
-            LOGE("DisplayPlane::setDataBuffer: failed to add mapper");
+            ETRACE("failed to add mapper");
             goto add_err;
         }
     } else {
-        LOGV("DisplayPlane::setDataBuffer: got mapper in saved data buffers");
+        VTRACE("got mapper in saved data buffers");
         mapper = mDataBuffers.valueAt(index);
     }
 
@@ -199,15 +180,10 @@ void DisplayPlane::invalidateBufferCache()
     BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
     BufferMapper* mapper;
 
-    LOGV("DisplayPlane::invalidateBufferCache");
-
-    if (!initCheck()) {
-        LOGE("DisplayPlane:invalidateBufferCache: plane hasn't been initialized");
-        return;
-    }
+    RETURN_VOID_IF_NOT_INIT();
 
     if (!bm) {
-        LOGE("DisplayPlane::invalidateBufferCache: failed to get buffer manager");
+        ETRACE("failed to get buffer manager");
         return;
     }
 
@@ -224,12 +200,8 @@ void DisplayPlane::invalidateBufferCache()
 
 bool DisplayPlane::assignToDevice(int disp)
 {
-    LOGV("DisplayPlane::assignToDevice: disp = %d", disp);
-
-    if (!initCheck()) {
-        LOGE("DisplayPlane::assignToDevice: plane hasn't been initialized");
-        return false;
-    }
+    RETURN_FALSE_IF_NOT_INIT();
+    ATRACE("disp = %d", disp);
 
     mDevice = disp;
     return true;

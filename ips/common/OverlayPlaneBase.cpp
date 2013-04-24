@@ -25,13 +25,11 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
 
 #include <math.h>
-
+#include <HwcTrace.h>
 #include <Drm.h>
 #include <Hwcomposer.h>
-
 #include <common/OverlayPlaneBase.h>
 #include <common/TTMBufferMapper.h>
 #include <common/GrallocSubBuffer.h>
@@ -49,22 +47,22 @@ OverlayPlaneBase::OverlayPlaneBase(int index, int disp)
       mWsbm(0),
       mPipeConfig(0)
 {
-    LOGV("OverlayPlaneBase");
+    CTRACE();
 }
 
 OverlayPlaneBase::~OverlayPlaneBase()
 {
-    LOGV("~OverlayPlaneBase");
+    CTRACE();
     deinitialize();
 }
 
 bool OverlayPlaneBase::initialize(uint32_t bufferCount)
 {
     Drm *drm = Hwcomposer::getInstance().getDrm();
-    LOGV("OverlayPlaneBase::initialize");
+    CTRACE();
 
     if (!drm) {
-        LOGE("OverlayPlaneBase::initialize: failed to get drm");
+        ETRACE("failed to get drm");
         return false;
     }
 
@@ -74,28 +72,22 @@ bool OverlayPlaneBase::initialize(uint32_t bufferCount)
     // init wsbm
     mWsbm = new Wsbm(drm->getDrmFd());
     if (!mWsbm || !mWsbm->initialize()) {
-        LOGE("failed to create wsbm\n");
-        goto init_err;
+        DEINIT_AND_RETURN_FALSE("failed to create wsbm");
     }
 
     // create overlay back buffer
     mBackBuffer = createBackBuffer();
     if (!mBackBuffer) {
-        LOGE("failed to create overlay back buffer\n");
-        goto init_err;
+        DEINIT_AND_RETURN_FALSE("failed to create overlay back buffer");
     }
 
     // reset back buffer
     resetBackBuffer();
 
     if (!DisplayPlane::initialize(overlayDataBufferCount)) {
-        LOGE("failed to initialize display plane");
-        goto init_err;
+        DEINIT_AND_RETURN_FALSE("failed to initialize display plane");
     }
     return true;
-init_err:
-    deinitialize();
-    return false;
 }
 
 void OverlayPlaneBase::deinitialize()
@@ -132,18 +124,14 @@ bool OverlayPlaneBase::assignToDevice(int disp)
 {
     uint32_t pipeConfig = 0;
 
-    LOGV("OverlayPlaneBase::assignToDevice: disp = %d", disp);
-
-    if (!initCheck()) {
-        LOGE("OverlayPlaneBase:setPosition: plane hasn't been initialized");
-        return false;
-    }
+    RETURN_FALSE_IF_NOT_INIT();
+    ATRACE("disp = %d", disp);
 
     switch (disp) {
-    case DisplayDevice::DEVICE_EXTERNAL:
+    case IDisplayDevice::DEVICE_EXTERNAL:
         pipeConfig = (0x2 << 6);
         break;
-    case DisplayDevice::DEVICE_PRIMARY:
+    case IDisplayDevice::DEVICE_PRIMARY:
     default:
         pipeConfig = 0;
         break;
@@ -154,23 +142,19 @@ bool OverlayPlaneBase::assignToDevice(int disp)
         disable();
 
     mPipeConfig = pipeConfig;
+    mDevice = disp;
 
     return true;
 }
 
 void OverlayPlaneBase::setZOrderConfig(ZOrderConfig& config)
 {
-    LOGV("OverlayPlaneBase::setZOrderConfig");
+    CTRACE();
 }
 
 bool OverlayPlaneBase::reset()
 {
-    LOGV("OverlayPlaneBase::reset");
-
-    if (!initCheck()) {
-        LOGE("OverlayPlaneBase:setPosition: plane hasn't been initialized");
-        return false;
-    }
+    RETURN_FALSE_IF_NOT_INIT();
 
     // reset back buffer
     resetBackBuffer();
@@ -182,12 +166,7 @@ bool OverlayPlaneBase::reset()
 
 bool OverlayPlaneBase::enable()
 {
-    LOGV("OverlayPlaneBase::enable");
-
-    if (!initCheck()) {
-        LOGE("OverlayPlaneBase:setPosition: plane hasn't been initialized");
-        return false;
-    }
+    RETURN_FALSE_IF_NOT_INIT();
 
     OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
     if (!backBuffer)
@@ -205,12 +184,7 @@ bool OverlayPlaneBase::enable()
 
 bool OverlayPlaneBase::disable()
 {
-    LOGD("OverlayPlaneBase::disable");
-
-    if (!initCheck()) {
-        LOGE("OverlayPlaneBase:setPosition: plane hasn't been initialized");
-        return false;
-    }
+    RETURN_FALSE_IF_NOT_INIT();
 
     OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
     if (!backBuffer)
@@ -230,15 +204,11 @@ bool OverlayPlaneBase::disable()
 bool OverlayPlaneBase::flush(uint32_t flags)
 {
     Drm *drm = Hwcomposer::getInstance().getDrm();
-    LOGV("OverlayPlaneBase::flush: flags = 0x%x", flags);
-
-    if (!initCheck()) {
-        LOGE("OverlayPlaneBase:flush: plane hasn't been initialized");
-        return false;
-    }
+    RETURN_FALSE_IF_NOT_INIT();
+    ATRACE("flags = %#x", flags);
 
     if (!drm) {
-        LOGE("OverlayPlaneBase:flush: failed to get drm");
+        ETRACE("failed to get drm");
         return false;
     }
 
@@ -262,8 +232,7 @@ bool OverlayPlaneBase::flush(uint32_t flags)
     // issue ioctl
     bool ret = drm->writeReadIoctl(DRM_PSB_REGISTER_RW, &arg, sizeof(arg));
     if (ret == false) {
-        LOGW("%s: overlay update failed with error code %d\n",
-             __func__, ret);
+        WTRACE("overlay update failed with error code %d", ret);
         return false;
     }
 
@@ -281,14 +250,14 @@ OverlayBackBuffer* OverlayPlaneBase::createBackBuffer()
     OverlayBackBuffer *backBuffer;
     bool ret;
 
-    LOGV("OverlayPlaneBase::createBackBuffer");
+    CTRACE();
 
     size = sizeof(OverlayBackBufferBlk);
     alignment = 64 * 1024;
     wsbmBufferObject = 0;
     ret = mWsbm->allocateTTMBuffer(size, alignment, &wsbmBufferObject);
     if (ret == false) {
-        LOGE("OverlayPlaneBase::createBackBuffer: failed to allocate buffer");
+        ETRACE("failed to allocate buffer");
         return 0;
     }
 
@@ -298,7 +267,7 @@ OverlayBackBuffer* OverlayPlaneBase::createBackBuffer()
     // create back buffer
     backBuffer = (OverlayBackBuffer *)malloc(sizeof(OverlayBackBuffer));
     if (!backBuffer) {
-        LOGE("OverlayPlaneBase::createBackBuffer: failed to allocate back buffer");
+        ETRACE("failed to allocate back buffer");
         goto alloc_err;
     }
 
@@ -306,8 +275,7 @@ OverlayBackBuffer* OverlayPlaneBase::createBackBuffer()
     backBuffer->gttOffsetInPage = gttOffsetInPage;
     backBuffer->bufObject = (uint32_t)wsbmBufferObject;
 
-    LOGV("OverlayPlaneBase::createBackBuffer: created back buffer. cpu %p, gtt %d",
-          virtAddr, gttOffsetInPage);
+    VTRACE("cpu %p, gtt %d", virtAddr, gttOffsetInPage);
 
     return backBuffer;
 alloc_err:
@@ -325,9 +293,9 @@ void OverlayPlaneBase::deleteBackBuffer()
 
     wsbmBufferObject = (void *)mBackBuffer->bufObject;
     ret = mWsbm->destroyTTMBuffer(wsbmBufferObject);
-    if (ret == false)
-        LOGW("OverlayPlaneBase::deleteBackBuffer: failed to delete back buffer");
-
+    if (ret == false) {
+        WTRACE("failed to delete back buffer");
+    }
     // free back buffer
     free(mBackBuffer);
     mBackBuffer = 0;
@@ -337,7 +305,7 @@ void OverlayPlaneBase::resetBackBuffer()
 {
     OverlayBackBufferBlk *backBuffer;
 
-    LOGV("OverlayPlaneBase::resetBackBuffer");
+    CTRACE();
 
     if (!mBackBuffer)
         return;
@@ -379,7 +347,7 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
 
     payload = (struct VideoPayloadBuffer *)grallocMapper.getCpuAddress(SUB_BUFFER1);
     if (!payload) {
-        LOGE("OverlayPlaneBase::getTTMMapper: invalid payload buffer");
+        ETRACE("invalid payload buffer");
         return 0;
     }
 
@@ -387,10 +355,10 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
     khandle = payload->rotated_buffer_handle;
     index = mTTMBuffers.indexOfKey(khandle);
     if (index < 0) {
-        LOGV("OverlayPlaneBase::getTTMMapper: unmapped TTM buffer, will map it");
+        VTRACE("unmapped TTM buffer, will map it");
         buf = new DataBuffer(khandle);
         if (!buf) {
-            LOGE("OverlayPlaneBase::getTTMMapper: failed to create buffer");
+            ETRACE("failed to create buffer");
             return 0;
         }
 
@@ -461,34 +429,35 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
         // create buffer mapper
         mapper = new TTMBufferMapper(*mWsbm, *buf);
         if (!mapper) {
-            LOGE("OverlayPlaneBase::getTTMMapper: failed to allocate mapper");
+            ETRACE("failed to allocate mapper");
             goto mapper_err;
         }
         // map ttm buffer
         ret = mapper->map();
         if (!ret) {
-            LOGE("OverlayPlaneBase::getTTMMapper: failed to map");
+            ETRACE("failed to map");
             goto map_err;
         }
 
         // add mapper
         index = mTTMBuffers.add(khandle, mapper);
         if (index < 0) {
-            LOGE("OverlayPlaneBase::failed to add TTMMapper");
+            ETRACE("failed to add TTMMapper");
             goto add_err;
         }
     } else {
-        LOGV("OverlayPlaneBase::getTTMMapper: got mapper in saved ttm buffers");
+        VTRACE("got mapper in saved ttm buffers");
         mapper = reinterpret_cast<TTMBufferMapper *>(mTTMBuffers.valueAt(index));
     }
 
     // sync rotated data buffer.
     // Well, I have to, video driver DOESN'T support sync this buffer
     ret = mapper->waitIdle();
-    if (ret == false)
-        LOGW("OverlayPlaneBase::getTTMMapper: failed to wait idle");
+    if (ret == false) {
+        WTRACE("failed to wait for idle");
+    }
 
-    LOGV("OverlayPlaneBase::getTTMMapper: got ttm mapper");
+    XTRACE();
 
     return mapper;
 add_err:
@@ -529,7 +498,7 @@ bool OverlayPlaneBase::rotatedBufferReady(BufferMapper& mapper)
     payload = (struct VideoPayloadBuffer *)mapper.getCpuAddress(SUB_BUFFER1);
     // check payload
     if (!payload) {
-        LOGE("OverlayPlaneBase::rotatedBufferReady: no payload found");
+        ETRACE("no payload found");
         return false;
     }
 
@@ -537,7 +506,7 @@ bool OverlayPlaneBase::rotatedBufferReady(BufferMapper& mapper)
         return false;
 
     if (payload->client_transform != mTransform) {
-        LOGW("OverlayPlaneBase::rotatedBufferReady: client is not ready");
+        WTRACE("client is not ready");
         return false;
     }
 
@@ -552,11 +521,11 @@ void OverlayPlaneBase::checkPosition(int& x, int& y, int& w, int& h)
     drmModeCrtcPtr drmCrtc;
     Drm *drm = Hwcomposer::getInstance().getDrm();
 
-    switch (mPipeConfig) {
-    case 0:
+    switch (mDevice) {
+    case IDisplayDevice::DEVICE_PRIMARY:
         outputIndex = Drm::OUTPUT_PRIMARY;
         break;
-    case (0x2 << 6) :
+    case IDisplayDevice::DEVICE_EXTERNAL:
         outputIndex = Drm::OUTPUT_EXTERNAL;
         break;
     }
@@ -565,14 +534,14 @@ void OverlayPlaneBase::checkPosition(int& x, int& y, int& w, int& h)
         return;
 
     if (!drm) {
-        LOGE("OverlayPlaneBase::checkPosition: failed to get drm");
+        ETRACE("failed to get drm");
         return;
     }
 
     // get output
     output = drm->getOutput(outputIndex);
     if (!output) {
-        LOGE("checkPosition(): failed to get output");
+        ETRACE("failed to get output");
         return;
     }
 
@@ -596,11 +565,11 @@ void OverlayPlaneBase::checkPosition(int& x, int& y, int& w, int& h)
 
 bool OverlayPlaneBase::bufferOffsetSetup(BufferMapper& mapper)
 {
-    LOGV("OverlayPlaneBase::bufferOffsetSetup");
+    CTRACE();
 
     OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
     if (!backBuffer) {
-        LOGE("OverlayPlaneBase::bufferOffsetSetup: invalid back buffer");
+        ETRACE("invalid back buffer");
         return false;
     }
 
@@ -663,7 +632,7 @@ bool OverlayPlaneBase::bufferOffsetSetup(BufferMapper& mapper)
         backBuffer->OCMD |= OVERLAY_PACKED_ORDER_UYVY;
         break;
     default:
-        LOGE("%s: unsupported format %d\n", __func__, format);
+        ETRACE("unsupported format %d", format);
         return false;
     }
 
@@ -674,7 +643,7 @@ bool OverlayPlaneBase::bufferOffsetSetup(BufferMapper& mapper)
     backBuffer->OBUF_1U = backBuffer->OBUF_0U;
     backBuffer->OBUF_1V = backBuffer->OBUF_0V;
 
-    LOGV("OverlayPlaneBase::bufferOffsetSetup: done. offset (%d, %d, %d)\n",
+    VTRACE("done. offset (%d, %d, %d)",
           backBuffer->OBUF_0Y,
           backBuffer->OBUF_0U,
           backBuffer->OBUF_0V);
@@ -683,9 +652,7 @@ bool OverlayPlaneBase::bufferOffsetSetup(BufferMapper& mapper)
 
 uint32_t OverlayPlaneBase::calculateSWidthSW(uint32_t offset, uint32_t width)
 {
-    LOGV("OverlayPlaneBase::calculateSWidthSW: offset %d, width %d\n",
-          offset,
-          width);
+    ATRACE("offset = %d, width = %d", offset, width);
 
     uint32_t swidth = ((offset + width + 0x3F) >> 6) - (offset >> 6);
 
@@ -697,11 +664,11 @@ uint32_t OverlayPlaneBase::calculateSWidthSW(uint32_t offset, uint32_t width)
 
 bool OverlayPlaneBase::coordinateSetup(BufferMapper& mapper)
 {
-    LOGV("OverlayPlaneBase::coordinateSetup");
+    CTRACE();
 
     OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
     if (!backBuffer) {
-        LOGE("OverlayPlaneBase::bufferOffsetSetup: invalid back buffer");
+        ETRACE("invalid back buffer");
         return false;
     }
 
@@ -725,18 +692,17 @@ bool OverlayPlaneBase::coordinateSetup(BufferMapper& mapper)
         width <<= 1;
         break;
     default:
-        LOGE("OverlayPlaneBase::bufferOffsetSetup: unsupported format %d",
-              format);
+        ETRACE("unsupported format %d", format);
         return false;
     }
 
     if (width <= 0 || height <= 0) {
-        LOGE("OverlayPlaneBase::bufferOffsetSetup: invalid src dim");
+        ETRACE("invalid src dim");
         return false;
     }
 
     if (yStride <=0 && uvStride <= 0) {
-        LOGE("OverlayPlaneBase::bufferOffsetSetup: invalid source stride");
+        ETRACE("invalid source stride");
         return false;
     }
 
@@ -747,7 +713,7 @@ bool OverlayPlaneBase::coordinateSetup(BufferMapper& mapper)
     backBuffer->SHEIGHT = height | ((height / 2) << 16);
     backBuffer->OSTRIDE = (yStride & (~0x3f)) | ((uvStride & (~0x3f)) << 16);
 
-    LOGV("OverlayPlaneBase::coordinateSetup: finished");
+    XTRACE();
 
     return true;
 }
@@ -894,7 +860,7 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
 
     OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
     if (!backBuffer) {
-        LOGE("OverlayPlaneBase::bufferOffsetSetup: invalid back buffer");
+        ETRACE("invalid back buffer");
         return false;
     }
 
@@ -905,11 +871,10 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
 
     // check position
     checkPosition(x, y, w, h);
-    LOGV("OverlayPlaneBase::scalingSetup: Final position (%d, %d, %d, %d)",
-          x, y, w, h);
+    VTRACE("final position (%d, %d, %d, %d)", x, y, w, h);
 
     if ((w <= 0) || (h <= 0)) {
-         LOGE("OverlayPlaneBase::scalingSetup: Invalid dst width/height");
+         ETRACE("invalid dst width/height");
          return false;
     }
 
@@ -922,7 +887,7 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
     uint32_t dstWidth = w;
     uint32_t dstHeight = h;
 
-    LOGV("OverlayPlaneBase::scalingSetup: src (%dx%d) v.s. (%dx%d)",
+    VTRACE("src (%dx%d), dst (%dx%d)",
           srcWidth, srcHeight,
           dstWidth, dstHeight);
     /*
@@ -956,15 +921,13 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
 
     /* Check scaling ratio */
     if (xscaleInt > INTEL_OVERLAY_MAX_SCALING_RATIO) {
-        LOGE("OverlayPlaneBase:scalingSetup:xscaleInt > %d",
-              INTEL_OVERLAY_MAX_SCALING_RATIO);
+        ETRACE("xscaleInt > %d", INTEL_OVERLAY_MAX_SCALING_RATIO);
         return false;
     }
 
     /* shouldn't get here */
     if (xscaleIntUV > INTEL_OVERLAY_MAX_SCALING_RATIO) {
-        LOGE("OverlayPlaneBase:scalingSetup: xscaleIntUV > %d",
-             INTEL_OVERLAY_MAX_SCALING_RATIO);
+        ETRACE("xscaleIntUV > %d", INTEL_OVERLAY_MAX_SCALING_RATIO);
         return false;
     }
 
@@ -1032,8 +995,7 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
         }
     }
 
-    LOGV("OverlayPlaneBase::scalingSetup: finished");
-
+    XTRACE();
     return true;
 }
 
@@ -1042,51 +1004,46 @@ bool OverlayPlaneBase::setDataBuffer(BufferMapper& grallocMapper)
     BufferMapper *mapper;
     bool ret;
 
-    LOGV("OverlayPlaneBase::setDataBuffer: handle = %d");
-
-    if (!initCheck()) {
-        LOGE("OverlayPlaneBase::setDataBuffer: overlay wasn't initialized");
-        return false;
-    }
+    RETURN_FALSE_IF_NOT_INIT();
 
     // get gralloc mapper
     mapper = &grallocMapper;
     // check transform when overlay is attached to primary device
     if (mTransform && !mPipeConfig) {
         if (!rotatedBufferReady(grallocMapper)) {
-            LOGW("OverlayPlaneBase::setDataBuffer: rotated buffer is not ready");
+            WTRACE("rotated buffer is not ready");
             return false;
         }
 
         // get rotated data buffer mapper
         mapper = getTTMMapper(grallocMapper);
         if (!mapper) {
-            LOGE("OverlayPlaneBase::setDataBuffer: failed to get rotated buffer");
+            ETRACE("failed to get rotated buffer");
             return false;
         }
     }
 
     OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
     if (!backBuffer) {
-        LOGE("OverlayPlaneBase::bufferOffsetSetup: invalid back buffer");
+        ETRACE("invalid back buffer");
         return false;
     }
 
     ret = bufferOffsetSetup(*mapper);
     if (ret == false) {
-        LOGE("OverlayPlaneBase::setDataBuffer: failed to set up buffer offsets");
+        ETRACE("failed to set up buffer offsets");
         return false;
     }
 
     ret = coordinateSetup(*mapper);
     if (ret == false) {
-        LOGE("OverlayPlaneBase::setDataBuffer: failed to set up overlay coordinates");
+        ETRACE("failed to set up overlay coordinates");
         return false;
     }
 
     ret = scalingSetup(*mapper);
     if (ret == false) {
-        LOGE("OverlayPlaneBase::setDataBuffer: failed to set up scaling parameters");
+        ETRACE("failed to set up scaling parameters");
         return false;
     }
 

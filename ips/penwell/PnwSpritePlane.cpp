@@ -25,8 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <Hwcomposer.h>
 #include <BufferManager.h>
 #include <penwell/PnwSpritePlane.h>
@@ -38,12 +37,12 @@ namespace intel {
 PnwSpritePlane::PnwSpritePlane(int index, int disp)
     : SpritePlaneBase(index, disp)
 {
-    LOGV("PnwSpritePlane");
+    CTRACE();
 }
 
 PnwSpritePlane::~PnwSpritePlane()
 {
-    LOGV("~PnwSpritePlane");
+    CTRACE();
 }
 
 bool PnwSpritePlane::setDataBuffer(BufferMapper& mapper)
@@ -54,7 +53,7 @@ bool PnwSpritePlane::setDataBuffer(BufferMapper& mapper)
 
 void* PnwSpritePlane::getContext() const
 {
-    LOGV("PnwSpritePlane::getContext");
+    CTRACE();
     // TODO: return penwell sprite context
     return 0;
 }

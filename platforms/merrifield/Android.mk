@@ -24,13 +24,15 @@ LOCAL_SHARED_LIBRARIES := liblog libcutils libdrm \
                           libwsbm libutils libhardware
 LOCAL_SRC_FILES := \
     ../../common/base/Drm.cpp \
-    ../../common/base/HwcConfig.cpp \
     ../../common/base/HwcLayerList.cpp \
     ../../common/base/Hwcomposer.cpp \
     ../../common/base/HwcModule.cpp \
     ../../common/buffers/BufferCache.cpp \
     ../../common/buffers/BufferManager.cpp \
-    ../../common/devices/DisplayDevice.cpp \
+    ../../common/devices/PhysicalDevice.cpp \
+    ../../common/devices/PrimaryDevice.cpp \
+    ../../common/devices/ExternalDevice.cpp \
+    ../../common/devices/VirtualDevice.cpp \
     ../../common/observers/HotplugEventObserver.cpp \
     ../../common/observers/VsyncEventObserver.cpp \
     ../../common/planes/DisplayPlane.cpp \
@@ -49,6 +51,7 @@ LOCAL_SRC_FILES += \
     ../../ips/common/GrallocBufferBase.cpp \
     ../../ips/common/GrallocBufferMapperBase.cpp \
     ../../ips/common/TTMBufferMapper.cpp \
+    ../../ips/common/DrmConfig.cpp \
     ../../ips/common/Wsbm.cpp \
     ../../ips/common/WsbmWrapper.c
 
@@ -57,12 +60,15 @@ LOCAL_SRC_FILES += \
     ../../ips/tangier/TngGrallocBufferMapper.cpp \
     ../../ips/tangier/TngOverlayPlane.cpp \
     ../../ips/tangier/TngPrimaryPlane.cpp \
-    ../../ips/tangier/TngSpritePlane.cpp
+    ../../ips/tangier/TngSpritePlane.cpp \
+    ../../ips/tangier/TngDisplayContext.cpp
 
 
 LOCAL_SRC_FILES += \
     PlatfBufferManager.cpp \
-    PlatfDisplayDevice.cpp \
+    PlatfPrimaryDevice.cpp \
+    PlatfExternalDevice.cpp \
+    PlatfVirtualDevice.cpp \
     PlatfDisplayPlaneManager.cpp \
     PlatfHwcomposer.cpp
 
@@ -95,9 +101,7 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH) \
 
 LOCAL_MODULE_TAGS := eng
 LOCAL_MODULE := hwcomposer.$(TARGET_DEVICE)
-LOCAL_CFLAGS:= -DLINUX -DLOG_TAG=\"hwcomposer\"
-#NOTE: uncomment this to enble verbose logs
-#LOCAL_CFLAGS += -DLOG_NODEBUG
+LOCAL_CFLAGS:= -DLINUX
 
 #$(error local path is: $(LOCAL_C_INCLUDES))
 include $(BUILD_SHARED_LIBRARY)

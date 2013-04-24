@@ -25,12 +25,10 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <Hwcomposer.h>
 #include <BufferManager.h>
 #include <common/SpritePlaneBase.h>
-//#include <common/PlaneCapabilities.h>
 #include <common/PixelFormat.h>
 
 namespace android {
@@ -40,12 +38,12 @@ SpritePlaneBase::SpritePlaneBase(int index, int disp)
     : DisplayPlane(index, PLANE_SPRITE, disp),
       mForceBottom(true)
 {
-    LOGV("SpritePlaneBase");
+    CTRACE();
 }
 
 SpritePlaneBase::~SpritePlaneBase()
 {
-    LOGV("~SpritePlaneBase");
+    CTRACE();
 }
 
 void SpritePlaneBase::checkPosition(int& x, int& y, int& w, int& h)
@@ -55,32 +53,31 @@ void SpritePlaneBase::checkPosition(int& x, int& y, int& w, int& h)
 
 bool SpritePlaneBase::reset()
 {
-    LOGV("SpritePlaneBase::reset");
+    CTRACE();
     return true;
 }
 
 bool SpritePlaneBase::flip()
 {
-    LOGV("SpritePlaneBase::flip");
+    CTRACE();
     return true;
 }
 
 bool SpritePlaneBase::enable()
 {
-    LOGV("SpritePlaneBase::enable");
+    CTRACE();
     return true;
 }
 
 bool SpritePlaneBase::disable()
 {
-    LOGV("SpritePlaneBase::disable");
+    CTRACE();
     return true;
 }
 
 void SpritePlaneBase::setZOrderConfig(ZOrderConfig& config)
 {
-    LOGV("SpritePlaneBase::setZOrderConfig, overlay count %d",
-          config.overlayCount);
+    ATRACE("overlay count = %d", config.overlayCount);
 
     if (config.overlayCount)
         mForceBottom = false;

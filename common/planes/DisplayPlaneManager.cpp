@@ -25,8 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <DisplayPlaneManager.h>
 
 namespace android {
@@ -70,7 +69,7 @@ bool DisplayPlaneManager::initialize()
     int i;
     size_t j;
 
-    LOGV("DisplayPlaneManager::initialize");
+    CTRACE();
 
     // detect display plane usage. Hopefully throw DRM ioctl
     detect();
@@ -82,7 +81,7 @@ bool DisplayPlaneManager::initialize()
         for (i = 0; i < mPrimaryPlaneCount; i++) {
             DisplayPlane* plane = allocPlane(i, DisplayPlane::PLANE_PRIMARY);
             if (!plane) {
-                LOGE("initialize: failed to allocate primary plane %d", i);
+                ETRACE("failed to allocate primary plane %d", i);
                 goto primary_err;
             }
             // reset overlay plane
@@ -99,7 +98,7 @@ bool DisplayPlaneManager::initialize()
         for (i = 0; i < mSpritePlaneCount; i++) {
             DisplayPlane* plane = allocPlane(i, DisplayPlane::PLANE_SPRITE);
             if (!plane) {
-                LOGE("initialize: failed to allocate sprite plane %d", i);
+                ETRACE("failed to allocate sprite plane %d", i);
                 goto sprite_err;
             }
             // reset overlay plane
@@ -115,7 +114,7 @@ bool DisplayPlaneManager::initialize()
         for (i = 0; i < mOverlayPlaneCount; i++) {
             DisplayPlane* plane = allocPlane(i, DisplayPlane::PLANE_OVERLAY);
             if (!plane) {
-                LOGE("initialize: failed to allocate sprite plane %d", i);
+                ETRACE("failed to allocate sprite plane %d", i);
                 goto overlay_err;
             }
             // reset overlay plane
@@ -167,7 +166,7 @@ void DisplayPlaneManager::putPlane(int index, uint32_t& mask)
     int bit = (1 << index);
 
     if (bit & mask) {
-        LOGW("putPlane: bit %d was set", index);
+        WTRACE("bit %d was set", index);
         return;
     }
 
@@ -190,10 +189,7 @@ int DisplayPlaneManager::getPlane(uint32_t& mask, int index)
 
 DisplayPlane* DisplayPlaneManager::getSpritePlane()
 {
-    if (!initCheck()) {
-        LOGE("getSpritePlane: plane manager was not initialized\n");
-        return 0;
-    }
+    RETURN_NULL_IF_NOT_INIT();
 
     int freePlaneIndex;
 
@@ -206,16 +202,13 @@ DisplayPlane* DisplayPlaneManager::getSpritePlane()
     freePlaneIndex = getPlane(mFreeSpritePlanes);
     if (freePlaneIndex >= 0)
         return mSpritePlanes.itemAt(freePlaneIndex);
-    LOGE("getSpritePlane: failed to get a sprite plane\n");
+    ETRACE("failed to get a sprite plane");
     return 0;
 }
 
 DisplayPlane* DisplayPlaneManager::getPrimaryPlane(int pipe)
 {
-    if (!initCheck()) {
-        LOGE("getSpritePlane: plane manager was not initialized\n");
-        return 0;
-    }
+    RETURN_NULL_IF_NOT_INIT();
 
     int freePlaneIndex;
 
@@ -228,16 +221,13 @@ DisplayPlane* DisplayPlaneManager::getPrimaryPlane(int pipe)
     freePlaneIndex = getPlane(mFreePrimaryPlanes, pipe);
     if (freePlaneIndex >= 0)
         return mPrimaryPlanes.itemAt(freePlaneIndex);
-    LOGE("getPrimaryPlane: failed to get a primary plane\n");
+    ETRACE("failed to get a primary plane");
     return 0;
 }
 
 DisplayPlane* DisplayPlaneManager::getOverlayPlane()
 {
-    if (!initCheck()) {
-        LOGE("getOverlayPlane: plane manager was not initialized\n");
-        return 0;
-    }
+    RETURN_NULL_IF_NOT_INIT();
 
     int freePlaneIndex;
 
@@ -249,7 +239,7 @@ DisplayPlane* DisplayPlaneManager::getOverlayPlane()
     }
 
     if (freePlaneIndex < 0) {
-       LOGE("getOverlayPlane: failed to get a overlay plane\n");
+       ETRACE("failed to get an overlay plane");
        return 0;
     }
 
@@ -273,24 +263,21 @@ void DisplayPlaneManager::putOverlayPlane(DisplayPlane& plane)
 
 bool DisplayPlaneManager::hasFreeSprites()
 {
-    if (!initCheck())
-        return false;
+    RETURN_FALSE_IF_NOT_INIT();
 
     return (mFreeSpritePlanes || mReclaimedSpritePlanes) ? true : false;
 }
 
 bool DisplayPlaneManager::hasFreeOverlays()
 {
-    if (!initCheck())
-        return false;
+    RETURN_FALSE_IF_NOT_INIT();
 
     return (mFreeOverlayPlanes || mReclaimedOverlayPlanes) ? true : false;
 }
 
 int DisplayPlaneManager::getFreeSpriteCount() const
 {
-    if (!initCheck())
-        return 0;
+    RETURN_NULL_IF_NOT_INIT();
 
     uint32_t availableSprites = mFreeSpritePlanes;
     availableSprites |= mReclaimedSpritePlanes;
@@ -306,8 +293,7 @@ int DisplayPlaneManager::getFreeSpriteCount() const
 
 int DisplayPlaneManager::getFreeOverlayCount() const
 {
-    if (!initCheck())
-        return 0;
+    RETURN_NULL_IF_NOT_INIT();
 
     uint32_t availableOverlays = mFreeOverlayPlanes;
     availableOverlays |= mReclaimedOverlayPlanes;
@@ -323,16 +309,14 @@ int DisplayPlaneManager::getFreeOverlayCount() const
 
 bool DisplayPlaneManager::hasReclaimedOverlays()
 {
-    if (!initCheck())
-        return false;
+    RETURN_FALSE_IF_NOT_INIT();
 
     return (mReclaimedOverlayPlanes) ? true : false;
 }
 
 bool DisplayPlaneManager::primaryAvailable(int pipe)
 {
-    if (!initCheck())
-        return false;
+    RETURN_FALSE_IF_NOT_INIT();
 
     return ((mFreePrimaryPlanes & (1 << pipe)) ||
             (mReclaimedPrimaryPlanes & (1 << pipe))) ? true : false;
@@ -340,14 +324,11 @@ bool DisplayPlaneManager::primaryAvailable(int pipe)
 
 void DisplayPlaneManager::reclaimPlane(DisplayPlane& plane)
 {
-    if (!initCheck()) {
-        LOGE("reclaimPlane: plane manager is not initialized\n");
-        return;
-    }
+    RETURN_VOID_IF_NOT_INIT();
 
     int index = plane.getIndex();
 
-    LOGV("reclaimPlane: reclaimPlane %d, type %d\n", index, plane.getType());
+    ATRACE("reclaimPlane = %d, type = %d", index, plane.getType());
 
     if (plane.getType() == DisplayPlane::PLANE_OVERLAY)
         putPlane(index, mReclaimedOverlayPlanes);
@@ -355,21 +336,18 @@ void DisplayPlaneManager::reclaimPlane(DisplayPlane& plane)
         putPlane(index, mReclaimedSpritePlanes);
     else if (plane.getType() == DisplayPlane::PLANE_PRIMARY)
         putPlane(index, mReclaimedPrimaryPlanes);
-    else
-        LOGE("reclaimPlane: invalid plane type %d", plane.getType());
+    else {
+        ETRACE("invalid plane type %d", plane.getType());
+    }
 }
 
 void DisplayPlaneManager::disableReclaimedPlanes()
 {
-    if (!initCheck()) {
-        LOGE("disableReclaimedPlanes: plane manager is not initialized");
-        return;
-    }
+    RETURN_VOID_IF_NOT_INIT();
 
-    LOGV("DisplayPlaneManager::disableReclaimedPlanes: "
-          "sprite %d, reclaimed 0x%x"
-          "primary %d, reclaimed 0x%x"
-          "overlay %d, reclaimed 0x%x",
+    VTRACE("sprite %d, reclaimed %#x, "
+          "primary %d, reclaimed %#x, "
+          "overlay %d, reclaimed %#x",
           mSpritePlanes.size(), mReclaimedSpritePlanes,
           mPrimaryPlanes.size(), mReclaimedPrimaryPlanes,
           mOverlayPlanes.size(), mReclaimedOverlayPlanes);

@@ -34,19 +34,19 @@
 namespace android {
 namespace intel {
 
-class DisplayDevice;
+class ExternalDevice;
 
 class HotplugEventObserver : public Thread
 {
 public:
-    HotplugEventObserver(DisplayDevice& disp, IHotplugControl& hotplug);
+    HotplugEventObserver(ExternalDevice& disp, IHotplugControl& hotplug);
     virtual ~HotplugEventObserver();
 private:
     virtual bool threadLoop();
     virtual android::status_t readyToRun();
     virtual void onFirstRef();
 private:
-    DisplayDevice& mDisplayDevice;
+    ExternalDevice& mDisplayDevice;
     IHotplugControl& mHotplug;
 }; // HotplugEventObserver
 }

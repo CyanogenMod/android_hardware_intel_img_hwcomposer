@@ -25,8 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <PlatfDisplayPlaneManager.h>
 #include <tangier/TngPrimaryPlane.h>
 #include <tangier/TngSpritePlane.h>
@@ -38,7 +37,7 @@ namespace intel {
 PlatfDisplayPlaneManager::PlatfDisplayPlaneManager()
     : DisplayPlaneManager()
 {
-    LOGV("PlatfDisplayPlaneManager");
+    CTRACE();
 }
 
 PlatfDisplayPlaneManager::~PlatfDisplayPlaneManager()
@@ -48,7 +47,7 @@ PlatfDisplayPlaneManager::~PlatfDisplayPlaneManager()
 
 void PlatfDisplayPlaneManager::detect()
 {
-    LOGV("PlatfDisplayPlaneManager::detect");
+    CTRACE();
 
     mSpritePlaneCount = 0;
     mPrimaryPlaneCount = 3;
@@ -66,7 +65,7 @@ void PlatfDisplayPlaneManager::detect()
 DisplayPlane* PlatfDisplayPlaneManager::allocPlane(int index, int type)
 {
     DisplayPlane *plane = 0;
-    LOGV("PlatfDisplayPlaneManager::allocPlane index %d, type %d", index, type);
+    ATRACE("index = %d, type = %d", index, type);
 
     switch (type) {
     case DisplayPlane::PLANE_PRIMARY:
@@ -79,10 +78,11 @@ DisplayPlane* PlatfDisplayPlaneManager::allocPlane(int index, int type)
         plane = new TngOverlayPlane(index, 0);
         break;
     default:
-        LOGE("PlatfDisplayPlaneManager::allocPlane: unsupported type %d", type);
+        ETRACE("unsupported type %d", type);
+        break;
     }
-    if (plane && !plane->initialize(DisplayPlane::defaultDataBufferCount)) {
-        LOGE("PlatfDisplayPlaneManager::allocPlane: failed to initialize plane.");
+    if (plane && !plane->initialize(DisplayPlane::DEFAULT_DATA_BUFFER_COUNT)) {
+        ETRACE("failed to initialize plane.");
         delete plane;
         return NULL;
     }

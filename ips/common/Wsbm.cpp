@@ -25,13 +25,12 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
+#include <HwcTrace.h>
 #include <common/Wsbm.h>
-#include <cutils/log.h>
-#include <cutils/atomic.h>
 
 Wsbm::Wsbm(int drmFD)
 {
-    LOGV("%s: creating a new wsbm object...\n", __func__);
+    CTRACE();
     mDrmFD = drmFD;
 }
 
@@ -44,7 +43,7 @@ bool Wsbm::initialize()
 {
     int ret = psbWsbmInitialize(mDrmFD);
     if(ret) {
-        LOGE("%s: wsbm initialize failed\n", __func__);
+        ETRACE("failed to initialize Wsbm");
         return false;
     }
 
@@ -55,7 +54,7 @@ bool Wsbm::allocateTTMBuffer(uint32_t size, uint32_t align, void ** buf)
 {
     int ret = psbWsbmAllocateTTMBuffer(size, align, buf);
     if(ret) {
-        LOGE("%s: Allocate buffer failed\n", __func__);
+        ETRACE("failed to allocate buffer");
         return false;
     }
 
@@ -66,7 +65,7 @@ bool Wsbm::destroyTTMBuffer(void * buf)
 {
     int ret = psbWsbmDestroyTTMBuffer(buf);
     if(ret) {
-        LOGE("%s: destroy buffer failed\n", __func__);
+        ETRACE("failed to destroy buffer");
         return false;
     }
 
@@ -87,7 +86,7 @@ bool Wsbm::wrapTTMBuffer(uint32_t handle, void **buf)
 {
     int ret = psbWsbmWrapTTMBuffer(handle, buf);
     if (ret) {
-        LOGE("%s: wrap buffer failed\n", __func__);
+        ETRACE("failed to wrap buffer");
         return false;
     }
 
@@ -98,7 +97,7 @@ bool Wsbm::unreferenceTTMBuffer(void *buf)
 {
     int ret = psbWsbmUnReference(buf);
     if (ret) {
-        LOGE("%s: unreference buffer failed\n", __func__);
+        ETRACE("failed to unreference buffer");
         return false;
     }
 
@@ -114,7 +113,7 @@ bool Wsbm::waitIdleTTMBuffer(void *buf)
 {
     int ret = psbWsbmWaitIdle(buf);
     if (ret) {
-        LOGE("%s: wait ttm buffer idle failed\n", __func__);
+        ETRACE("failed to wait ttm buffer for idle");
         return false;
     }
 

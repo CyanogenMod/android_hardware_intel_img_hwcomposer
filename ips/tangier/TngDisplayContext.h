@@ -25,46 +25,40 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef HWCCONFIG_H_
-#define HWCCONFIG_H_
+#ifndef TNG_DISPLAY_CONTEXT_H
+#define TNG_DISPLAY_CONTEXT_H
 
-#include <utils/Singleton.h>
+#include <IDisplayContext.h>
+#include <hal_public.h>
 
 namespace android {
 namespace intel {
 
-// change the default configuration here
-#define HWC_CONFIG_DEFAULT_LOG_LEVEL    "2"
-#define HWC_CONFIG_DEFAULT_VIDEO_MODE_SUPPORT "1"
-
-#define HWC_CONFIG_DEBUG_LOG_LEVEL        "hwc.debug.log.level"
-#define HWC_CONFIG_FEATURE_EXTEND_VIDEO   "hwc.feature.extend.video"
-
-class HwcConfig : public Singleton<HwcConfig> {
+class TngDisplayContext : public IDisplayContext {
 public:
-    // debug log levels
+    TngDisplayContext();
+    ~TngDisplayContext();
+public:
+    bool initialize();
+    bool commitBegin();
+    bool commitContents(hwc_display_contents_1_t *display, HwcLayerList* layerList);
+    bool commitEnd();
+    bool compositionComplete();
+
+protected:
+    void deinitialize();
+
+private:
     enum {
-        DEBUG_LOG_VERBOSE = 0,
-        DEBUG_LOG_DEBUG,
-        DEBUG_LOG_INFO,
-        DEBUG_LOG_WARNING,
-        DEBUG_LOG_ERROR,
+        MAXIMUM_LAYER_NUMBER = 20,
     };
-
-    // feature
-    enum {
-        UNSUPPORTED = 0,
-        SUPPORTED,
-    };
-public:
-    HwcConfig();
-public:
-    void debugLogLevel(int& value);
-    void extendVideo(int& value);
+    IMG_framebuffer_device_public_t *mFBDev;
+    IMG_hwc_layer_t mImgLayers[MAXIMUM_LAYER_NUMBER];
+    bool mInitialized;
+    int mCount;
 };
 
 } // namespace intel
 } // namespace android
 
-
-#endif /* HWCCONFIG_H_ */
+#endif /* TNG_DISPLAY_CONTEXT_H */

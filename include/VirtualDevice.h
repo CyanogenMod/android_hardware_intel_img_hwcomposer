@@ -25,31 +25,53 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef PLATF_DISPLAY_DEVICE_H
-#define PLATF_DISPLAY_DEVICE_H
+#ifndef VIRTUAL_DEVICE_H
+#define VIRTUAL_DEVICE_H
 
-#include <hal_public.h>
-#include <DisplayDevice.h>
+
+#include <IDisplayDevice.h>
 
 namespace android {
 namespace intel {
 
-class PlatfDisplayDevice : public DisplayDevice {
+class Hwcomposer;
+class DisplayPlaneManager;
+
+class VirtualDevice : public IDisplayDevice  {
 public:
-    PlatfDisplayDevice(uint32_t type,
-                        Hwcomposer& hwc,
-                        DisplayPlaneManager& dpm);
-    ~PlatfDisplayDevice();
+    VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm);
+    virtual ~VirtualDevice();
+
 public:
-    bool commit(hwc_display_contents_1_t *display,
-                 void *contexts,
-                 int& count);
+    virtual bool prePrepare(hwc_display_contents_1_t *display);
+    virtual bool prepare(hwc_display_contents_1_t *display);
+    virtual bool commit(hwc_display_contents_1_t *display,
+                          IDisplayContext *context);
+
+    virtual bool vsyncControl(int enabled);
+    virtual bool blank(int blank);
+    virtual bool getDisplayConfigs(uint32_t *configs,
+                                       size_t *numConfigs);
+    virtual bool getDisplayAttributes(uint32_t config,
+                                          const uint32_t *attributes,
+                                          int32_t *values);
+    virtual bool compositionComplete();
+    virtual bool initialize();
+    virtual bool isConnected() const;
+    virtual const char* getName() const;
+    virtual int getType() const;
+    virtual void dump(Dump& d);
+
 protected:
-    IVsyncControl* createVsyncControl();
-    IBlankControl* createBlankControl();
-    IHotplugControl* createHotplugControl();
+    virtual void deinitialize();
+
+protected:
+    bool mInitialized;
+    Hwcomposer& mHwc;
+    DisplayPlaneManager& mDisplayPlaneManager;
 };
 
 }
 }
-#endif /* PLATF_DISPLAY_DEVICE_H */
+
+#endif /* VIRTUAL_DEVICE_H */

@@ -25,8 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <tangier/TngGrallocBuffer.h>
 
 namespace android {
@@ -38,10 +37,12 @@ TngGrallocBuffer::TngGrallocBuffer(uint32_t handle)
     struct TngIMGGrallocBuffer *grallocHandle =
         (struct TngIMGGrallocBuffer*)handle;
 
-    LOGV("TngGrallocBuffer");
+    CTRACE();
 
-    if (!grallocHandle)
+    if (!grallocHandle) {
+        ETRACE("gralloc handle is null");
         return;
+    }
 
     mFormat = grallocHandle->pixelFormat;
     mWidth = grallocHandle->w;

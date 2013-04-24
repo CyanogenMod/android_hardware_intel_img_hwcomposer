@@ -25,42 +25,27 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcConfig.h>
-#include <cutils/properties.h>
+#ifndef PLATF_EXTERNAL_DEVICE_H
+#define PLATF_EXTERNAL_DEVICE_H
+
+#include <hal_public.h>
+#include <ExternalDevice.h>
 
 namespace android {
-
-using namespace intel;
-ANDROID_SINGLETON_STATIC_INSTANCE(HwcConfig);
-
 namespace intel {
 
-HwcConfig::HwcConfig() : Singleton<HwcConfig>()
-{
+class PlatfExternalDevice : public ExternalDevice {
+public:
+    PlatfExternalDevice(Hwcomposer& hwc,
+                        DisplayPlaneManager& dpm);
+    ~PlatfExternalDevice();
+
+protected:
+    IVsyncControl* createVsyncControl();
+    IBlankControl* createBlankControl();
+    IHotplugControl* createHotplugControl();
+};
 
 }
-
-void HwcConfig::debugLogLevel(int& value)
-{
-    char propValueString[32];
-
-    property_get(HWC_CONFIG_DEBUG_LOG_LEVEL,
-                 propValueString,
-                 HWC_CONFIG_DEFAULT_LOG_LEVEL);
-    value = atoi(propValueString);
 }
-
-void HwcConfig::extendVideo(int& value)
-{
-    char propValueString[32];
-
-    property_get(HWC_CONFIG_FEATURE_EXTEND_VIDEO,
-                 propValueString,
-                 HWC_CONFIG_DEFAULT_VIDEO_MODE_SUPPORT);
-    value = atoi(propValueString);
-}
-
-} // namespace intel
-} // namespace android
-
-
+#endif /* PLATF_EXTERNAL_DEVICE_H */

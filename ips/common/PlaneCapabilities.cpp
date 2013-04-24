@@ -24,8 +24,8 @@
  * Authors:
  *    Jackie Li <yaodong.li@intel.com>
  */
-#include <cutils/log.h>
 
+#include <HwcTrace.h>
 #include <DisplayPlane.h>
 #include <hal_public.h>
 #include <OMX_IVCommon.h>
@@ -44,7 +44,7 @@ bool PlaneCapabilities::isFormatSupported(int planeType, uint32_t format)
         case HAL_PIXEL_FORMAT_RGB_565:
             return true;
         default:
-            LOGV("%s: unsupported format 0x%x", __func__, format);
+            VTRACE("unsupported format %#x", format);
             return false;
         }
     } else if (planeType == DisplayPlane::PLANE_OVERLAY) {
@@ -56,11 +56,11 @@ bool PlaneCapabilities::isFormatSupported(int planeType, uint32_t format)
         case HAL_PIXEL_FORMAT_UYVY:
             return true;
         default:
-            LOGV("%s: unsupported format 0x%x", __func__, format);
+            VTRACE("unsupported format %#x", format);
             return false;
         }
     } else {
-        LOGE("%s: Invalid plane type %d.", __func__, planeType);
+        ETRACE("invalid plane type %d", planeType);
         return false;
     }
 }
@@ -74,14 +74,14 @@ bool PlaneCapabilities::isBlendingSupported(int planeType, uint32_t blending)
         case DisplayPlane::PLANE_BLENDING_PREMULT:
             return true;
         default:
-            LOGV("%s: unsupported blending 0x%x", __func__, blending);
+            VTRACE("unsupported blending %#x", blending);
             return false;
         }
     } else if (planeType == DisplayPlane::PLANE_OVERLAY) {
         // overlay doesn't support blending
         return (blending == DisplayPlane::PLANE_BLENDING_NONE) ? true : false;
     } else {
-        LOGE("%s: Invalid plane type %d.", __func__, planeType);
+        ETRACE("invalid plane type %d", planeType);
         return false;
     }
 }
@@ -103,13 +103,15 @@ bool PlaneCapabilities::isScalingSupported(int planeType, hwc_rect_t& src, hwc_r
         // TODO:  check overlay scaling support
         return true;
     } else {
-        LOGE("%s: Invalid plane type %d.", __func__, planeType);
+        ETRACE("invalid plane type %d", planeType);
         return false;
     }
 }
 
 bool PlaneCapabilities::isTransformSupported(int planeType, uint32_t trans)
 {
+    if (planeType == DisplayPlane::PLANE_OVERLAY)
+        return true;
     // don't transform any tranform
     return trans ? false : true;
 }

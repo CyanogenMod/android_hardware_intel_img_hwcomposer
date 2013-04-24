@@ -25,8 +25,6 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -34,7 +32,8 @@
 #include <linux/netlink.h>
 #include <sys/types.h>
 #include <unistd.h>
-
+#include <HwcTrace.h>
+#include <DrmConfig.h>
 #include <common/HotplugControl.h>
 
 namespace android {
@@ -44,7 +43,7 @@ HotplugControl::HotplugControl()
     : IHotplugControl(),
       mUeventFd(-1)
 {
-    LOGV("HotplugControl");
+    CTRACE();
 
     // init uevent socket
     struct sockaddr_nl addr;
@@ -59,7 +58,7 @@ HotplugControl::HotplugControl()
 
     mUeventFd = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_KOBJECT_UEVENT);
     if(mUeventFd < 0) {
-        LOGD("HotplugControl: failed create uevent sockect");
+        DTRACE("failed to create uevent socket");
         return;
     }
 
@@ -105,13 +104,14 @@ bool HotplugControl::wait(int disp, int& event)
 
 bool HotplugControl::isHotplugEvent(const char *msg, int msgLen)
 {
-    if (strcmp(msg, "change@/devices/pci0000:00/0000:00:02.0/drm/card0"))
+    if (strcmp(msg, DrmConfig::getHotplugEnvelope()) != 0)
         return false;
 
     msg += strlen(msg) + 1;
+    const char* hotplugString = DrmConfig::getHotplugString();
 
     do {
-        if (!strncmp(msg, "HOTPLUG=1", strlen("HOTPLUG=1"))) {
+        if (strncmp(msg, hotplugString, strlen(hotplugString)) == 0) {
             return true;
         }
         msg += strlen(msg) + 1;

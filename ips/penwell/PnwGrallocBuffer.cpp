@@ -25,8 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <penwell/PnwGrallocBuffer.h>
 
 namespace android {
@@ -38,10 +37,12 @@ PnwGrallocBuffer::PnwGrallocBuffer(uint32_t handle)
     struct PnwIMGGrallocBuffer *grallocHandle =
         (struct PnwIMGGrallocBuffer*)handle;
 
-    LOGV("PnwGrallocBuffer");
+    CTRACE();
 
-    if (!grallocHandle)
-        return false;
+    if (!grallocHandle) {
+        ETRACE("gralloc handle is null");
+        return;
+    }
 
     mFormat = grallocHandle->format;
     mWidth = grallocHandle->width;

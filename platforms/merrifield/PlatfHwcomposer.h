@@ -39,20 +39,11 @@ public:
     PlatfHwcomposer();
     ~PlatfHwcomposer();
 
-    // override initialize
-    bool initialize();
-
-    // override compositionComplete
-    bool compositionComplete(int disp);
 protected:
     DisplayPlaneManager* createDisplayPlaneManager();
     BufferManager* createBufferManager();
-    DisplayDevice* createDisplayDevice(int disp, DisplayPlaneManager& dpm);
-    void* getContexts();
-    bool commitContexts(void *context, int count);
-private:
-    IMG_framebuffer_device_public_t *mFBDev;
-    IMG_hwc_layer_t mImgLayers[10];
+    IDisplayDevice* createDisplayDevice(int disp, DisplayPlaneManager& dpm);
+    IDisplayContext* createDisplayContext();
 };
 
 } //namespace intel

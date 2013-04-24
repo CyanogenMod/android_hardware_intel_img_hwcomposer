@@ -25,25 +25,24 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <HotplugEventObserver.h>
-#include <DisplayDevice.h>
+#include <ExternalDevice.h>
 
 namespace android {
 namespace intel {
 
-HotplugEventObserver::HotplugEventObserver(DisplayDevice& disp,
+HotplugEventObserver::HotplugEventObserver(ExternalDevice& disp,
                                               IHotplugControl& hotplug)
     : mDisplayDevice(disp),
       mHotplug(hotplug)
 {
-    LOGD("HotplugEventObserver");
+    CTRACE();
 }
 
 HotplugEventObserver::~HotplugEventObserver()
 {
-    LOGD("~HotplugEventObserver");
+    CTRACE();
 }
 
 bool HotplugEventObserver::threadLoop()
@@ -59,13 +58,13 @@ bool HotplugEventObserver::threadLoop()
 
 status_t HotplugEventObserver::readyToRun()
 {
-    LOGD("HotplugEventObserver::readyToRun");
+    CTRACE();
     return NO_ERROR;
 }
 
 void HotplugEventObserver::onFirstRef()
 {
-    LOGD("HotplugEventObserver::onFirstRef");
+    CTRACE();
     run("HotplugEventObserver", PRIORITY_URGENT_DISPLAY);
 }
 

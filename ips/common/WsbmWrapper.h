@@ -28,8 +28,6 @@
 #ifndef WSBM_WRAPPER_H
 #define WSBM_WRAPPER_H
 
-#include <cutils/atomic.h>
-
 #if defined(__cplusplus)
 extern "C" {
 #endif

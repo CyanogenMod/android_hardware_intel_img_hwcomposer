@@ -25,52 +25,38 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef VIDEO_PAYLOAD_BUFFER_H
-#define VIDEO_PAYLOAD_BUFFER_H
+#include <HwcTrace.h>
+#include <PlatfPrimaryDevice.h>
+#include <common/VsyncControl.h>
+#include <common/BlankControl.h>
+
 
 namespace android {
 namespace intel {
 
-struct VideoPayloadBuffer {
-    // transform made by clients (clients to hwc)
-    int client_transform;
-    int metadata_transform;
-    int rotated_width;
-    int rotated_height;
-    int surface_protected;
-    int force_output_method;
-    uint32_t rotated_buffer_handle;
-    uint32_t renderStatus;
-    unsigned int used_by_widi;
-    int bob_deinterlace;
-    uint32_t width;
-    uint32_t height;
-    uint32_t luma_stride;
-    uint32_t chroma_u_stride;
-    uint32_t chroma_v_stride;
-    uint32_t format;
-    uint32_t khandle;
-    int64_t  timestamp;
+PlatfPrimaryDevice::PlatfPrimaryDevice(Hwcomposer& hwc,
+                                       DisplayPlaneManager& dpm)
+    : PrimaryDevice(hwc, dpm)
+{
+    CTRACE();
+}
 
-    uint32_t rotate_luma_stride;
-    uint32_t rotate_chroma_u_stride;
-    uint32_t rotate_chroma_v_stride;
-    void *native_window;
-};
+PlatfPrimaryDevice::~PlatfPrimaryDevice()
+{
+    CTRACE();
+}
 
+IVsyncControl* PlatfPrimaryDevice::createVsyncControl()
+{
+    return new VsyncControl();
+}
 
-// force output method values
-enum {
-    FORCE_OUTPUT_INVALID = 0,
-    FORCE_OUTPUT_GPU,
-    FORCE_OUTPUT_OVERLAY,
-};
-
+IBlankControl* PlatfPrimaryDevice::createBlankControl()
+{
+    return new BlankControl();
+}
 
 } // namespace intel
 } // namespace android
-
-
-#endif // VIDEO_PAYLOAD_BUFFER_H
 
 

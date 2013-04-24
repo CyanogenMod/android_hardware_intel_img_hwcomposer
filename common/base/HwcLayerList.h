@@ -42,9 +42,8 @@ class HwcLayer {
 public:
     enum {
         LAYER_FB = 0,
-        LAYER_SPRITE,
         LAYER_OVERLAY,
-        LAYER_PRIMARY,
+        LAYER_FRAMEBUFFER_TARGET,
     };
 public:
     HwcLayer(int index, hwc_layer_1_t *layer);
