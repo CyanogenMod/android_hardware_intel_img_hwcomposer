@@ -39,6 +39,23 @@ class Hwcomposer;
 class DisplayPlaneManager;
 
 class VirtualDevice : public IDisplayDevice, public BnFrameServer {
+protected:
+    struct Configuration {
+        sp<IFrameTypeChangeListener> typeChangeListener;
+        sp<IFrameListener> frameListener;
+        FrameProcessingPolicy policy;
+        bool extendedModeEnabled;
+        bool forceNotify;
+    };
+    Mutex mConfigLock;
+    Configuration mCurrentConfig;
+    Configuration mNextConfig;
+
+    uint32_t mExtLastKhandle;
+    int64_t mExtLastTimestamp;
+
+    Mutex mListenerLock;
+    FrameInfo mLastFrameInfo;
 public:
     VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm);
     virtual ~VirtualDevice();
@@ -64,9 +81,10 @@ public:
     virtual void dump(Dump& d);
 
     // IFrameServer methods
-    virtual android::status_t start(sp<IFrameTypeChangeListener> frameTypeChangeListener);
+    virtual android::status_t start(sp<IFrameTypeChangeListener> frameTypeChangeListener, bool disableExtVideoMode);
     virtual android::status_t stop(bool isConnected);
     virtual android::status_t notifyBufferReturned(int index);
+    virtual android::status_t setResolution(const FrameProcessingPolicy& policy, android::sp<IFrameListener> listener);
 protected:
     virtual void deinitialize();
 
