@@ -28,6 +28,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <HwcTrace.h>
+#include <IDisplayDevice.h>
 #include <DrmConfig.h>
 #include <Drm.h>
 
@@ -71,9 +72,9 @@ bool Drm::detect()
     struct Output *output = NULL;
 
     const uint32_t primaryConnector =
-        DrmConfig::getDrmConnector(OUTPUT_PRIMARY);
+        DrmConfig::getDrmConnector(IDisplayDevice::DEVICE_PRIMARY);
     const uint32_t externalConnector =
-        DrmConfig::getDrmConnector(OUTPUT_EXTERNAL);
+        DrmConfig::getDrmConnector(IDisplayDevice::DEVICE_EXTERNAL);
 
     for (int i = 0; i < resources->count_connectors; i++) {
         connector = drmModeGetConnector(mDrmFd, resources->connectors[i]);
@@ -216,29 +217,92 @@ int Drm::getDrmFd() const
     return mDrmFd;
 }
 
-struct Output* Drm::getOutput(int output)
+struct Output* Drm::getOutput(int device)
 {
     Mutex::Autolock _l(mLock);
 
-    if (output < 0 || output >= OUTPUT_MAX) {
-        ETRACE("invalid output %d", output);
+    int output = getOutputIndex(device);
+    if (output < 0 ) {
         return 0;
     }
 
     return &mOutputs[output];
 }
 
-bool Drm::outputConnected(int output)
+bool Drm::outputConnected(int device)
 {
     Mutex::Autolock _l(mLock);
 
-    if (output < 0 || output >= OUTPUT_MAX) {
-        ETRACE("invalid output %d", output);
+    int output = getOutputIndex(device);
+    if (output < 0 ) {
         return false;
     }
 
     return mOutputs[output].connected ? true : false;
 }
+
+bool Drm::setDpmsMode(int device, int mode)
+{
+    Mutex::Autolock _l(mLock);
+
+    int output = getOutputIndex(device);
+    if (output < 0 ) {
+        return false;
+    }
+
+    if (mode != IDisplayDevice::DEVICE_DISPLAY_OFF &&
+        mode != IDisplayDevice::DEVICE_DISPLAY_ON) {
+        ETRACE("invalid mode %d", mode);
+        return false;
+    }
+
+    Output *out = &mOutputs[output];
+    if (out->connector == NULL) {
+        ETRACE("invalid connector");
+        return false;
+    }
+
+    drmModePropertyPtr props;
+    for (int i = 0; i < out->connector->count_props; i++) {
+        props = drmModeGetProperty(mDrmFd, out->connector->props[i]);
+        if (!props) {
+            continue;
+        }
+
+        if (strcmp(props->name, "DPMS") == 0) {
+            int ret = drmModeConnectorSetProperty(
+                mDrmFd,
+                out->connector->connector_id,
+                props->prop_id,
+                (mode == IDisplayDevice::DEVICE_DISPLAY_ON) ? DRM_MODE_DPMS_ON : DRM_MODE_DPMS_OFF);
+            drmModeFreeProperty(props);
+            if (ret != 0) {
+                ETRACE("unable to set DPMS %d", mode);
+                return false;
+            } else {
+                return true;
+            }
+        }
+        drmModeFreeProperty(props);
+    }
+    return false;
+}
+
+int Drm::getOutputIndex(int device)
+{
+    switch (device) {
+    case IDisplayDevice::DEVICE_PRIMARY:
+        return OUTPUT_PRIMARY;
+    case IDisplayDevice::DEVICE_EXTERNAL:
+        return OUTPUT_EXTERNAL;
+    default:
+        ETRACE("invalid display device");
+        break;
+    }
+
+    return -1;
+}
+
 
 } // namespace intel
 } // namespace android

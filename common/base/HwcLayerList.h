@@ -91,6 +91,7 @@ public:
     virtual DisplayPlane* getPlane(uint32_t index) const;
 
     bool hasProtectedLayer();
+    bool hasVisibleLayer();
 
     // dump interface
     virtual void dump(Dump& d);

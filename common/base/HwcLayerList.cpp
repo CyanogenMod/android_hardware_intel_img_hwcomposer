@@ -32,6 +32,7 @@
 #include <GraphicBuffer.h>
 #include <IDisplayDevice.h>
 #include <PlaneCapabilities.h>
+#include <DisplayQuery.h>
 
 namespace android {
 namespace intel {
@@ -163,7 +164,7 @@ void HwcLayer::setupAttributes()
     }
 
     if (mLayer->handle == NULL) {
-        WTRACE("invalid handle");
+        VTRACE("invalid handle");
         return;
     }
 
@@ -419,22 +420,21 @@ void HwcLayerList::revisit()
 
 void HwcLayerList::analyze(uint32_t index)
 {
-    int freeSpriteCount = 0;
-    int freeOverlayCount = 0;
+    Hwcomposer& hwc = Hwcomposer::getInstance();
+    Drm *drm = hwc.getDrm();
     DisplayPlane *plane;
-    Drm *drm = Hwcomposer::getInstance().getDrm();
 
     if (!mList || index >= mLayerCount || !drm)
         return;
 
-    freeSpriteCount = mDisplayPlaneManager.getFreeSpriteCount();
-    freeOverlayCount = mDisplayPlaneManager.getFreeOverlayCount();
-
     // go through layer list from top to bottom
     for (int i = index; i >= 0; i--) {
         hwc_layer_1_t *layer = &mList->hwLayers[i];
-        if (!layer)
+        if (!layer) {
+            // this will cause index and plane out of sync, see getPlane API
+            ETRACE("layer %d is null", i);
             continue;
+        }
 
         // new hwc layer
         HwcLayer *hwcLayer = new HwcLayer(i, layer);
@@ -453,65 +453,60 @@ void HwcLayerList::analyze(uint32_t index)
         }
 
         if (layer->handle == NULL) {
-            WTRACE("null buffer handle");
+            VTRACE("null buffer handle");
             continue;
         }
 
         // check whether the layer can be handled by sprite plane
-        if (freeSpriteCount) {
-            if (checkSupported(DisplayPlane::PLANE_SPRITE, hwcLayer)) {
-                ITRACE("sprite check passed for layer %d", i);
-                plane = mDisplayPlaneManager.getSpritePlane();
-                if (plane) {
-                    // attach plane to hwc layer
-                    hwcLayer->attachPlane(plane);
-                    // set the layer type to overlay
-                    hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
-                    // clear fb
-                    layer->hints |=  HWC_HINT_CLEAR_FB;
-                } else {
-                    ETRACE("sprite plane is null, impossible");
-                }
+        if (checkSupported(DisplayPlane::PLANE_SPRITE, hwcLayer)) {
+            VTRACE("sprite check passed for layer %d", i);
+            plane = mDisplayPlaneManager.getSpritePlane();
+            if (plane) {
+                // attach plane to hwc layer
+                hwcLayer->attachPlane(plane);
+                // set the layer type to overlay
+                hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
+                // clear fb
+                layer->hints |=  HWC_HINT_CLEAR_FB;
                 mOverlayLayers.add(hwcLayer);
                 continue;
+            } else {
+                VTRACE("sprite plane is not available for layer %d", i);
             }
         }
 
         // check whether the layer can be handled by overlay plane
-        if (freeOverlayCount) {
-            if (checkSupported(DisplayPlane::PLANE_OVERLAY, hwcLayer)) {
-                ITRACE("overlay check passed for layer %d", i);
-                // set the layer type to overlay
-                hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
-                bool extConnected = drm->outputConnected(Drm::OUTPUT_EXTERNAL);
-                if (extConnected && !mDisplayIndex) {
-                    // handle extend video mode use case
-                    // FIXME: fall back to android's native use case
-                    // extend video mode & presentation mode should be triggered
-                    // by layer stack configuration.
-                    // TODO: remove this hack
-                } else {
-                    plane = mDisplayPlaneManager.getOverlayPlane();
-                    if (plane) {
-                        // attach plane to hwc layer
-                        hwcLayer->attachPlane(plane);
-                        // clear fb
-                        layer->hints |=  HWC_HINT_CLEAR_FB;
-                    } else {
-                        ETRACE("overlay plane is null, impossible");
-                    }
+        if (checkSupported(DisplayPlane::PLANE_OVERLAY, hwcLayer)) {
+            VTRACE("overlay check passed for layer %d", i);
+            if (mDisplayIndex == IDisplayDevice::DEVICE_PRIMARY) {
+                // check if HWC is in video extended mode
+                if (DisplayQuery::isVideoFormat(hwcLayer->getFormat()) &&
+                    hwc.getDisplayAnalyzer()->checkVideoExtendedMode()) {
+                    ITRACE("video is skipped in extended mode");
+                    hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
+                    mOverlayLayers.add(hwcLayer);
+                    continue;
                 }
+            }
+
+            plane = mDisplayPlaneManager.getOverlayPlane();
+            if (plane) {
+                hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
+                hwcLayer->attachPlane(plane);
+                // clear fb
+                layer->hints |=  HWC_HINT_CLEAR_FB;
                 mOverlayLayers.add(hwcLayer);
                 continue;
+            } else if (hwcLayer->isProtected()) {
+                // TODO: we need to detach overlay from non-protected layers
+                WTRACE("protected layer is skipped");
+                hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
+                mOverlayLayers.add(hwcLayer);
+                continue;
+            } else {
+                // fall back to GPU rendering
+                ITRACE("overlay plane is not available for video layer %d", i);
             }
-        }
-
-        if (hwcLayer->isProtected()) {
-            // TODO: we need to detach overlay from non-protected layers
-            WTRACE("protected layer is skipped");
-            hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
-            mOverlayLayers.add(hwcLayer);
-            continue;
         }
 
         // if still FB layer
@@ -617,6 +612,32 @@ bool HwcLayerList::hasProtectedLayer()
         }
     }
     return false;
+}
+
+bool HwcLayerList::hasVisibleLayer()
+{
+    // excluding framebuffer target layer
+    int count = (int)mLayers.size() - 1;
+    if (count <= 0) {
+        ITRACE("number of layer is %d, visible layer is 0", mLayers.size());
+        return false;
+    }
+
+    // the last layer is always frambuffer target layer?
+    for (size_t i = 0; i < mLayers.size() - 1; i++) {
+        HwcLayer *hwcLayer = mLayers.itemAt(i);
+        if (hwcLayer == NULL) {
+            // TODO: remove this redundant check
+            continue;
+        }
+        if (hwcLayer->getType() == HwcLayer::LAYER_OVERLAY &&
+            hwcLayer->getPlane() == NULL) {
+            // layer is invisible
+            count--;
+        }
+    }
+    ITRACE("number of visible layers %d", count);
+    return count != 0;
 }
 
 void HwcLayerList::dump(Dump& d)

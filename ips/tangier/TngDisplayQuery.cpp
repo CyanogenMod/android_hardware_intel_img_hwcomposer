@@ -23,67 +23,42 @@
  *
  * Authors:
  *    Jackie Li <yaodong.li@intel.com>
- *
  */
-#ifndef __DRM_H__
-#define __DRM_H__
 
-#include <utils/Mutex.h>
+#include <HwcTrace.h>
+#include <DisplayPlane.h>
+#include <hal_public.h>
+#include <OMX_IVCommon.h>
+#include <DisplayQuery.h>
 
-#include <psb_drm.h>
-
-extern "C" {
-#include "xf86drm.h"
-#include "xf86drmMode.h"
-}
 
 namespace android {
 namespace intel {
 
-struct Output {
-    drmModeConnectorPtr connector;
-    drmModeEncoderPtr encoder;
-    drmModeCrtcPtr crtc;
-    drmModeFBPtr fb;
-    int connected;
-};
+bool DisplayQuery::isVideoFormat(uint32_t format)
+{
+    switch (format) {
+    case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:
+        return true;
+    default:
+        return false;
+    }
+}
 
-class Drm {
-public:
-    Drm();
-public:
-    bool detect();
-
-    bool writeReadIoctl(unsigned long cmd, void *data,
-                      unsigned long size);
-    bool writeIoctl(unsigned long cmd, void *data,
-                      unsigned long size);
-
-    struct Output* getOutput(int device);
-    bool outputConnected(int device);
-    bool setDpmsMode(int device, int mode);
-    int getDrmFd() const;
-
-private:
-    // map device type to output index, return -1 if not mapped
-    inline int getOutputIndex(int device);
-
-private:
-    // DRM object index
-    enum {
-        OUTPUT_PRIMARY = 0,
-        OUTPUT_EXTERNAL,
-        OUTPUT_MAX,
-    };
-
-    int mDrmFd;
-    struct Output mOutputs[OUTPUT_MAX];
-    Mutex mLock;
-};
+int  DisplayQuery::getOverlayStrideAlignment(uint32_t format)
+{
+    // both luma and chroma stride need to be 64-byte aligned for overlay
+    switch (format) {
+    case HAL_PIXEL_FORMAT_YV12:
+    case HAL_PIXEL_FORMAT_I420:
+        // for these two formats, chroma stride is calculated as half of luma stride
+        // so luma stride needs to be 128-byte aligned.
+        return 128;
+    default:
+        return 64;
+    }
+}
 
 } // namespace intel
 } // namespace android
 
-
-
-#endif /* __DRM_H__ */

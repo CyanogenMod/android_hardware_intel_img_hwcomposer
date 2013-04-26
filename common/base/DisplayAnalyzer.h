@@ -25,60 +25,31 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef __DRM_H__
-#define __DRM_H__
+#ifndef DISPLAY_ANALYZER_H
+#define DISPLAY_ANALYZER_H
 
-#include <utils/Mutex.h>
 
-#include <psb_drm.h>
-
-extern "C" {
-#include "xf86drm.h"
-#include "xf86drmMode.h"
-}
 
 namespace android {
 namespace intel {
 
-struct Output {
-    drmModeConnectorPtr connector;
-    drmModeEncoderPtr encoder;
-    drmModeCrtcPtr crtc;
-    drmModeFBPtr fb;
-    int connected;
-};
 
-class Drm {
+class DisplayAnalyzer {
 public:
-    Drm();
+    DisplayAnalyzer();
+    virtual ~DisplayAnalyzer();
+
 public:
-    bool detect();
-
-    bool writeReadIoctl(unsigned long cmd, void *data,
-                      unsigned long size);
-    bool writeIoctl(unsigned long cmd, void *data,
-                      unsigned long size);
-
-    struct Output* getOutput(int device);
-    bool outputConnected(int device);
-    bool setDpmsMode(int device, int mode);
-    int getDrmFd() const;
+    bool initialize();
+    void uninitialize();
+    void analyzeContents(size_t numDisplays, hwc_display_contents_1_t** displays);
+    bool checkVideoExtendedMode();
+    bool isVideoLayer(hwc_layer_1_t &layer);
 
 private:
-    // map device type to output index, return -1 if not mapped
-    inline int getOutputIndex(int device);
+    bool mInitialized;
+    bool mVideoExtendedMode;
 
-private:
-    // DRM object index
-    enum {
-        OUTPUT_PRIMARY = 0,
-        OUTPUT_EXTERNAL,
-        OUTPUT_MAX,
-    };
-
-    int mDrmFd;
-    struct Output mOutputs[OUTPUT_MAX];
-    Mutex mLock;
 };
 
 } // namespace intel
@@ -86,4 +57,4 @@ private:
 
 
 
-#endif /* __DRM_H__ */
+#endif /* DISPLAY_ANALYZER_H */

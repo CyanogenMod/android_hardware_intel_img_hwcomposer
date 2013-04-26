@@ -83,6 +83,7 @@ bool TngOverlayPlane::setDataBuffer(BufferMapper& mapper)
         // Bit 0: Decryption request, only allowed to change on a synchronous flip
         // This request will be qualified with the separate decryption enable bit for OV
         mBackBuffer->buf->OSTART_0Y |= 0x1;
+        mBackBuffer->buf->OSTART_1Y |= 0x1;
     }
     return true;
 }

@@ -23,67 +23,21 @@
  *
  * Authors:
  *    Jackie Li <yaodong.li@intel.com>
- *
  */
-#ifndef __DRM_H__
-#define __DRM_H__
-
-#include <utils/Mutex.h>
-
-#include <psb_drm.h>
-
-extern "C" {
-#include "xf86drm.h"
-#include "xf86drmMode.h"
-}
+#ifndef DISPLAY_QUERY_H
+#define DISPLAY_QUERY_H
 
 namespace android {
 namespace intel {
 
-struct Output {
-    drmModeConnectorPtr connector;
-    drmModeEncoderPtr encoder;
-    drmModeCrtcPtr crtc;
-    drmModeFBPtr fb;
-    int connected;
-};
-
-class Drm {
+class DisplayQuery
+{
 public:
-    Drm();
-public:
-    bool detect();
-
-    bool writeReadIoctl(unsigned long cmd, void *data,
-                      unsigned long size);
-    bool writeIoctl(unsigned long cmd, void *data,
-                      unsigned long size);
-
-    struct Output* getOutput(int device);
-    bool outputConnected(int device);
-    bool setDpmsMode(int device, int mode);
-    int getDrmFd() const;
-
-private:
-    // map device type to output index, return -1 if not mapped
-    inline int getOutputIndex(int device);
-
-private:
-    // DRM object index
-    enum {
-        OUTPUT_PRIMARY = 0,
-        OUTPUT_EXTERNAL,
-        OUTPUT_MAX,
-    };
-
-    int mDrmFd;
-    struct Output mOutputs[OUTPUT_MAX];
-    Mutex mLock;
+    static bool isVideoFormat(uint32_t format);
+    static int  getOverlayStrideAlignment(uint32_t format);
 };
 
 } // namespace intel
 } // namespace android
 
-
-
-#endif /* __DRM_H__ */
+#endif /*DISPLAY_QUERY_H*/
