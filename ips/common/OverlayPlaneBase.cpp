@@ -1015,8 +1015,7 @@ bool OverlayPlaneBase::setDataBuffer(BufferMapper& grallocMapper)
 
     // get gralloc mapper
     mapper = &grallocMapper;
-    // check transform when overlay is attached to primary device
-    if (mTransform && !mPipeConfig) {
+    if (mTransform) {
         if (!rotatedBufferReady(grallocMapper)) {
             WTRACE("rotated buffer is not ready");
             return false;
