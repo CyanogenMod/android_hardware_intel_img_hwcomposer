@@ -26,16 +26,30 @@
  *
  */
 #include <HwcTrace.h>
-#include <Drm.h>
 #include <Hwcomposer.h>
 #include <DisplayPlaneManager.h>
+#include <DisplayQuery.h>
 #include <VirtualDevice.h>
+#include <IVideoPayloadManager.h>
 
 #include <binder/IServiceManager.h>
 #include <binder/ProcessState.h>
 
 namespace android {
 namespace intel {
+
+VirtualDevice::CachedBuffer::CachedBuffer(BufferManager *mgr, buffer_handle_t handle)
+    : manager(mgr),
+      buffer(mgr->get((uint32_t) handle)),
+      mapper(mgr->map(*buffer))
+{
+}
+
+VirtualDevice::CachedBuffer::~CachedBuffer()
+{
+    manager->unmap(*mapper);
+    manager->put(*buffer);
+}
 
 VirtualDevice::VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
     : mInitialized(false),
@@ -49,6 +63,19 @@ VirtualDevice::~VirtualDevice()
 {
     CTRACE();
     deinitialize();
+}
+
+sp<VirtualDevice::CachedBuffer> VirtualDevice::getDisplayBuffer(buffer_handle_t handle)
+{
+    ssize_t index = mDisplayBufferCache.indexOfKey(handle);
+    sp<CachedBuffer> cachedBuffer;
+    if (index == NAME_NOT_FOUND) {
+        cachedBuffer = new CachedBuffer(mHwc.getBufferManager(), handle);
+        mDisplayBufferCache.add(handle, cachedBuffer);
+    } else {
+        cachedBuffer = mDisplayBufferCache[index];
+    }
+    return cachedBuffer;
 }
 
 status_t VirtualDevice::start(sp<IFrameTypeChangeListener> typeChangeListener, bool disableExtVideoMode)
@@ -84,6 +111,17 @@ status_t VirtualDevice::stop(bool isConnected)
 status_t VirtualDevice::notifyBufferReturned(int khandle)
 {
     CTRACE();
+    Mutex::Autolock _l(mHeldBuffersLock);
+    ssize_t index = mHeldBuffers.indexOfKey(khandle);
+    if (index == NAME_NOT_FOUND) {
+        ETRACE("Couldn't find returned khandle %x", khandle);
+    } else {
+        sp<CachedBuffer> cachedBuffer = mHeldBuffers.valueAt(index);
+        if (!mPayloadManager->setRenderStatus(cachedBuffer->mapper, false)) {
+            ETRACE("Failed to set render status");
+        }
+        mHeldBuffers.removeItemsAt(index, 1);
+    }
     return NO_ERROR;
 }
 
@@ -110,18 +148,83 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
         mCurrentConfig = mNextConfig;
         mNextConfig.forceNotify = false;
     }
+
+    buffer_handle_t videoFrame = NULL;
+    hwc_layer_1_t* videoLayer = NULL;
+
+    if (mCurrentConfig.extendedModeEnabled) {
+        for (size_t i = 0; i < display->numHwLayers-1; i++) {
+            hwc_layer_1_t& layer = display->hwLayers[i];
+
+            DisplayAnalyzer *analyzer = mHwc.getDisplayAnalyzer();
+            if (analyzer->isVideoLayer(layer)) {
+                videoFrame = layer.handle;
+                videoLayer = &layer;
+                break;
+            }
+        }
+    }
+
     bool extActive = false;
     if (mCurrentConfig.typeChangeListener != NULL) {
         FrameInfo frameInfo;
 
-        if (!extActive)
-        {
+        if (videoFrame != NULL) {
+            sp<CachedBuffer> cachedBuffer;
+            if ((cachedBuffer = getDisplayBuffer(videoFrame)) == NULL) {
+                ETRACE("Failed to map display buffer");
+            } else {
+                memset(&frameInfo, 0, sizeof(frameInfo));
+
+                IVideoPayloadManager::MetaData metadata;
+                if (mPayloadManager->getMetaData(cachedBuffer->mapper, &metadata)) {
+
+                    frameInfo.frameType = HWC_FRAMETYPE_VIDEO;
+                    frameInfo.bufferFormat = metadata.format;
+
+                    hwc_layer_1_t& layer = *videoLayer;
+                    if ((metadata.transform & HAL_TRANSFORM_ROT_90) == 0) {
+                        frameInfo.contentWidth = layer.sourceCrop.right - layer.sourceCrop.left;
+                        frameInfo.contentHeight = layer.sourceCrop.bottom - layer.sourceCrop.top;
+                    } else {
+                        frameInfo.contentWidth = layer.sourceCrop.bottom - layer.sourceCrop.top;
+                        frameInfo.contentHeight = layer.sourceCrop.right - layer.sourceCrop.left;
+                    }
+
+                    frameInfo.bufferWidth = metadata.width;
+                    frameInfo.bufferHeight = metadata.height;
+                    frameInfo.lumaUStride = metadata.lumaStride;
+                    frameInfo.chromaUStride = metadata.chromaUStride;
+                    frameInfo.chromaVStride = metadata.chromaVStride;
+
+                    // TODO: Need to get framerate from HWC when available (for now indicate default with zero)
+                    frameInfo.contentFrameRateN = 0;
+                    frameInfo.contentFrameRateD = 1;
+
+                    if (frameInfo.bufferFormat != 0 &&
+                            frameInfo.bufferWidth >= frameInfo.contentWidth &&
+                            frameInfo.bufferHeight >= frameInfo.contentHeight &&
+                            frameInfo.contentWidth > 0 && frameInfo.contentHeight > 0 &&
+                            frameInfo.lumaUStride > 0 &&
+                            frameInfo.chromaUStride > 0 && frameInfo.chromaVStride > 0) {
+                        extActive = true;
+                    } else {
+                        ITRACE("Payload cleared or inconsistent info, aborting extended mode");
+                    }
+                } else {
+                    ETRACE("Failed to get metadata");
+                }
+            }
+        }
+
+        if (!extActive) {
             memset(&frameInfo, 0, sizeof(frameInfo));
             frameInfo.frameType = HWC_FRAMETYPE_NOTHING;
         }
-        if (mCurrentConfig.forceNotify != 0) {
+
+        if (mCurrentConfig.forceNotify || memcmp(&frameInfo, &mLastFrameInfo, sizeof(frameInfo)) != 0) {
             // something changed, notify type change listener
-            //mCurrentConfig.typeChangeListener->frameTypeChanged(frameInfo);
+            mCurrentConfig.typeChangeListener->frameTypeChanged(frameInfo);
             mCurrentConfig.typeChangeListener->bufferInfoChanged(frameInfo);
 
             mExtLastTimestamp = 0;
@@ -129,8 +232,8 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
 
             if (frameInfo.frameType == HWC_FRAMETYPE_NOTHING) {
                 ITRACE("Clone mode");
-            }
-            else {
+                mDisplayBufferCache.clear();
+            } else {
                 ITRACE("Extended mode: %dx%d in %dx%d @ %d fps",
                       frameInfo.contentWidth, frameInfo.contentHeight,
                       frameInfo.bufferWidth, frameInfo.bufferHeight,
@@ -138,7 +241,50 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
             }
             mLastFrameInfo = frameInfo;
         }
-   }
+    }
+
+    if (extActive) {
+        // tell surfaceflinger to not render the layers if we're
+        // in extended video mode
+        for (size_t i = 0; i < display->numHwLayers-1; i++) {
+            hwc_layer_1_t& layer = display->hwLayers[i];
+            if (layer.compositionType != HWC_BACKGROUND) {
+                layer.compositionType = HWC_OVERLAY;
+                layer.flags |= HWC_HINT_DISABLE_ANIMATION;
+            }
+        }
+
+        if (mCurrentConfig.frameListener != NULL) {
+            sp<CachedBuffer> cachedBuffer = getDisplayBuffer(videoFrame);
+            if (cachedBuffer == NULL) {
+                ETRACE("Failed to map display buffer");
+                return true;
+            }
+
+            IVideoPayloadManager::MetaData metadata;
+            if (mPayloadManager->getMetaData(cachedBuffer->mapper, &metadata)) {
+
+                if (metadata.timestamp == mExtLastTimestamp && metadata.kHandle == mExtLastKhandle)
+                    return true;
+
+                mExtLastTimestamp = metadata.timestamp;
+                mExtLastKhandle = metadata.kHandle;
+
+                status_t status = mCurrentConfig.frameListener->onFrameReady(
+                        metadata.kHandle, HWC_HANDLE_TYPE_KBUF, systemTime(), metadata.timestamp);
+                if (status == OK) {
+                    if (!mPayloadManager->setRenderStatus(cachedBuffer->mapper, true)) {
+                        ETRACE("Failed to set render status");
+                    }
+                    Mutex::Autolock _l(mHeldBuffersLock);
+                    mHeldBuffers.add(metadata.kHandle, cachedBuffer);
+                }
+            } else {
+                ETRACE("Failed to get metadata");
+            }
+        }
+    }
+
     return true;
 }
 
@@ -234,16 +380,25 @@ bool VirtualDevice::initialize()
     mCurrentConfig = mNextConfig;
 
     memset(&mLastFrameInfo, 0, sizeof(mLastFrameInfo));
-    mInitialized = true;
-    // Publish frame server service with service manager
-    status_t ret = defaultServiceManager()->addService(String16("hwc.widi"), this);
-    if (ret != NO_ERROR) {
-        ETRACE("Could not register hwc.widi with service manager, error = %d", ret);
-        mInitialized = false;
+
+    mPayloadManager = createVideoPayloadManager();
+    if (!mPayloadManager) {
+        ETRACE("Failed to create payload manager");
         return false;
     }
-    ProcessState::self()->startThreadPool();
-    return true;
+
+    // Publish frame server service with service manager
+    status_t ret = defaultServiceManager()->addService(String16("hwc.widi"), this);
+    if (ret == NO_ERROR) {
+        ProcessState::self()->startThreadPool();
+        mInitialized = true;
+    } else {
+        ETRACE("Could not register hwc.widi with service manager, error = %d", ret);
+        delete mPayloadManager;
+        mPayloadManager = NULL;
+    }
+
+    return mInitialized;
 }
 
 bool VirtualDevice::isConnected() const
@@ -268,6 +423,10 @@ void VirtualDevice::dump(Dump& d)
 void VirtualDevice::deinitialize()
 {
     mInitialized = false;
+    if (mPayloadManager) {
+        delete mPayloadManager;
+        mPayloadManager = NULL;
+    }
 }
 
 } // namespace intel
