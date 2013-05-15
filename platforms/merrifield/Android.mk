@@ -38,6 +38,7 @@ LOCAL_SRC_FILES := \
     ../../common/devices/VirtualDevice.cpp \
     ../../common/observers/HotplugEventObserver.cpp \
     ../../common/observers/VsyncEventObserver.cpp \
+    ../../common/observers/MultiDisplayObserver.cpp \
     ../../common/planes/DisplayPlane.cpp \
     ../../common/planes/DisplayPlaneManager.cpp \
     ../../common/utils/Dump.cpp
@@ -115,6 +116,11 @@ LOCAL_CFLAGS:= -DLINUX
 #$(error local path is: $(LOCAL_C_INCLUDES))
 ifeq ($(INTEL_WIDI_MERRIFIELD), true)
    LOCAL_SHARED_LIBRARIES += libhwcwidi libbinder
+endif
+
+ifeq ($(TARGET_HAS_MULTIPLE_DISPLAY),true)
+   LOCAL_SHARED_LIBRARIES += libmultidisplay
+   LOCAL_CFLAGS += -DTARGET_HAS_MULTIPLE_DISPLAY
 endif
 include $(BUILD_SHARED_LIBRARY)
 

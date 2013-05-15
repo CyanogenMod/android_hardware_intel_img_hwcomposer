@@ -42,6 +42,7 @@ Hwcomposer::Hwcomposer()
       mDisplayAnalyzer(0),
       mDisplayContext(0),
       mVsyncManager(0),
+      mMultiDisplayObserver(0),
       mInitialized(false)
 {
     CTRACE();
@@ -263,6 +264,8 @@ void Hwcomposer::hotplug(int disp, int connected)
     //Mutex::Autolock _l(mLock);
     RETURN_VOID_IF_NOT_INIT();
 
+    mMultiDisplayObserver->notifyHotPlug(disp, connected);
+
     if (mProcs && mProcs->hotplug) {
         VTRACE("report hotplug on disp %d, connected %d", disp, connected);
         mProcs->hotplug(const_cast<hwc_procs_t*>(mProcs), disp, connected);
@@ -360,6 +363,11 @@ bool Hwcomposer::initialize()
         DEINIT_AND_RETURN_FALSE("failed to initialize display analyzer");
     }
 
+    mMultiDisplayObserver = new MultiDisplayObserver();
+    if (!mMultiDisplayObserver || !mMultiDisplayObserver->initialize()) {
+        DEINIT_AND_RETURN_FALSE("failed to initialize display observer");
+    }
+
     mInitialized = true;
     return true;
 init_err:
@@ -405,6 +413,11 @@ void Hwcomposer::deinitialize()
         mDisplayAnalyzer = NULL;
     }
 
+    if (mMultiDisplayObserver) {
+        delete mMultiDisplayObserver;
+        mMultiDisplayObserver = NULL;
+    }
+
     // destroy drm
     if (mDrm) {
         delete mDrm;
@@ -437,6 +450,11 @@ IDisplayContext* Hwcomposer::getDisplayContext()
 DisplayAnalyzer* Hwcomposer::getDisplayAnalyzer()
 {
     return mDisplayAnalyzer;
+}
+
+MultiDisplayObserver* Hwcomposer::getMultiDisplayObserver()
+{
+    return mMultiDisplayObserver;
 }
 
 } // namespace intel
