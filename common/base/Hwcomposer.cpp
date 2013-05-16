@@ -41,6 +41,7 @@ Hwcomposer::Hwcomposer()
       mBufferManager(0),
       mDisplayAnalyzer(0),
       mDisplayContext(0),
+      mVsyncManager(0),
       mInitialized(false)
 {
     CTRACE();
@@ -161,19 +162,7 @@ bool Hwcomposer::vsyncControl(int disp, int enabled)
 {
     RETURN_FALSE_IF_NOT_INIT();
     ATRACE("disp = %d, enabled = %d", disp, enabled);
-
-    if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
-        ETRACE("invalid disp %d", disp);
-        return false;
-    }
-
-    IDisplayDevice *device = mDisplayDevices.itemAt(disp);
-    if (!device) {
-        ETRACE("no device found");
-        return false;
-    }
-
-    return device->vsyncControl(enabled);
+    return mVsyncManager->handleVsyncControl(disp, enabled);
 }
 
 bool Hwcomposer::blank(int disp, int blank)
@@ -264,7 +253,9 @@ void Hwcomposer::vsync(int disp, int64_t timestamp)
 
     if (mProcs && mProcs->vsync) {
         VTRACE("report vsync on disp %d, timestamp %llu", disp, timestamp);
-        mProcs->vsync(const_cast<hwc_procs_t*>(mProcs), disp, timestamp);
+        // workaround to pretend vsync is from primary display
+        // Display will freeze if vsync is from external display.
+        mProcs->vsync(const_cast<hwc_procs_t*>(mProcs), IDisplayDevice::DEVICE_PRIMARY, timestamp);
     }
 }
 
@@ -277,6 +268,8 @@ void Hwcomposer::hotplug(int disp, int connected)
         VTRACE("report hotplug on disp %d, connected %d", disp, connected);
         mProcs->hotplug(const_cast<hwc_procs_t*>(mProcs), disp, connected);
     }
+
+    mVsyncManager->handleHotplugEvent(disp, connected);
 }
 
 bool Hwcomposer::release()
@@ -358,6 +351,11 @@ bool Hwcomposer::initialize()
         mDisplayDevices.insertAt(device, i, 1);
     }
 
+    mVsyncManager = new VsyncManager(mDisplayDevices);
+    if (!mVsyncManager || !mVsyncManager->initialize()) {
+        DEINIT_AND_RETURN_FALSE("failed to create Vsync Manager");
+    }
+
     mDisplayAnalyzer = new DisplayAnalyzer();
     if (!mDisplayAnalyzer || !mDisplayAnalyzer->initialize()) {
         DEINIT_AND_RETURN_FALSE("failed to initialize display analyzer");
@@ -372,6 +370,12 @@ init_err:
 
 void Hwcomposer::deinitialize()
 {
+    // delete mVsyncManager first as it holds reference to display devices.
+    if (mVsyncManager) {
+        delete mVsyncManager;
+        mVsyncManager = NULL;
+    }
+
     // destroy display devices
     for (size_t i = 0; i < mDisplayDevices.size(); i++) {
         IDisplayDevice *device = mDisplayDevices.itemAt(i);
