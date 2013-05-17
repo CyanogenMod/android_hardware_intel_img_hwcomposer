@@ -69,7 +69,7 @@ public:
         memset(&mStride, 0, sizeof(stride_t));
         memset(&mCrop, 0, sizeof(crop_t));
     }
-    ~DataBuffer() {}
+    virtual ~DataBuffer() {}
 public:
     uint32_t getHandle() const { return mHandle; }
 
