@@ -40,10 +40,12 @@ PhysicalDevice::PhysicalDevice(uint32_t type, Hwcomposer& hwc, DisplayPlaneManag
       mActiveDisplayConfig(-1),
       mVsyncControl(0),
       mBlankControl(0),
+      mPrepareListener(0),
       mVsyncObserver(0),
       mLayerList(0),
       mPrimaryPlane(0),
       mConnection(DEVICE_DISCONNECTED),
+      mDisplayState(DEVICE_DISPLAY_ON),
       mInitialized(false)
 {
     CTRACE();
@@ -90,6 +92,26 @@ void PhysicalDevice::onGeometryChanged(hwc_display_contents_1_t *list)
                                   mType);
     if (!mLayerList) {
         WTRACE("failed to create layer list");
+    } else if (mType == IDisplayDevice::DEVICE_PRIMARY) {
+#if 0  // display driver does not support run-time power management yet
+        Hwcomposer& hwc = Hwcomposer::getInstance();
+        if (hwc.getDisplayAnalyzer()->checkVideoExtendedMode()) {
+            bool hasVisibleLayer = mLayerList->hasVisibleLayer();
+            Drm *drm = hwc.getDrm();
+            if (hasVisibleLayer == true && mDisplayState == DEVICE_DISPLAY_OFF) {
+                ITRACE("turn on device %d as there is visible layer", mType);
+                if (drm->setDpmsMode(mType, DEVICE_DISPLAY_ON) == true) {
+                    mDisplayState = DEVICE_DISPLAY_ON;
+                }
+            }
+            if (hasVisibleLayer == false && mDisplayState == DEVICE_DISPLAY_ON) {
+                ITRACE("turn off device %d as there is no visible layer", mType);
+                if (drm->setDpmsMode(mType, DEVICE_DISPLAY_OFF) == true) {
+                    mDisplayState = DEVICE_DISPLAY_OFF;
+                }
+            }
+        }
+#endif
     }
 }
 
@@ -129,9 +151,12 @@ bool PhysicalDevice::prepare(hwc_display_contents_1_t *display)
         return true;
 
     // check if geometry is changed
-    if (display->flags & HWC_GEOMETRY_CHANGED)
+    if (display->flags & HWC_GEOMETRY_CHANGED) {
         onGeometryChanged(display);
-
+        if (mLayerList && mLayerList->hasProtectedLayer()) {
+            mPrepareListener->onProtectedLayerStart(mType);
+        }
+    }
     if (!mLayerList) {
         ETRACE("null HWC layer list");
         return false;
@@ -408,7 +433,6 @@ use_preferred_mode:
 
 bool PhysicalDevice::detectDisplayConfigs()
 {
-    int outputIndex = -1;
     struct Output *output;
     bool ret;
     Drm *drm = Hwcomposer::getInstance().getDrm();
@@ -420,24 +444,6 @@ bool PhysicalDevice::detectDisplayConfigs()
         return false;
     }
 
-    // detect drm objects
-    switch (mType) {
-    case DEVICE_PRIMARY:
-        outputIndex = Drm::OUTPUT_PRIMARY;
-        break;
-    case DEVICE_EXTERNAL:
-        outputIndex = Drm::OUTPUT_EXTERNAL;
-        break;
-    default:
-        ETRACE("invalid display device");
-        return false;
-    }
-
-    if (outputIndex < 0) {
-        WTRACE("failed to detect Drm objects");
-        return false;
-    }
-
     // detect
     ret = drm->detect();
     if (ret == false) {
@@ -446,7 +452,7 @@ bool PhysicalDevice::detectDisplayConfigs()
     }
 
     // get output
-    output = drm->getOutput(outputIndex);
+    output = drm->getOutput(mType);
     if (!output) {
         ETRACE("failed to get output");
         return false;
@@ -459,6 +465,11 @@ bool PhysicalDevice::detectDisplayConfigs()
 bool PhysicalDevice::initialize()
 {
     CTRACE();
+
+    if (mType != DEVICE_PRIMARY && mType != DEVICE_EXTERNAL) {
+        ETRACE("invalid device type");
+        return false;
+    }
 
     // detect display configs
     bool ret = detectDisplayConfigs();
@@ -482,6 +493,12 @@ bool PhysicalDevice::initialize()
     mBlankControl = createBlankControl();
     if (!mBlankControl) {
         DEINIT_AND_RETURN_FALSE("failed to create blank control");
+    }
+
+    // create hwc prepare listener
+    mPrepareListener = createPrepareListener();
+    if (!mPrepareListener) {
+        DEINIT_AND_RETURN_FALSE("failed to create prepare listener");
     }
 
     // create vsync event observer
@@ -512,6 +529,11 @@ void PhysicalDevice::deinitialize()
     if (mVsyncControl) {
         delete mVsyncControl;
         mVsyncControl = 0;
+    }
+
+    if (mPrepareListener) {
+        delete mPrepareListener;
+        mPrepareListener = 0;
     }
 
     // remove configs

@@ -25,65 +25,31 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef __DRM_H__
-#define __DRM_H__
 
-#include <utils/Mutex.h>
-
-#include <psb_drm.h>
-
-extern "C" {
-#include "xf86drm.h"
-#include "xf86drmMode.h"
-}
+#include <HwcTrace.h>
+#include <Drm.h>
+#include <Hwcomposer.h>
+#include <common/PrepareListener.h>
 
 namespace android {
 namespace intel {
 
-struct Output {
-    drmModeConnectorPtr connector;
-    drmModeEncoderPtr encoder;
-    drmModeCrtcPtr crtc;
-    drmModeFBPtr fb;
-    int connected;
-};
+PrepareListener::PrepareListener()
+    : IPrepareListener()
+{
+}
 
-class Drm {
-public:
-    Drm();
-public:
-    bool detect();
-
-    bool writeReadIoctl(unsigned long cmd, void *data,
-                      unsigned long size);
-    bool writeIoctl(unsigned long cmd, void *data,
-                      unsigned long size);
-
-    struct Output* getOutput(int device);
-    bool outputConnected(int device);
-    bool setDpmsMode(int device, int mode);
-    int getDrmFd() const;
-
-private:
-    // map device type to output index, return -1 if not mapped
-    inline int getOutputIndex(int device);
-
-private:
-    // DRM object index
-    enum {
-        OUTPUT_PRIMARY = 0,
-        OUTPUT_EXTERNAL,
-        OUTPUT_MAX,
-    };
-
-    int mDrmFd;
-    struct Output mOutputs[OUTPUT_MAX];
-    Mutex mLock;
-};
+void PrepareListener::onProtectedLayerStart(int disp)
+{
+    ATRACE("disp = %d", disp);
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+    int ret = drmCommandNone(drm->getDrmFd(), DRM_PSB_HDCP_DISPLAY_IED_ON);
+    if (ret != 0) {
+        ETRACE("failed to turn on display IED");
+    } else {
+        ITRACE("display IED is turned on");
+    }
+}
 
 } // namespace intel
 } // namespace android
-
-
-
-#endif /* __DRM_H__ */

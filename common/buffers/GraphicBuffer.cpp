@@ -25,65 +25,37 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef __DRM_H__
-#define __DRM_H__
-
-#include <utils/Mutex.h>
-
-#include <psb_drm.h>
-
-extern "C" {
-#include "xf86drm.h"
-#include "xf86drmMode.h"
-}
+#include <HwcTrace.h>
+#include <GraphicBuffer.h>
 
 namespace android {
 namespace intel {
 
-struct Output {
-    drmModeConnectorPtr connector;
-    drmModeEncoderPtr encoder;
-    drmModeCrtcPtr crtc;
-    drmModeFBPtr fb;
-    int connected;
-};
+GraphicBuffer::GraphicBuffer(uint32_t handle)
+    : DataBuffer(handle),
+      mUsage(USAGE_INVALID),
+      mBpp(0)
+{
+}
 
-class Drm {
-public:
-    Drm();
-public:
-    bool detect();
+bool GraphicBuffer::isProtectedUsage(uint32_t usage)
+{
+    if (usage == USAGE_INVALID) {
+        return false;
+    }
 
-    bool writeReadIoctl(unsigned long cmd, void *data,
-                      unsigned long size);
-    bool writeIoctl(unsigned long cmd, void *data,
-                      unsigned long size);
+    return (usage & GRALLOC_USAGE_PROTECTED) != 0;
+}
 
-    struct Output* getOutput(int device);
-    bool outputConnected(int device);
-    bool setDpmsMode(int device, int mode);
-    int getDrmFd() const;
+bool GraphicBuffer::isProtectedBuffer(GraphicBuffer *buffer)
+{
+    if (buffer == NULL) {
+        return false;
+    }
 
-private:
-    // map device type to output index, return -1 if not mapped
-    inline int getOutputIndex(int device);
-
-private:
-    // DRM object index
-    enum {
-        OUTPUT_PRIMARY = 0,
-        OUTPUT_EXTERNAL,
-        OUTPUT_MAX,
-    };
-
-    int mDrmFd;
-    struct Output mOutputs[OUTPUT_MAX];
-    Mutex mLock;
-};
-
-} // namespace intel
-} // namespace android
+    return isProtectedUsage(buffer->mUsage);
+}
 
 
-
-#endif /* __DRM_H__ */
+}
+}

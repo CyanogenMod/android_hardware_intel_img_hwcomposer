@@ -48,6 +48,10 @@ public:
 
     virtual bool flip();
     virtual void* getContext() const;
+
+protected:
+    virtual bool setDataBuffer(BufferMapper& mapper);
+
 protected:
     struct intel_dc_plane_ctx mContext;
 };

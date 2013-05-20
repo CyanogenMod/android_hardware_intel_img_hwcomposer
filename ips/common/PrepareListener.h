@@ -25,65 +25,22 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef __DRM_H__
-#define __DRM_H__
+#ifndef PREPARE_LISTENER_H
+#define PREPARE_LISTENER_H
 
-#include <utils/Mutex.h>
-
-#include <psb_drm.h>
-
-extern "C" {
-#include "xf86drm.h"
-#include "xf86drmMode.h"
-}
+#include <IPrepareListener.h>
 
 namespace android {
 namespace intel {
 
-struct Output {
-    drmModeConnectorPtr connector;
-    drmModeEncoderPtr encoder;
-    drmModeCrtcPtr crtc;
-    drmModeFBPtr fb;
-    int connected;
-};
-
-class Drm {
+class PrepareListener : public IPrepareListener {
 public:
-    Drm();
+    PrepareListener();
 public:
-    bool detect();
-
-    bool writeReadIoctl(unsigned long cmd, void *data,
-                      unsigned long size);
-    bool writeIoctl(unsigned long cmd, void *data,
-                      unsigned long size);
-
-    struct Output* getOutput(int device);
-    bool outputConnected(int device);
-    bool setDpmsMode(int device, int mode);
-    int getDrmFd() const;
-
-private:
-    // map device type to output index, return -1 if not mapped
-    inline int getOutputIndex(int device);
-
-private:
-    // DRM object index
-    enum {
-        OUTPUT_PRIMARY = 0,
-        OUTPUT_EXTERNAL,
-        OUTPUT_MAX,
-    };
-
-    int mDrmFd;
-    struct Output mOutputs[OUTPUT_MAX];
-    Mutex mLock;
+    virtual void onProtectedLayerStart(int disp);
 };
 
 } // namespace intel
 } // namespace android
 
-
-
-#endif /* __DRM_H__ */
+#endif /* PREPARE_LISTENER_H */

@@ -31,6 +31,8 @@
 #include <DisplayPlaneManager.h>
 #include <VirtualDevice.h>
 
+#include <binder/IServiceManager.h>
+#include <binder/ProcessState.h>
 
 namespace android {
 namespace intel {
@@ -49,6 +51,51 @@ VirtualDevice::~VirtualDevice()
     deinitialize();
 }
 
+status_t VirtualDevice::start(sp<IFrameTypeChangeListener> typeChangeListener, bool disableExtVideoMode)
+{
+    ITRACE();
+    Mutex::Autolock _l(mConfigLock);
+    mNextConfig.typeChangeListener = typeChangeListener;
+    mNextConfig.policy.scaledWidth = 0;
+    mNextConfig.policy.scaledHeight = 0;
+    mNextConfig.policy.xdpi = 96;
+    mNextConfig.policy.ydpi = 96;
+    mNextConfig.policy.refresh = 60;
+    mNextConfig.extendedModeEnabled = !disableExtVideoMode;
+    mNextConfig.forceNotify = true;
+    return NO_ERROR;
+}
+
+status_t VirtualDevice::stop(bool isConnected)
+{
+    ITRACE();
+    Mutex::Autolock _l(mConfigLock);
+    mNextConfig.typeChangeListener = NULL;
+    mNextConfig.policy.scaledWidth = 0;
+    mNextConfig.policy.scaledHeight = 0;
+    mNextConfig.policy.xdpi = 96;
+    mNextConfig.policy.ydpi = 96;
+    mNextConfig.policy.refresh = 60;
+    mNextConfig.extendedModeEnabled = false;
+    mNextConfig.forceNotify = false;
+    return NO_ERROR;
+}
+
+status_t VirtualDevice::notifyBufferReturned(int khandle)
+{
+    CTRACE();
+    return NO_ERROR;
+}
+
+status_t VirtualDevice::setResolution(const FrameProcessingPolicy& policy, sp<IFrameListener> listener)
+{
+    CTRACE();
+    Mutex::Autolock _l(mConfigLock);
+    mNextConfig.frameListener = listener;
+    mNextConfig.policy = policy;
+    return NO_ERROR;
+}
+
 bool VirtualDevice::prePrepare(hwc_display_contents_1_t *display)
 {
     RETURN_FALSE_IF_NOT_INIT();
@@ -58,6 +105,40 @@ bool VirtualDevice::prePrepare(hwc_display_contents_1_t *display)
 bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
 {
     RETURN_FALSE_IF_NOT_INIT();
+    {
+        Mutex::Autolock _l(mConfigLock);
+        mCurrentConfig = mNextConfig;
+        mNextConfig.forceNotify = false;
+    }
+    bool extActive = false;
+    if (mCurrentConfig.typeChangeListener != NULL) {
+        FrameInfo frameInfo;
+
+        if (!extActive)
+        {
+            memset(&frameInfo, 0, sizeof(frameInfo));
+            frameInfo.frameType = HWC_FRAMETYPE_NOTHING;
+        }
+        if (mCurrentConfig.forceNotify != 0) {
+            // something changed, notify type change listener
+            //mCurrentConfig.typeChangeListener->frameTypeChanged(frameInfo);
+            mCurrentConfig.typeChangeListener->bufferInfoChanged(frameInfo);
+
+            mExtLastTimestamp = 0;
+            mExtLastKhandle = 0;
+
+            if (frameInfo.frameType == HWC_FRAMETYPE_NOTHING) {
+                ITRACE("Clone mode");
+            }
+            else {
+                ITRACE("Extended mode: %dx%d in %dx%d @ %d fps",
+                      frameInfo.contentWidth, frameInfo.contentHeight,
+                      frameInfo.bufferWidth, frameInfo.bufferHeight,
+                      frameInfo.contentFrameRateN);
+            }
+            mLastFrameInfo = frameInfo;
+        }
+   }
     return true;
 }
 
@@ -142,8 +223,26 @@ bool VirtualDevice::compositionComplete()
 bool VirtualDevice::initialize()
 {
     // Add initialization codes here. If init fails, invoke DEINIT_AND_RETURN_FALSE();
-    mInitialized = true;
+    mNextConfig.typeChangeListener = NULL;
+    mNextConfig.policy.scaledWidth = 0;
+    mNextConfig.policy.scaledHeight = 0;
+    mNextConfig.policy.xdpi = 96;
+    mNextConfig.policy.ydpi = 96;
+    mNextConfig.policy.refresh = 60;
+    mNextConfig.extendedModeEnabled = false;
+    mNextConfig.forceNotify = false;
+    mCurrentConfig = mNextConfig;
 
+    memset(&mLastFrameInfo, 0, sizeof(mLastFrameInfo));
+    mInitialized = true;
+    // Publish frame server service with service manager
+    status_t ret = defaultServiceManager()->addService(String16("hwc.widi"), this);
+    if (ret != NO_ERROR) {
+        ETRACE("Could not register hwc.widi with service manager, error = %d", ret);
+        mInitialized = false;
+        return false;
+    }
+    ProcessState::self()->startThreadPool();
     return true;
 }
 

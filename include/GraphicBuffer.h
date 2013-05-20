@@ -25,65 +25,37 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef __DRM_H__
-#define __DRM_H__
+#ifndef GRAPHIC_BUFFER_H
+#define GRAPHIC_BUFFER_H
 
-#include <utils/Mutex.h>
+#include <DataBuffer.h>
 
-#include <psb_drm.h>
-
-extern "C" {
-#include "xf86drm.h"
-#include "xf86drmMode.h"
-}
 
 namespace android {
 namespace intel {
 
-struct Output {
-    drmModeConnectorPtr connector;
-    drmModeEncoderPtr encoder;
-    drmModeCrtcPtr crtc;
-    drmModeFBPtr fb;
-    int connected;
-};
-
-class Drm {
+class GraphicBuffer : public DataBuffer {
 public:
-    Drm();
-public:
-    bool detect();
-
-    bool writeReadIoctl(unsigned long cmd, void *data,
-                      unsigned long size);
-    bool writeIoctl(unsigned long cmd, void *data,
-                      unsigned long size);
-
-    struct Output* getOutput(int device);
-    bool outputConnected(int device);
-    bool setDpmsMode(int device, int mode);
-    int getDrmFd() const;
-
-private:
-    // map device type to output index, return -1 if not mapped
-    inline int getOutputIndex(int device);
-
-private:
-    // DRM object index
     enum {
-        OUTPUT_PRIMARY = 0,
-        OUTPUT_EXTERNAL,
-        OUTPUT_MAX,
+        USAGE_INVALID = 0xffffffff,
     };
 
-    int mDrmFd;
-    struct Output mOutputs[OUTPUT_MAX];
-    Mutex mLock;
+public:
+    GraphicBuffer(uint32_t handle);
+    virtual ~GraphicBuffer() {}
+
+    uint32_t getUsage() const { return mUsage; }
+    uint32_t getBpp() const { return mBpp; }
+
+    static bool isProtectedUsage(uint32_t usage);
+    static bool isProtectedBuffer(GraphicBuffer *buffer);
+
+protected:
+    uint32_t mUsage;
+    uint32_t mBpp;
 };
 
 } // namespace intel
 } // namespace android
 
-
-
-#endif /* __DRM_H__ */
+#endif /* GRAPHIC_BUFFER_H */

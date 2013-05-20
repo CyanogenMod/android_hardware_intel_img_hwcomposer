@@ -40,7 +40,7 @@ bool PixelFormat::convertFormat(uint32_t grallocFormat, uint32_t& spriteFormat, 
         bpp = 4;
         break;
     case HAL_PIXEL_FORMAT_RGBX_8888:
-        spriteFormat = PLANE_PIXEL_FORMAT_BGRX8888;
+        spriteFormat = PLANE_PIXEL_FORMAT_RGBX8888;
         bpp = 4;
         break;
     case HAL_PIXEL_FORMAT_BGRX_8888:

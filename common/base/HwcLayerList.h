@@ -31,7 +31,7 @@
 #include <Dump.h>
 #include <hardware/hwcomposer.h>
 #include <utils/SortedVector.h>
-
+#include <DataBuffer.h>
 #include <DisplayPlane.h>
 #include <DisplayPlaneManager.h>
 
@@ -56,14 +56,22 @@ public:
     uint32_t getType() const;
 
     int getIndex() const;
+    uint32_t getFormat() const;
+    bool isProtected() const;
     hwc_layer_1_t* getLayer() const;
     DisplayPlane* getPlane() const;
 
     bool update(hwc_layer_1_t *layer, int disp);
+
+private:
+    void setupAttributes();
+
 private:
     const int mIndex;
     hwc_layer_1_t *mLayer;
     DisplayPlane *mPlane;
+    uint32_t mFormat;
+    bool mIsProtected;
     uint32_t mType;
 };
 
@@ -82,12 +90,15 @@ public:
     virtual bool update(hwc_display_contents_1_t *list);
     virtual DisplayPlane* getPlane(uint32_t index) const;
 
+    bool hasProtectedLayer();
+    bool hasVisibleLayer();
+
     // dump interface
     virtual void dump(Dump& d);
 protected:
     virtual void setZOrder();
     virtual void revisit();
-    virtual bool check(int planeType, hwc_layer_1_t& layer);
+    virtual bool checkSupported(int planeType, HwcLayer *hwcLayer);
     virtual void analyze(uint32_t index);
 private:
     hwc_display_contents_1_t *mList;

@@ -73,5 +73,21 @@ void* TngOverlayPlane::getContext() const
     return (void *)&mContext;
 }
 
+bool TngOverlayPlane::setDataBuffer(BufferMapper& mapper)
+{
+    if (OverlayPlaneBase::setDataBuffer(mapper) == false) {
+        return false;
+    }
+
+    if (mIsProtectedBuffer) {
+        // Bit 0: Decryption request, only allowed to change on a synchronous flip
+        // This request will be qualified with the separate decryption enable bit for OV
+        mBackBuffer->buf->OSTART_0Y |= 0x1;
+        mBackBuffer->buf->OSTART_1Y |= 0x1;
+    }
+    return true;
+}
+
+
 } // namespace intel
 } // namespace android

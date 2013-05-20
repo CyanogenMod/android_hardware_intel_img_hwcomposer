@@ -34,7 +34,7 @@ class DrmConfig
 {
 public:
     static const char* getDrmPath();
-    static uint32_t getDrmConnector(int32_t output);
+    static uint32_t getDrmConnector(int device);
     static const char* getHotplugEnvelope();
     static const char* getHotplugString();
 };

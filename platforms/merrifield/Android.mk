@@ -27,7 +27,9 @@ LOCAL_SRC_FILES := \
     ../../common/base/HwcLayerList.cpp \
     ../../common/base/Hwcomposer.cpp \
     ../../common/base/HwcModule.cpp \
+    ../../common/base/DisplayAnalyzer.cpp \
     ../../common/buffers/BufferCache.cpp \
+    ../../common/buffers/GraphicBuffer.cpp \
     ../../common/buffers/BufferManager.cpp \
     ../../common/devices/PhysicalDevice.cpp \
     ../../common/devices/PrimaryDevice.cpp \
@@ -44,6 +46,7 @@ LOCAL_SRC_FILES += \
     ../../ips/common/BlankControl.cpp \
     ../../ips/common/HotplugControl.cpp \
     ../../ips/common/VsyncControl.cpp \
+    ../../ips/common/PrepareListener.cpp \
     ../../ips/common/OverlayPlaneBase.cpp \
     ../../ips/common/SpritePlaneBase.cpp \
     ../../ips/common/PixelFormat.cpp \
@@ -61,6 +64,7 @@ LOCAL_SRC_FILES += \
     ../../ips/tangier/TngOverlayPlane.cpp \
     ../../ips/tangier/TngPrimaryPlane.cpp \
     ../../ips/tangier/TngSpritePlane.cpp \
+    ../../ips/tangier/TngDisplayQuery.cpp \
     ../../ips/tangier/TngDisplayContext.cpp
 
 
@@ -81,6 +85,7 @@ LOCAL_C_INCLUDES := $(addprefix $(LOCAL_PATH)/../../../, $(SGX_INCLUDES)) \
     $(KERNEL_SRC_DIR)/drivers/staging/mrfl/interface \
     vendor/intel/hardware/PRIVATE/rgx/rogue/android/graphicshal \
     vendor/intel/hardware/PRIVATE/rgx/rogue/include/ \
+    vendor/intel/hardware/PRIVATE/widi/libhwcwidi/ \
     $(TARGET_OUT_HEADERS)/drm \
     $(TARGET_OUT_HEADERS)/libdrm \
     $(TARGET_OUT_HEADERS)/libdrm/shared-core \
@@ -104,5 +109,8 @@ LOCAL_MODULE := hwcomposer.$(TARGET_DEVICE)
 LOCAL_CFLAGS:= -DLINUX
 
 #$(error local path is: $(LOCAL_C_INCLUDES))
+ifeq ($(INTEL_WIDI_MERRIFIELD), true)
+   LOCAL_SHARED_LIBRARIES += libhwcwidi libbinder
+endif
 include $(BUILD_SHARED_LIBRARY)
 

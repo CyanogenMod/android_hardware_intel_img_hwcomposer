@@ -31,6 +31,7 @@
 #include <DisplayPlane.h>
 #include <IVsyncControl.h>
 #include <IBlankControl.h>
+#include <IPrepareListener.h>
 #include <VsyncEventObserver.h>
 #include <HotplugEventObserver.h>
 #include <HwcLayerList.h>
@@ -75,6 +76,7 @@ public:
     virtual void onVsync(int64_t timestamp);
 
     virtual void dump(Dump& d);
+
 protected:
     virtual void deinitialize();
 
@@ -83,6 +85,7 @@ protected:
 
     virtual IVsyncControl* createVsyncControl() = 0;
     virtual IBlankControl* createBlankControl() = 0;
+    virtual IPrepareListener* createPrepareListener() = 0;
 protected:
     uint32_t mType;
     const char *mName;
@@ -98,6 +101,8 @@ protected:
     IVsyncControl *mVsyncControl;
     // blank control
     IBlankControl *mBlankControl;
+
+    IPrepareListener *mPrepareListener;
     // vsync event observer
     sp<VsyncEventObserver> mVsyncObserver;
 
@@ -109,6 +114,8 @@ protected:
     // lock
     Mutex mLock;
 
+    // DPMS on (1) or off (0)
+    int mDisplayState;
     bool mInitialized;
 };
 

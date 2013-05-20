@@ -30,6 +30,7 @@
 #include <common/VsyncControl.h>
 #include <common/BlankControl.h>
 #include <common/HotplugControl.h>
+#include <common/PrepareListener.h>
 
 namespace android {
 namespace intel {
@@ -54,6 +55,11 @@ IVsyncControl* PlatfExternalDevice::createVsyncControl()
 IBlankControl* PlatfExternalDevice::createBlankControl()
 {
     return new BlankControl();
+}
+
+IPrepareListener* PlatfExternalDevice::createPrepareListener()
+{
+    return new PrepareListener();
 }
 
 IHotplugControl* PlatfExternalDevice::createHotplugControl()

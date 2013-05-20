@@ -32,7 +32,7 @@ namespace android {
 namespace intel {
 
 GrallocBufferBase::GrallocBufferBase(uint32_t handle)
-    :DataBuffer(handle)
+    : GraphicBuffer(handle)
 {
     ATRACE("handle = %#x", handle);
 }
