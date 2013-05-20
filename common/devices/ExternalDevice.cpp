@@ -116,13 +116,14 @@ void ExternalDevice::HdcpLinkStatusListener(bool success, void *userData)
 
 void ExternalDevice::HdcpLinkStatusListener(bool success)
 {
-    if (success) {
-        if (mHotplugEventPending) {
-            ITRACE("HDCP is authenticated, sending hotplug event...");
-            mHwc.hotplug(mType, mConnection);
-            mHotplugEventPending = false;
-        }
-    } else {
+    // TODO:  send hotplug event only if HDCP is authenticated?
+    if (mHotplugEventPending) {
+        ITRACE("HDCP authentication status %d, sending hotplug event...", success);
+        mHwc.hotplug(mType, mConnection);
+        mHotplugEventPending = false;
+    }
+
+    if (!success) {
         ETRACE("HDCP is not authenticated");
     }
 }

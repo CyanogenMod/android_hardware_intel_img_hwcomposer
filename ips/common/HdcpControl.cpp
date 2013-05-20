@@ -254,12 +254,7 @@ bool HdcpControl::runHdcp()
     // Default return value is true so HDCP can be re-authenticated in the working thread
     bool ret = true;
 
-    // TODO: for CTP platform, IED needs to be disabled during HDCP authentication.
-    if (false) {
-        VTRACE("disabling overlay and display IED");
-        disableOverlay();
-        disableDisplayIED();
-    }
+    preRunHdcp();
 
     for (int i = 0; i < HDCP_INLOOP_RETRY_NUMBER; i++) {
         VTRACE("enable and verify HDCP, iteration# %d", i);
@@ -291,19 +286,28 @@ bool HdcpControl::runHdcp()
         usleep(HDCP_INLOOP_RETRY_DELAY_US);
     }
 
-    // TODO: for CTP platform, IED needs to be disabled during HDCP authentication.
-    if (false){
-        VTRACE("enabling display IED and overlay");
-        enableDisplayIED();
-        enableOverlay();
-    }
+    postRunHdcp();
 
     return ret;
 }
 
+bool HdcpControl::preRunHdcp()
+{
+    // TODO: for CTP platform, IED needs to be disabled during HDCP authentication.
+    return true;
+}
+
+bool HdcpControl::postRunHdcp()
+{
+    // TODO: for CTP platform, IED needs to be disabled during HDCP authentication.
+    return true;
+}
+
+
 void HdcpControl::signalCompletion()
 {
     if (mWaitForCompletion) {
+        ITRACE("signal HDCP authentication completed, status = %d", mAuthenticated);
         mCompletedCondition.signal();
         mWaitForCompletion = false;
     }
@@ -319,28 +323,30 @@ bool HdcpControl::threadLoop()
         return false;
     }
 
+    // default is to keep thread active
+    bool ret = true;
     if (!mAuthenticated) {
-        if (!runHdcp()) {
-            // unable to enable HDCP
-            signalCompletion();
-            return false;
-        }
+        ret = runHdcp();
     } else {
         checkAuthenticated();
     }
 
+    // set next action delay
     if (mAuthenticated) {
-        signalCompletion();
         mActionDelay = HDCP_VERIFICATION_DELAY_MS;
     } else {
         mActionDelay = HDCP_AUTHENTICATION_DELAY_MS;
     }
 
     // TODO: move out of lock?
+    if (!ret || mAuthenticated) {
+        signalCompletion();
+    }
+
     if (mCallback) {
         (*mCallback)(mAuthenticated, mUserData);
     }
-    return true;
+    return ret;
 }
 
 
