@@ -30,7 +30,7 @@
 #include <hal_public.h>
 #include <OMX_IVCommon.h>
 #include <PlaneCapabilities.h>
-
+#include "OverlayHardware.h"
 
 namespace android {
 namespace intel {
@@ -90,19 +90,24 @@ bool PlaneCapabilities::isBlendingSupported(int planeType, uint32_t blending)
 
 bool PlaneCapabilities::isScalingSupported(int planeType, hwc_rect_t& src, hwc_rect_t& dest)
 {
-    if (planeType == DisplayPlane::PLANE_SPRITE || planeType == DisplayPlane::PLANE_PRIMARY) {
-        int srcW, srcH;
-        int dstW, dstH;
+    int srcW, srcH;
+    int dstW, dstH;
 
-        srcW = src.right - src.left;
-        srcH = src.bottom - src.top;
-        dstW = dest.right - dest.left;
-        dstH = dest.bottom - dest.top;
+    srcW = src.right - src.left;
+    srcH = src.bottom - src.top;
+    dstW = dest.right - dest.left;
+    dstH = dest.bottom - dest.top;
+
+    if (planeType == DisplayPlane::PLANE_SPRITE || planeType == DisplayPlane::PLANE_PRIMARY) {
         // no scaling is supported
         return ((srcW == dstW) && (srcH == dstH)) ? true : false;
 
     } else if (planeType == DisplayPlane::PLANE_OVERLAY) {
-        // TODO:  check overlay scaling support
+        // overlay cannot support resolution that bigger than 2047x2047.
+        if ((srcW > INTEL_OVERLAY_MAX_WIDTH - 1) || (srcH > INTEL_OVERLAY_MAX_HEIGHT - 1)) {
+            return false;
+        }
+
         return true;
     } else {
         ETRACE("invalid plane type %d", planeType);
