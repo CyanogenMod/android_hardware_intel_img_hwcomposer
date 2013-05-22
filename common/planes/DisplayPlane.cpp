@@ -40,7 +40,8 @@ DisplayPlane::DisplayPlane(int index, int type, int disp)
       mInitialized(false),
       mDataBuffers(),
       mIsProtectedBuffer(false),
-      mTransform(PLANE_TRANSFORM_0)
+      mTransform(PLANE_TRANSFORM_0),
+      mCurrentDataBuffer(0)
 {
     CTRACE();
 
@@ -79,6 +80,26 @@ void DisplayPlane::deinitialize()
 
     mInitialized = false;
 }
+
+void DisplayPlane::checkPosition(int& x, int& y, int& w, int& h)
+{
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+    drmModeModeInfoPtr mode = drm->getModeInfo(mDevice);
+    if (!mode) {
+        ETRACE("invalid mode");
+        return;
+    }
+
+    if (x < 0)
+        x = 0;
+    if (y < 0)
+        y = 0;
+    if ((x + w) > mode->hdisplay)
+        w = mode->hdisplay - x;
+    if ((y + h) > mode->vdisplay)
+        h = mode->vdisplay - y;
+}
+
 
 void DisplayPlane::setPosition(int x, int y, int w, int h)
 {
@@ -130,6 +151,12 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
         ETRACE("invalid buffer handle");
         return false;
     }
+
+    mNextDataBuffer = handle;
+
+    // do not need to update the buffer handle
+    if (mCurrentDataBuffer == mNextDataBuffer)
+        return true;
 
     if (!bm) {
         ETRACE("failed to get buffer manager");
@@ -199,6 +226,10 @@ void DisplayPlane::invalidateBufferCache()
 
     // clear recorded data buffers
     mDataBuffers.clear();
+
+    // reset current & next buffer
+    mCurrentDataBuffer = 0;
+    mNextDataBuffer = 0;
 }
 
 bool DisplayPlane::assignToDevice(int disp)
@@ -208,6 +239,19 @@ bool DisplayPlane::assignToDevice(int disp)
 
     mDevice = disp;
     return true;
+}
+
+bool DisplayPlane::flip()
+{
+    bool ret = true;
+
+    RETURN_FALSE_IF_NOT_INIT();
+
+    // don't flip it if next buffer is the current buffer
+    if (mCurrentDataBuffer == mNextDataBuffer)
+        ret = false;
+    mCurrentDataBuffer = mNextDataBuffer;
+    return ret;
 }
 
 } // namespace intel

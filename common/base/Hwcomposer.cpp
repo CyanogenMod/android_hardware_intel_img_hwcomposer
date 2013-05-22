@@ -248,7 +248,6 @@ bool Hwcomposer::compositionComplete(int disp)
 void Hwcomposer::vsync(int disp, int64_t timestamp)
 {
     //Mutex::Autolock _l(mLock);
-
     RETURN_VOID_IF_NOT_INIT();
 
     if (mProcs && mProcs->vsync) {
