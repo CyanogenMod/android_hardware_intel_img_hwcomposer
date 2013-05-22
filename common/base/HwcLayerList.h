@@ -57,6 +57,7 @@ public:
 
     int getIndex() const;
     uint32_t getFormat() const;
+    uint32_t getUsage() const;
     bool isProtected() const;
     hwc_layer_1_t* getLayer() const;
     DisplayPlane* getPlane() const;
@@ -71,6 +72,7 @@ private:
     hwc_layer_1_t *mLayer;
     DisplayPlane *mPlane;
     uint32_t mFormat;
+    uint32_t mUsage;
     bool mIsProtected;
     uint32_t mType;
 };

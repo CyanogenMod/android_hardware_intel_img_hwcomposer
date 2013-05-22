@@ -165,8 +165,6 @@ bool Drm::writeReadIoctl(unsigned long cmd, void *data,
 {
     int err;
 
-    Mutex::Autolock _l(mLock);
-
     if (mDrmFd <= 0) {
         ETRACE("drm is not initialized");
         return false;
@@ -191,8 +189,6 @@ bool Drm::writeIoctl(unsigned long cmd, void *data,
 {
     int err;
 
-    Mutex::Autolock _l(mLock);
-
     if (mDrmFd <= 0) {
         ETRACE("drm is not initialized");
         return false;
@@ -215,6 +211,29 @@ bool Drm::writeIoctl(unsigned long cmd, void *data,
 int Drm::getDrmFd() const
 {
     return mDrmFd;
+}
+
+drmModeModeInfoPtr Drm::getModeInfo(int device)
+{
+    Output *output = getOutput(device);
+    if (!output) {
+        ETRACE("invalid device?");
+        return 0;
+    }
+
+    drmModeCrtcPtr crtc = output->crtc;
+    if (!crtc || !crtc->mode_valid) {
+        ETRACE("invalid crtc or mode");
+        return 0;
+    }
+
+    drmModeModeInfoPtr mode = &(crtc->mode);
+    if (!mode->hdisplay || !mode->vdisplay) {
+        ETRACE("invalid width or height");
+        return 0;
+    }
+
+    return mode;
 }
 
 struct Output* Drm::getOutput(int device)
