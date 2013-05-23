@@ -25,48 +25,26 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef EXTERNAL_DEVICE_H
-#define EXTERNAL_DEVICE_H
-
-#include <HotplugEventObserver.h>
-#include <PhysicalDevice.h>
-#include <IHdcpControl.h>
+#ifndef IHDCP_CONTROL_H
+#define IHDCP_CONTROL_H
 
 namespace android {
 namespace intel {
 
+typedef void (*HdcpStatusCallback)(bool success, void *userData);
 
-class ExternalDevice : public PhysicalDevice {
-
+class IHdcpControl {
 public:
-    ExternalDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm);
-    virtual ~ExternalDevice();
+    IHdcpControl() {}
+    virtual ~IHdcpControl() {}
 public:
-    virtual bool initialize();
-
-protected:
-    virtual void onHotplug();
-    virtual void deinitialize();
-
-private:
-    static void HdcpLinkStatusListener(bool success, void *userData);
-    void HdcpLinkStatusListener(bool success);
-
-protected:
-    virtual IHotplugControl* createHotplugControl() = 0;
-    virtual IHdcpControl* createHdcpControl() = 0;
-
-protected:
-    IHotplugControl *mHotplugControl;
-    IHdcpControl *mHdcpControl;
-    sp<HotplugEventObserver> mHotplugObserver;
-    friend class HotplugEventObserver;
-
-private:
-    bool mHotplugEventPending;
+    virtual bool startHdcp() = 0;
+    virtual bool startHdcpAsync(HdcpStatusCallback cb, void *userData) = 0;
+    virtual bool stopHdcp() = 0;
 };
 
-}
-}
+} // namespace intel
+} // namespace android
 
-#endif /* EXTERNAL_DEVICE_H */
+
+#endif /* IHDCP_CONTROL_H */

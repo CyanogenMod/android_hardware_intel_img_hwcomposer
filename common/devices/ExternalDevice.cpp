@@ -35,7 +35,11 @@ namespace android {
 namespace intel {
 
 ExternalDevice::ExternalDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
-    : PhysicalDevice(DEVICE_EXTERNAL, hwc, dpm)
+    : PhysicalDevice(DEVICE_EXTERNAL, hwc, dpm),
+      mHotplugControl(NULL),
+      mHdcpControl(NULL),
+      mHotplugObserver(),
+      mHotplugEventPending(false)
 {
     CTRACE();
 }
@@ -55,6 +59,16 @@ bool ExternalDevice::initialize()
     mHotplugControl = createHotplugControl();
     if (!mHotplugControl) {
         DEINIT_AND_RETURN_FALSE("failed to create hotplug control");
+    }
+
+    mHdcpControl = createHdcpControl();
+    if (!mHdcpControl) {
+        DEINIT_AND_RETURN_FALSE("failed to create HDCP control");
+    }
+
+    mHotplugEventPending = false;
+    if (mConnection) {
+        mHdcpControl->startHdcpAsync(HdcpLinkStatusListener, this);
     }
 
     // create hotplug observer
@@ -79,7 +93,39 @@ void ExternalDevice::deinitialize()
         mHotplugControl = 0;
     }
 
+    if (mHdcpControl) {
+        mHdcpControl->stopHdcp();
+        delete mHdcpControl;
+        mHdcpControl = 0;
+    }
+
+    mHotplugEventPending = false;
     PhysicalDevice::deinitialize();
+}
+
+
+void ExternalDevice::HdcpLinkStatusListener(bool success, void *userData)
+{
+    if (userData == NULL) {
+        return;
+    }
+
+    ExternalDevice *p = (ExternalDevice*)userData;
+    p->HdcpLinkStatusListener(success);
+}
+
+void ExternalDevice::HdcpLinkStatusListener(bool success)
+{
+    // TODO:  send hotplug event only if HDCP is authenticated?
+    if (mHotplugEventPending) {
+        ITRACE("HDCP authentication status %d, sending hotplug event...", success);
+        mHwc.hotplug(mType, mConnection);
+        mHotplugEventPending = false;
+    }
+
+    if (!success) {
+        ETRACE("HDCP is not authenticated");
+    }
 }
 
 void ExternalDevice::onHotplug()
@@ -95,8 +141,6 @@ void ExternalDevice::onHotplug()
         return;
     }
 
-    // TODO: HDCP authentication
-
     {   // lock scope
         Mutex::Autolock _l(mLock);
         // delete device layer list
@@ -106,8 +150,23 @@ void ExternalDevice::onHotplug()
         }
     }
 
-    // notify hwcomposer
-    mHwc.hotplug(mType, mConnection);
+    ITRACE("hotpug event: %d", mConnection);
+
+    if (mConnection == false) {
+        mHotplugEventPending = false;
+        mHdcpControl->stopHdcp();
+        mHwc.hotplug(mType, mConnection);
+    } else {
+        ITRACE("start HDCP asynchronously...");
+         // delay sending hotplug event till HDCP is authenticated.
+        mHotplugEventPending = true;
+        ret = mHdcpControl->startHdcpAsync(HdcpLinkStatusListener, this);
+        if (ret == false) {
+            ETRACE("failed to start HDCP");
+            mHotplugEventPending = false;
+            mHwc.hotplug(mType, mConnection);
+        }
+    }
 }
 
 

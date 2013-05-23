@@ -25,48 +25,43 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef EXTERNAL_DEVICE_H
-#define EXTERNAL_DEVICE_H
+#ifndef VSYNC_MANAGER_H
+#define VSYNC_MANAGER_H
 
-#include <HotplugEventObserver.h>
-#include <PhysicalDevice.h>
-#include <IHdcpControl.h>
+#include <IDisplayDevice.h>
+#include <utils/Mutex.h>
 
 namespace android {
 namespace intel {
 
 
-class ExternalDevice : public PhysicalDevice {
+class VsyncManager {
+public:
+    VsyncManager(Vector<IDisplayDevice*>& devices);
+    virtual ~VsyncManager();
 
 public:
-    ExternalDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm);
-    virtual ~ExternalDevice();
-public:
-    virtual bool initialize();
-
-protected:
-    virtual void onHotplug();
-    virtual void deinitialize();
+    bool initialize();
+    void uninitialize();
+    bool handleVsyncControl(int disp, int enabled);
+    void handleHotplugEvent(int disp, int connected);
+    int getVsyncSource();
 
 private:
-    static void HdcpLinkStatusListener(bool success, void *userData);
-    void HdcpLinkStatusListener(bool success);
-
-protected:
-    virtual IHotplugControl* createHotplugControl() = 0;
-    virtual IHdcpControl* createHdcpControl() = 0;
-
-protected:
-    IHotplugControl *mHotplugControl;
-    IHdcpControl *mHdcpControl;
-    sp<HotplugEventObserver> mHotplugObserver;
-    friend class HotplugEventObserver;
+    bool enableVsync();
+    bool disableVsync();
 
 private:
-    bool mHotplugEventPending;
+    Vector<IDisplayDevice*>& mDevices;
+    Mutex mMutex;
+    bool mInitialized;
+    bool mEnabled;
+    int  mVsyncSource;
 };
 
-}
-}
+} // namespace intel
+} // namespace android
 
-#endif /* EXTERNAL_DEVICE_H */
+
+
+#endif /* VSYNC_MANAGER_H */

@@ -34,6 +34,8 @@
 #include <common/OverlayPlaneBase.h>
 #include <common/TTMBufferMapper.h>
 #include <common/GrallocSubBuffer.h>
+#include <DisplayQuery.h>
+
 
 // FIXME: remove it
 #include <OMX_IVCommon.h>
@@ -400,7 +402,15 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
         switch (grallocMapper.getFormat()) {
         case HAL_PIXEL_FORMAT_YV12:
         case HAL_PIXEL_FORMAT_I420:
-            yStride = align_to(align_to(w, 32), 64);
+            uint32_t yStride_align;
+            if (yStride_align = DisplayQuery::getOverlayLumaStrideAlignment(grallocMapper.getFormat()))
+            {
+                yStride = align_to(align_to(w, 32), yStride_align);
+            }
+            else
+            {
+                yStride = align_to(align_to(w, 32), 64);
+            }
             uvStride = align_to(yStride >> 1, 64);
             stride.yuv.yStride = yStride;
             stride.yuv.uvStride = uvStride;
@@ -541,6 +551,45 @@ void OverlayPlaneBase::checkPosition(int& x, int& y, int& w, int& h)
     if (!drmCrtc->mode_valid || !mode->hdisplay || !mode->vdisplay)
         return;
 
+
+    if (Hwcomposer::getInstance().getDisplayAnalyzer()->checkVideoExtendedMode() &&
+        mDevice == IDisplayDevice::DEVICE_EXTERNAL) {
+        // check if video is embedded (or windowed video) in external display.
+        // scale video to full screen while keeping aspect ratio based on destination position.
+        if (w < mode->hdisplay && h < mode->vdisplay) {
+            double par = (double)w/h;
+            double dar = (double)mode->hdisplay/mode->vdisplay;
+            ITRACE("video is embedded");
+            ITRACE("dst: %d, %d, %d x %d , display: %d x %d",
+                    x, y, w, h, mode->hdisplay, mode->vdisplay);
+            if (dar > par) {
+                w = mode->vdisplay * par;
+                if (w > mode->hdisplay) {
+                    w = mode->hdisplay;
+                }
+                h = mode->vdisplay;
+            } else {
+                w = mode->hdisplay;
+                h = mode->hdisplay / par;
+                if (h > mode->vdisplay) {
+                    h = mode->vdisplay;
+                }
+            }
+            x = (mode->hdisplay - w) >> 1;
+            y = (mode->vdisplay - h) >> 1;
+            ITRACE("video is scaled to: x = %d, y = %d, w = %d, h = %d", x, y, w, h);
+
+            // move overlay below primary display but make all overlay pixel visible
+            mBackBuffer->buf->DCLRKM |= (0x1 << 31);
+            mBackBuffer->buf->DCLRKM |= 0xffffff;
+            mBackBuffer->buf->DCLRKV = 0xffffff;
+            return;
+        } else {
+            // disable destination color keying
+            mBackBuffer->buf->DCLRKV = OVERLAY_INIT_COLORKEY;
+            mBackBuffer->buf->DCLRKM = OVERLAY_INIT_COLORKEYMASK;
+        }
+    }
     if (x < 0)
         x = 0;
     if (y < 0)

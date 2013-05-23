@@ -202,7 +202,7 @@ DisplayPlane* DisplayPlaneManager::getSpritePlane()
     freePlaneIndex = getPlane(mFreeSpritePlanes);
     if (freePlaneIndex >= 0)
         return mSpritePlanes.itemAt(freePlaneIndex);
-    ETRACE("failed to get a sprite plane");
+    VTRACE("failed to get a sprite plane");
     return 0;
 }
 
@@ -221,7 +221,7 @@ DisplayPlane* DisplayPlaneManager::getPrimaryPlane(int pipe)
     freePlaneIndex = getPlane(mFreePrimaryPlanes, pipe);
     if (freePlaneIndex >= 0)
         return mPrimaryPlanes.itemAt(freePlaneIndex);
-    ETRACE("failed to get a primary plane");
+    VTRACE("failed to get a primary plane");
     return 0;
 }
 

@@ -27,6 +27,8 @@
  */
 #include <HwcTrace.h>
 #include <common/GrallocBufferBase.h>
+#include <DisplayQuery.h>
+
 
 namespace android {
 namespace intel {
@@ -45,7 +47,15 @@ void GrallocBufferBase::initialize()
     switch (mFormat) {
     case HAL_PIXEL_FORMAT_YV12:
     case HAL_PIXEL_FORMAT_I420:
-        yStride = align_to(align_to(mWidth, 32), 64);
+        uint32_t yStride_align;
+        if (yStride_align = DisplayQuery::getOverlayLumaStrideAlignment(mFormat))
+        {
+            yStride = align_to(align_to(mWidth, 32), yStride_align);
+        }
+        else
+        {
+            yStride = align_to(align_to(mWidth, 32), 64);
+        }
         uvStride = align_to(yStride >> 1, 64);
         mStride.yuv.yStride = yStride;
         mStride.yuv.uvStride = uvStride;

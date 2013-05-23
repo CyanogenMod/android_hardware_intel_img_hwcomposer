@@ -38,6 +38,7 @@
 #include <Drm.h>
 #include <DisplayPlaneManager.h>
 #include <DisplayAnalyzer.h>
+#include <VsyncManager.h>
 
 namespace android {
 namespace intel {
@@ -116,6 +117,7 @@ protected:
     DisplayAnalyzer *mDisplayAnalyzer;
     Vector<IDisplayDevice*> mDisplayDevices;
     IDisplayContext *mDisplayContext;
+    VsyncManager *mVsyncManager;
     Mutex mLock;
     bool mInitialized;
 private:

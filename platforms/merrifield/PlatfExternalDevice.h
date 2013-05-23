@@ -45,6 +45,7 @@ protected:
     IBlankControl* createBlankControl();
     IPrepareListener* createPrepareListener();
     IHotplugControl* createHotplugControl();
+    IHdcpControl* createHdcpControl();
 };
 
 }
