@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Intel Corporation
+ * Copyright © 2013 Intel Corporation
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -22,37 +22,43 @@
  * IN THE SOFTWARE.
  *
  * Authors:
- *    Jackie Li <yaodong.li@intel.com>
+ *    Robert Crabtree <robert.crabtree@intel.com>
  *
  */
-#include <HwcTrace.h>
-#include <Hwcomposer.h>
-#include <DisplayPlaneManager.h>
-#include <PlatfVirtualDevice.h>
-#include <common/VideoPayloadManager.h>
+#ifndef IVIDEO_PAYLOAD_MANAGER_H
+#define IVIDEO_PAYLOAD_MANAGER_H
+
+#include <hardware/hwcomposer.h>
 
 namespace android {
 namespace intel {
 
-PlatfVirtualDevice::PlatfVirtualDevice(Hwcomposer& hwc,
-                                       DisplayPlaneManager& dpm)
-    : VirtualDevice(hwc, dpm)
-{
-    CTRACE();
-}
+class BufferMapper;
 
-PlatfVirtualDevice::~PlatfVirtualDevice()
-{
-    CTRACE();
-}
+class IVideoPayloadManager {
+public:
+    IVideoPayloadManager() {}
+    virtual ~IVideoPayloadManager() {}
 
-IVideoPayloadManager* PlatfVirtualDevice::createVideoPayloadManager()
-{
-    return new VideoPayloadManager();
-}
+public:
+    struct MetaData {
+        uint32_t kHandle;
+        uint32_t transform;
+        uint32_t width;
+        uint32_t height;
+        uint32_t format;
+        uint16_t lumaStride;
+        uint16_t chromaUStride;
+        uint16_t chromaVStride;
+        int64_t  timestamp;
+    };
 
+public:
+    virtual bool getMetaData(BufferMapper *mapper, MetaData *metadata) = 0;
+    virtual bool setRenderStatus(BufferMapper *mapper, bool renderStatus) = 0;
+};
 
 } // namespace intel
 } // namespace android
 
-
+#endif /* IVIDEO_PAYLOAD_MANAGER_H */

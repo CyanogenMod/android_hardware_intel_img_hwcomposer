@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012 Intel Corporation
+ * Copyright © 2013 Intel Corporation
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -22,37 +22,33 @@
  * IN THE SOFTWARE.
  *
  * Authors:
- *    Jackie Li <yaodong.li@intel.com>
+ *    Robert Crabtree <robert.crabtree@intel.com>
  *
  */
-#include <HwcTrace.h>
-#include <Hwcomposer.h>
-#include <DisplayPlaneManager.h>
-#include <PlatfVirtualDevice.h>
-#include <common/VideoPayloadManager.h>
+#ifndef VIDEO_PAYLOAD_MANAGER_H
+#define VIDEO_PAYLOAD_MANAGER_H
+
+#include <IVideoPayloadManager.h>
 
 namespace android {
 namespace intel {
 
-PlatfVirtualDevice::PlatfVirtualDevice(Hwcomposer& hwc,
-                                       DisplayPlaneManager& dpm)
-    : VirtualDevice(hwc, dpm)
-{
-    CTRACE();
-}
+class BufferMapper;
 
-PlatfVirtualDevice::~PlatfVirtualDevice()
-{
-    CTRACE();
-}
+class VideoPayloadManager : public IVideoPayloadManager {
 
-IVideoPayloadManager* PlatfVirtualDevice::createVideoPayloadManager()
-{
-    return new VideoPayloadManager();
-}
+public:
+    VideoPayloadManager();
+    virtual ~VideoPayloadManager();
 
+    // IVideoPayloadManager
+public:
+    virtual bool getMetaData(BufferMapper *mapper, MetaData *metadata);
+    virtual bool setRenderStatus(BufferMapper *mapper, bool renderStatus);
+
+}; // class VideoPayloadManager
 
 } // namespace intel
 } // namespace android
 
-
+#endif /* VIDEO_PAYLOAD_MANAGER_H */

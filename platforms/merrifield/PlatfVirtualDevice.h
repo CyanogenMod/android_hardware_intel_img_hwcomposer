@@ -34,11 +34,14 @@
 namespace android {
 namespace intel {
 
+class IVideoPayloadManager;
+
 class PlatfVirtualDevice : public VirtualDevice {
 public:
     PlatfVirtualDevice(Hwcomposer& hwc,
                         DisplayPlaneManager& dpm);
     ~PlatfVirtualDevice();
+    virtual IVideoPayloadManager* createVideoPayloadManager();
 };
 
 }
