@@ -59,7 +59,7 @@ bool VsyncManager::initialize()
     return true;
 }
 
-void VsyncManager::uninitialize()
+void VsyncManager::deinitialize()
 {
     mEnabled = false;
     mVsyncSource = IDisplayDevice::DEVICE_COUNT;

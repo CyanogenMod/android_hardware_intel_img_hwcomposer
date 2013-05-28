@@ -91,6 +91,7 @@ public:
                                           int32_t *values);
     virtual bool compositionComplete();
     virtual bool initialize();
+    virtual void deinitialize();
     virtual bool isConnected() const;
     virtual const char* getName() const;
     virtual int getType() const;
@@ -102,7 +103,6 @@ public:
     virtual android::status_t notifyBufferReturned(int index);
     virtual android::status_t setResolution(const FrameProcessingPolicy& policy, android::sp<IFrameListener> listener);
 protected:
-    virtual void deinitialize();
     virtual IVideoPayloadManager* createVideoPayloadManager() = 0;
 
 protected:

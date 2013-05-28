@@ -49,27 +49,20 @@ DisplayPlaneManager::DisplayPlaneManager()
 
 DisplayPlaneManager::~DisplayPlaneManager()
 {
-    size_t i;
-
-    for (i = 0; i < mOverlayPlanes.size(); i++)
-        delete mOverlayPlanes.itemAt(i);
-    mOverlayPlanes.clear();
-
-    for (i = 0; i < mSpritePlanes.size(); i++)
-        delete mSpritePlanes.itemAt(i);
-    mSpritePlanes.clear();
-
-    for (i = 0; i < mPrimaryPlanes.size(); i++)
-        delete mPrimaryPlanes.itemAt(i);
-    mPrimaryPlanes.clear();
+    WARN_IF_NOT_DEINIT();
 }
 
 bool DisplayPlaneManager::initialize()
 {
+    CTRACE();
+
+    if (mInitialized) {
+        WTRACE("object has been initialized");
+        return true;
+    }
+
     int i;
     size_t j;
-
-    CTRACE();
 
     // detect display plane usage. Hopefully throw DRM ioctl
     detect();
@@ -81,12 +74,8 @@ bool DisplayPlaneManager::initialize()
         for (i = 0; i < mPrimaryPlaneCount; i++) {
             DisplayPlane* plane = allocPlane(i, DisplayPlane::PLANE_PRIMARY);
             if (!plane) {
-                ETRACE("failed to allocate primary plane %d", i);
-                goto primary_err;
+                DEINIT_AND_RETURN_FALSE("failed to allocate primary plane %d", i);
             }
-            // reset overlay plane
-            plane->reset();
-            // insert plane
             mPrimaryPlanes.push_back(plane);
         }
     }
@@ -98,48 +87,65 @@ bool DisplayPlaneManager::initialize()
         for (i = 0; i < mSpritePlaneCount; i++) {
             DisplayPlane* plane = allocPlane(i, DisplayPlane::PLANE_SPRITE);
             if (!plane) {
-                ETRACE("failed to allocate sprite plane %d", i);
-                goto sprite_err;
+                DEINIT_AND_RETURN_FALSE("failed to allocate sprite plane %d", i);
             }
-            // reset overlay plane
-            plane->reset();
-            // insert plane
             mSpritePlanes.push_back(plane);
         }
     }
 
+    // allocate overlay plane pool
     if (mOverlayPlaneCount) {
-        // allocate overlay plane pool
         mOverlayPlanes.setCapacity(mOverlayPlaneCount);
         for (i = 0; i < mOverlayPlaneCount; i++) {
             DisplayPlane* plane = allocPlane(i, DisplayPlane::PLANE_OVERLAY);
             if (!plane) {
-                ETRACE("failed to allocate sprite plane %d", i);
-                goto overlay_err;
+                DEINIT_AND_RETURN_FALSE("failed to allocate overlay plane %d", i);
             }
-            // reset overlay plane
-            plane->reset();
-            // insert plane
             mOverlayPlanes.push_back(plane);
         }
     }
 
     mInitialized = true;
     return true;
-overlay_err:
-    for (j = 0; j < mOverlayPlanes.size(); j++)
-        delete mOverlayPlanes.itemAt(j);
+}
+
+void DisplayPlaneManager::deinitialize()
+{
+    size_t i;
+
+    DisplayPlane *plane = NULL;
+    for (i = 0; i < mOverlayPlanes.size(); i++) {
+        plane = mOverlayPlanes.itemAt(i);
+        DEINIT_AND_DELETE_OBJ(plane);
+    }
     mOverlayPlanes.clear();
-sprite_err:
-    for (j = 0; j < mSpritePlanes.size(); j++)
-        delete mSpritePlanes.itemAt(j);
+
+    for (i = 0; i < mSpritePlanes.size(); i++) {
+        plane = mSpritePlanes.itemAt(i);
+        DEINIT_AND_DELETE_OBJ(plane);
+    }
     mSpritePlanes.clear();
-primary_err:
-    for (j = 0; j < mPrimaryPlanes.size(); j++)
-        delete mPrimaryPlanes.itemAt(j);
+
+    for (i = 0; i < mPrimaryPlanes.size(); i++) {
+        plane = mPrimaryPlanes.itemAt(i);
+        DEINIT_AND_DELETE_OBJ(plane);
+    }
     mPrimaryPlanes.clear();
+
+    mSpritePlaneCount = 0;
+    mPrimaryPlaneCount = 0;
+    mOverlayPlaneCount = 0;
+    mTotalPlaneCount = 0;
+
+    mFreeSpritePlanes = 0;
+    mFreePrimaryPlanes = 0;
+    mFreeOverlayPlanes = 0;
+
+    mReclaimedSpritePlanes = 0;
+    mReclaimedPrimaryPlanes = 0;
+    mReclaimedOverlayPlanes = 0;
+
     mInitialized = false;
-    return false;
 }
 
 int DisplayPlaneManager::getPlane(uint32_t& mask)
@@ -358,7 +364,8 @@ void DisplayPlaneManager::disableReclaimedPlanes()
             int bit = (1 << i);
             if (mReclaimedSpritePlanes & bit) {
                 DisplayPlane* plane = mSpritePlanes.itemAt(i);
-                // disable plane
+                // reset and disable plane
+                plane->reset();
                 plane->disable();
                 // invalidate plane's data buffer cache
                 plane->invalidateBufferCache();
@@ -375,13 +382,14 @@ void DisplayPlaneManager::disableReclaimedPlanes()
             int bit = (1 << i);
             if (mReclaimedPrimaryPlanes & bit) {
                 DisplayPlane* plane = mPrimaryPlanes.itemAt(i);
-                // disable plane
+                // reset and disable plane
+                plane->reset();
                 plane->disable();
                 // invalidate plane's data buffer cache
                 plane->invalidateBufferCache();
             }
         }
-        // merge into free sprite bitmap
+        // merge into free primary bitmap
         mFreePrimaryPlanes |= mReclaimedPrimaryPlanes;
         mReclaimedPrimaryPlanes = 0;
     }
@@ -392,7 +400,8 @@ void DisplayPlaneManager::disableReclaimedPlanes()
             int bit = (1 << i);
             if (mReclaimedOverlayPlanes & bit) {
                 DisplayPlane* plane = mOverlayPlanes.itemAt(i);
-                // disable plane
+                // reset and disable plane
+                plane->reset();
                 plane->disable();
                 // invalidate plane's data buffer cache
                 plane->invalidateBufferCache();

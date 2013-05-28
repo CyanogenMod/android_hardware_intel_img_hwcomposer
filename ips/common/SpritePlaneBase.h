@@ -33,8 +33,6 @@
 #include <BufferCache.h>
 #include <DisplayPlane.h>
 
-#include <displayclass_interface.h>
-
 namespace android {
 namespace intel {
 
@@ -45,7 +43,7 @@ public:
 public:
     // hardware operations
     virtual bool reset();
-    virtual bool flip();
+    virtual bool flip(void *ctx);
     virtual bool enable();
     virtual bool disable();
 
@@ -54,7 +52,7 @@ public:
     virtual void* getContext() const = 0;
 protected:
     virtual bool setDataBuffer(BufferMapper& mapper) = 0;
-    virtual bool enablePlane(bool enabled);
+    virtual bool enablePlane(bool enabled) = 0;
 protected:
     bool mForceBottom;
     bool mAbovePrimary;

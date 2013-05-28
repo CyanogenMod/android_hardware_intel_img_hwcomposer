@@ -119,5 +119,33 @@ void* TngSpritePlane::getContext() const
     return (void *)&mContext;
 }
 
+bool TngSpritePlane::enablePlane(bool enabled)
+{
+    RETURN_FALSE_IF_NOT_INIT();
+
+    struct drm_psb_register_rw_arg arg;
+    memset(&arg, 0, sizeof(struct drm_psb_register_rw_arg));
+    if (enabled) {
+        arg.plane_enable_mask = 1;
+    } else {
+        arg.plane_disable_mask = 1;
+    }
+    arg.plane.type = mType;
+    arg.plane.index = mIndex;
+    arg.plane.ctx = 0;
+
+    // issue ioctl
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+    bool ret = drm->writeReadIoctl(DRM_PSB_REGISTER_RW, &arg, sizeof(arg));
+    if (ret == false) {
+        WTRACE("sprite enabling (%d) failed with error code %d", enabled, ret);
+        return false;
+    }
+
+    return true;
+
+}
+
+
 } // namespace intel
 } // namespace android

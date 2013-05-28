@@ -80,10 +80,9 @@ DisplayPlane* PlatfDisplayPlaneManager::allocPlane(int index, int type)
         ETRACE("unsupported type %d", type);
         break;
     }
-    if (plane && !plane->initialize(DisplayPlane::DEFAULT_DATA_BUFFER_COUNT)) {
+    if (plane && !plane->initialize(DisplayPlane::MIN_DATA_BUFFER_COUNT)) {
         ETRACE("failed to initialize plane.");
-        delete plane;
-        return NULL;
+        DEINIT_AND_DELETE_OBJ(plane);
     }
 
     return plane;

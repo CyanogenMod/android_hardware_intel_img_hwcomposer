@@ -44,8 +44,7 @@ TngDisplayContext::TngDisplayContext()
 
 TngDisplayContext::~TngDisplayContext()
 {
-    CTRACE();
-    deinitialize();
+    WARN_IF_NOT_DEINIT();
 }
 
 bool TngDisplayContext::initialize()
@@ -72,7 +71,7 @@ bool TngDisplayContext::initialize()
     return true;
 }
 
-bool TngDisplayContext::commitBegin()
+bool TngDisplayContext::commitBegin(size_t numDisplays, hwc_display_contents_1_t **displays)
 {
     RETURN_FALSE_IF_NOT_INIT();
     mCount = 0;
@@ -105,7 +104,7 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
         if (!plane)
             continue;
 
-        ret = plane->flip();
+        ret = plane->flip(NULL);
         if (ret == false) {
             VTRACE("failed to flip plane %d", i);
             continue;
@@ -135,7 +134,7 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
     return true;
 }
 
-bool TngDisplayContext::commitEnd()
+bool TngDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t **displays)
 {
     VTRACE("count = %d", mCount);
 

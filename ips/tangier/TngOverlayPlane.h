@@ -46,11 +46,12 @@ public:
     TngOverlayPlane(int index, int disp);
     ~TngOverlayPlane();
 
-    virtual bool flip();
+    virtual bool flip(void *ctx);
     virtual void* getContext() const;
 
 protected:
     virtual bool setDataBuffer(BufferMapper& mapper);
+    virtual bool flush(uint32_t flags);
 
 protected:
     struct intel_dc_plane_ctx mContext;

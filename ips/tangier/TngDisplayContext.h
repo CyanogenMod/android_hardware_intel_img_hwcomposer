@@ -40,13 +40,11 @@ public:
     ~TngDisplayContext();
 public:
     bool initialize();
-    bool commitBegin();
-    bool commitContents(hwc_display_contents_1_t *display, HwcLayerList* layerList);
-    bool commitEnd();
-    bool compositionComplete();
-
-protected:
     void deinitialize();
+    bool commitBegin(size_t numDisplays, hwc_display_contents_1_t **displays);
+    bool commitContents(hwc_display_contents_1_t *display, HwcLayerList* layerList);
+    bool commitEnd(size_t numDisplays, hwc_display_contents_1_t **displays);
+    bool compositionComplete();
 
 private:
     enum {

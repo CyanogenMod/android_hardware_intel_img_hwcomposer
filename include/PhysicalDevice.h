@@ -68,6 +68,7 @@ public:
     // device related operations
     virtual bool initCheck() const { return mInitialized; }
     virtual bool initialize();
+    virtual void deinitialize();
     virtual bool isConnected() const;
     virtual const char* getName() const;
     virtual int getType() const;
@@ -78,8 +79,6 @@ public:
     virtual void dump(Dump& d);
 
 protected:
-    virtual void deinitialize();
-
     void onGeometryChanged(hwc_display_contents_1_t *list);
     bool updateDisplayConfigs(struct Output *output);
 
@@ -108,7 +107,6 @@ protected:
 
     // layer list
     HwcLayerList *mLayerList;
-    DisplayPlane *mPrimaryPlane;
     bool mConnection;
 
     // lock

@@ -39,46 +39,53 @@ DisplayPlane::DisplayPlane(int index, int type, int disp)
       mDevice(disp),
       mInitialized(false),
       mDataBuffers(),
+      mRingBuffers(),
+      mDataBuffersCap(0),
       mIsProtectedBuffer(false),
       mTransform(PLANE_TRANSFORM_0),
       mCurrentDataBuffer(0),
       mUpdateMasks(0)
 {
     CTRACE();
-
-    mPosition.x = 0;
-    mPosition.y = 0;
-    mPosition.w = 0;
-    mPosition.h = 0;
-
-    mSrcCrop.x = 0;
-    mSrcCrop.y = 0;
-    mSrcCrop.w = 0;
-    mSrcCrop.h = 0;
+    memset(&mPosition, 0, sizeof(mPosition));
+    memset(&mSrcCrop, 0, sizeof(mSrcCrop));
 }
 
 DisplayPlane::~DisplayPlane()
 {
-    CTRACE();
-    deinitialize();
+    WARN_IF_NOT_DEINIT();
 }
 
 bool DisplayPlane::initialize(uint32_t bufferCount)
 {
     CTRACE();
 
-    // create buffer cache
-    mDataBuffers.setCapacity(bufferCount);
+    if (bufferCount < MIN_DATA_BUFFER_COUNT) {
+        WTRACE("buffer count %d is too small", bufferCount);
+        bufferCount = MIN_DATA_BUFFER_COUNT;
+    }
 
+    // create buffer cache, adding few extra slots as buffer rendering is async
+    // buffer could still be queued in the display pipeline such that they
+    // can't be unmapped
+    // TODO: determine the optimal number of extra slots, 1 is minimum
+    // otherwise buffer cache will be unnecessarily invalidated
+    mDataBuffersCap = bufferCount + 1;
+    mDataBuffers.setCapacity(mDataBuffersCap);
+    mRingBuffers.setCapacity(MIN_DATA_BUFFER_COUNT);
     mInitialized = true;
     return true;
 }
 
 void DisplayPlane::deinitialize()
 {
-    // invalid buffer cache
-    invalidateBufferCache();
-
+    if (mDataBuffers.size() || mRingBuffers.size()) {
+        // invalidateBufferCache will assert if object is not initialized
+        // so invoking it only there is buffer to invalidate.
+        invalidateBufferCache();
+    }
+    mCurrentDataBuffer = 0;
+    mDataBuffersCap = 0;
     mInitialized = false;
 }
 
@@ -189,11 +196,6 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
     if (!mUpdateMasks)
         return true;
 
-    if (!bm) {
-        ETRACE("failed to get buffer manager");
-        return false;
-    }
-
     buffer = bm->get(handle);
     if (!buffer) {
         ETRACE("failed to get buffer");
@@ -214,6 +216,22 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
             goto mapper_err;
         }
 
+        if ((int)mDataBuffers.size() == mDataBuffersCap) {
+            DTRACE("rebuilding data buffer cache...");
+            // remove all stale buffers from the cache and
+            // add the most recent used buffers to the cache
+            invalidateDataBuffers();
+            for (size_t i = 0; i < mRingBuffers.size(); i++) {
+                BufferMapper *temp = mRingBuffers.itemAt(i);
+                if (mDataBuffers.indexOfKey(temp->getKey()) < 0) {
+                    temp->incRef();
+                    mDataBuffers.add(temp->getKey(), temp);
+                } else {
+                    WTRACE("duplicate buffer found in the ring buffers");
+                }
+            }
+        }
+
         // add it to data buffers
         index = mDataBuffers.add(buffer->getKey(), mapper);
         if (index < 0) {
@@ -224,6 +242,17 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
         VTRACE("got mapper in saved data buffers");
         mapper = mDataBuffers.valueAt(index);
     }
+
+    // unmap and remove the oldest buffer
+    if (mRingBuffers.size() == MIN_DATA_BUFFER_COUNT) {
+        BufferMapper *temp = mRingBuffers.itemAt(0);
+        bm->unmap(*temp);
+        mRingBuffers.removeAt(0);
+    }
+
+    // cache the latest buffer
+    mapper->incRef();
+    mRingBuffers.push(mapper);
 
     // put buffer after getting mapper
     bm->put(*buffer);
@@ -241,15 +270,24 @@ mapper_err:
 
 void DisplayPlane::invalidateBufferCache()
 {
-    BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
-    BufferMapper* mapper;
-
     RETURN_VOID_IF_NOT_INIT();
 
-    if (!bm) {
-        ETRACE("failed to get buffer manager");
-        return;
+    invalidateDataBuffers();
+
+    // clean up ring buffers
+    BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
+    for (size_t i = 0; i < mRingBuffers.size(); i++) {
+       BufferMapper *mapper = mRingBuffers.itemAt(i);
+        if (mapper)
+            bm->unmap(*mapper);
     }
+    mRingBuffers.clear();
+}
+
+void DisplayPlane::invalidateDataBuffers()
+{
+    BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
+    BufferMapper* mapper;
 
     for (size_t i = 0; i < mDataBuffers.size(); i++) {
         mapper = mDataBuffers.valueAt(i);
@@ -274,7 +312,7 @@ bool DisplayPlane::assignToDevice(int disp)
     return true;
 }
 
-bool DisplayPlane::flip()
+bool DisplayPlane::flip(void *ctx)
 {
     RETURN_FALSE_IF_NOT_INIT();
 

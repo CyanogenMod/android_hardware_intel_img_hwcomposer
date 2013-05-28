@@ -42,7 +42,7 @@ public:
 
 public:
     bool initialize();
-    void uninitialize();
+    void deinitialize();
     bool handleVsyncControl(int disp, int enabled);
     void handleHotplugEvent(int disp, int connected);
     int getVsyncSource();

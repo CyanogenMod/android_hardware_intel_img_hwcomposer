@@ -43,6 +43,16 @@ PlatfBufferManager::~PlatfBufferManager()
 
 }
 
+bool PlatfBufferManager::initialize()
+{
+    return BufferManager::initialize();
+}
+
+void PlatfBufferManager::deinitialize()
+{
+    BufferManager::deinitialize();
+}
+
 DataBuffer* PlatfBufferManager::createDataBuffer(gralloc_module_t *module,
                                                  uint32_t handle)
 {

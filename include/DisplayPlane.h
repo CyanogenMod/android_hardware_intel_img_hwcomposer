@@ -84,7 +84,7 @@ public:
 
     enum {
         // align with android's back buffer count
-        DEFAULT_DATA_BUFFER_COUNT = 3,
+        MIN_DATA_BUFFER_COUNT = 3,
     };
 
 protected:
@@ -115,7 +115,7 @@ public:
     virtual bool assignToDevice(int disp);
 
     // hardware operations
-    virtual bool flip();
+    virtual bool flip(void *ctx);
 
     virtual bool reset() = 0;
     virtual bool enable() = 0;
@@ -127,17 +127,24 @@ public:
     virtual void* getContext() const = 0;
 
     virtual bool initialize(uint32_t bufferCount);
-protected:
     virtual void deinitialize();
+
 protected:
     virtual void checkPosition(int& x, int& y, int& w, int& h);
     virtual bool setDataBuffer(BufferMapper& mapper) = 0;
+
+private:
+    void invalidateDataBuffers();
+
 protected:
     int mIndex;
     int mType;
     int mDevice;
     bool mInitialized;
     KeyedVector<uint64_t, BufferMapper*> mDataBuffers;
+    // holding the most recent buffers
+    Vector<BufferMapper*> mRingBuffers;
+    int mDataBuffersCap;
     PlanePosition mPosition;
     crop_t mSrcCrop;
     bool mIsProtectedBuffer;

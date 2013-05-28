@@ -61,8 +61,7 @@ VirtualDevice::VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
 
 VirtualDevice::~VirtualDevice()
 {
-    CTRACE();
-    deinitialize();
+    WARN_IF_NOT_DEINIT();
 }
 
 sp<VirtualDevice::CachedBuffer> VirtualDevice::getDisplayBuffer(buffer_handle_t handle)
@@ -143,6 +142,11 @@ bool VirtualDevice::prePrepare(hwc_display_contents_1_t *display)
 bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
 {
     RETURN_FALSE_IF_NOT_INIT();
+
+    if (!display) {
+        return true;
+    }
+
     {
         Mutex::Autolock _l(mConfigLock);
         mCurrentConfig = mNextConfig;

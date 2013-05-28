@@ -127,8 +127,6 @@ DisplayPlane* HwcLayer::getPlane() const
 
 bool HwcLayer::update(hwc_layer_1_t *layer, int disp)
 {
-    bool ret;
-
     // update layer
     mLayer = layer;
     setupAttributes();
@@ -145,12 +143,13 @@ bool HwcLayer::update(hwc_layer_1_t *layer, int disp)
                               layer->sourceCrop.right - layer->sourceCrop.left,
                               layer->sourceCrop.bottom - layer->sourceCrop.top);
         mPlane->setTransform(layer->transform);
-        ret = mPlane->setDataBuffer((uint32_t)layer->handle);
+        bool ret = mPlane->setDataBuffer((uint32_t)layer->handle);
         if (ret == true) {
             return true;
         }
-        ETRACE("failed to set data buffer");
+        ETRACE("failed to set data buffer, handle = %#x", (uint32_t)layer->handle);
         if (!mIsProtected) {
+            // typical case: rotated buffer is not ready or handle is null
             return false;
         } else {
             // protected video has to be rendered using overlay.
@@ -196,12 +195,16 @@ void HwcLayer::setupAttributes()
 //------------------------------------------------------------------------------
 HwcLayerList::HwcLayerList(hwc_display_contents_1_t *list,
                             DisplayPlaneManager& dpm,
-                            DisplayPlane* primary,
                             int disp)
     : mList(list),
       mLayerCount(0),
+      mLayers(),
+      mOverlayLayers(),
+      mFBLayers(),
+      mZOrderConfig(),
       mDisplayPlaneManager(dpm),
-      mPrimaryPlane(primary),
+      mPrimaryPlane(0),
+      mReclaimPrimaryPlane(false),
       mFramebufferTarget(0),
       mDisplayIndex(disp)
 {
@@ -211,8 +214,10 @@ HwcLayerList::HwcLayerList(hwc_display_contents_1_t *list,
         mOverlayLayers.setCapacity(list->numHwLayers);
         mFBLayers.setCapacity(list->numHwLayers);
         mLayerCount = list->numHwLayers;
-        // analysis list from the top layer
-        analyze(mLayerCount - 1);
+        mPrimaryPlane = mDisplayPlaneManager.getPrimaryPlane(mDisplayIndex);
+        mReclaimPrimaryPlane = (mPrimaryPlane != NULL);
+        // analyze list from the top layer
+        analyze();
     }
 }
 
@@ -229,7 +234,12 @@ HwcLayerList::~HwcLayerList()
         // delete HWC layer
         delete hwcLayer;
     }
+    if (mReclaimPrimaryPlane && mPrimaryPlane) {
+        mDisplayPlaneManager.reclaimPlane(*mPrimaryPlane);
+    }
     mLayers.clear();
+    mOverlayLayers.clear();
+    mFBLayers.clear();
 }
 
 //------------------------------------------------------------------------------
@@ -399,6 +409,7 @@ void HwcLayerList::revisit()
             mOverlayLayers.remove(hwcLayer);
             // add it to fb layer list
             mFBLayers.add(hwcLayer);
+            mReclaimPrimaryPlane = true;
         }
     }
 
@@ -421,6 +432,7 @@ void HwcLayerList::revisit()
             mOverlayLayers.add(hwcLayer);
 
             primaryPlaneUsed = true;
+            mReclaimPrimaryPlane = false;
         }
     }
 
@@ -432,23 +444,24 @@ void HwcLayerList::revisit()
         mFramebufferTarget->setType(HwcLayer::LAYER_FRAMEBUFFER_TARGET);
         // still add it to overlay list
         mOverlayLayers.add(mFramebufferTarget);
+        mReclaimPrimaryPlane = false;
     }
 
     // generate z order config
     setZOrder();
 }
 
-void HwcLayerList::analyze(uint32_t index)
+void HwcLayerList::analyze()
 {
     Hwcomposer& hwc = Hwcomposer::getInstance();
     Drm *drm = hwc.getDrm();
     DisplayPlane *plane;
 
-    if (!mList || index >= mLayerCount || !drm)
+    if (!mList || mLayerCount == 0 || !drm)
         return;
 
     // go through layer list from top to bottom
-    for (int i = index; i >= 0; i--) {
+    for (int i = mLayerCount - 1; i >= 0; i--) {
         hwc_layer_1_t *layer = &mList->hwLayers[i];
         if (!layer) {
             // this will cause index and plane out of sync, see getPlane API
@@ -480,13 +493,18 @@ void HwcLayerList::analyze(uint32_t index)
         }
 
         if (layer->handle == NULL) {
-            VTRACE("null buffer handle");
-            mFBLayers.add(hwcLayer);
+            // possible skipped layer, client never draws to this layer
+            VTRACE("invalid handle of layer %d, count %d, flags %#x", i, mLayerCount, layer->flags);
+            // don't add this layer to mFBLayers as it will never be rendered
             continue;
         }
 
+        // by default use GPU for rendering
+        hwcLayer->setType(HwcLayer::LAYER_FB);
+
         // check whether the layer can be handled by sprite plane
-        if (checkSupported(DisplayPlane::PLANE_SPRITE, hwcLayer)) {
+        if (mDisplayPlaneManager.hasFreeSprites() &&
+            checkSupported(DisplayPlane::PLANE_SPRITE, hwcLayer)) {
             VTRACE("sprite check passed for layer %d", i);
             plane = mDisplayPlaneManager.getSpritePlane();
             if (plane) {
@@ -508,6 +526,8 @@ void HwcLayerList::analyze(uint32_t index)
         }
 
         // check whether the layer can be handled by overlay plane
+        // Have to go through this check even overlay plane may not be available
+        // as protected video layer needs to be skipped if overlay is not available
         if (checkSupported(DisplayPlane::PLANE_OVERLAY, hwcLayer)) {
             VTRACE("overlay check passed for layer %d", i);
             if (mDisplayIndex == IDisplayDevice::DEVICE_PRIMARY) {
@@ -528,15 +548,13 @@ void HwcLayerList::analyze(uint32_t index)
                 mOverlayLayers.add(hwcLayer);
                 continue;
             } else if (hwcLayer->isProtected()) {
-                // TODO: we need to detach overlay from non-protected layers
+                // TODO: detach overlay from non-protected layers
                 WTRACE("protected layer is skipped");
                 hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
                 mOverlayLayers.add(hwcLayer);
                 continue;
             } else {
-                // fall back to GPU rendering
-                hwcLayer->setType(HwcLayer::LAYER_FB);
-                ITRACE("overlay plane is not available for video layer %d", i);
+                WTRACE("overlay plane is not available for video layer %d", i);
             }
         }
 
@@ -574,7 +592,7 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
     do {
         again = false;
         // update all layers, call each layer's update()
-        for (size_t i = 0; i < mLayers.size(); i++) {
+        for (size_t i = 0; i < mLayerCount; i++) {
             HwcLayer *hwcLayer = mLayers.itemAt(i);
             if (!hwcLayer) {
                 ETRACE("no HWC layer for layer %d", i);
@@ -585,16 +603,19 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
             if (ret == false) {
                 // layer update failed, fall back to ST and revisit all plane
                 // assignment
-                ITRACE("failed to update layer %d", i);
-                // set layer to FB layer
-                hwcLayer->setType(HwcLayer::LAYER_FB);
-                // remove layer from overlay layer list
-                mOverlayLayers.remove(hwcLayer);
-                // add layer to FB layer list
-                mFBLayers.add(hwcLayer);
-                // revisit the overlay assignment.
-                revisit();
-
+                WTRACE("failed to update layer %d, count %d, type %d",
+                         i, mLayerCount, hwcLayer->getType());
+                // if type of layer is LAYER_FB, that layer must have been added to mFBLayers.
+                if (hwcLayer->getType() != HwcLayer::LAYER_FB) {
+                    // set layer to FB layer
+                    hwcLayer->setType(HwcLayer::LAYER_FB);
+                    // remove layer from overlay layer list
+                    mOverlayLayers.remove(hwcLayer);
+                    // add layer to FB layer list
+                    mFBLayers.add(hwcLayer);
+                    // revisit the overlay assignment.
+                    revisit();
+                }
             } else if (hwcLayer->getPlane() &&
                         hwcLayer->getType() == HwcLayer::LAYER_FB) {
                 // layer update success, if the layer was assigned a plane
