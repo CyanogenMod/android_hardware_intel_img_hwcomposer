@@ -107,7 +107,7 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
 
         ret = plane->flip();
         if (ret == false) {
-            VTRACE("failed to flip plane %d", i);
+            WTRACE("failed to flip plane %d", i);
             continue;
         }
 

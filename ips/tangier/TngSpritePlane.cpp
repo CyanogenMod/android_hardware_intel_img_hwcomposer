@@ -86,8 +86,8 @@ bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
 
     // update context
     mContext.type = DC_SPRITE_PLANE;
-    mContext.ctx.sp_ctx.index = mIndex;
-    mContext.ctx.sp_ctx.pipe = mDevice;
+    mContext.ctx.sp_ctx.index = 0;
+    mContext.ctx.sp_ctx.pipe = 0;
     mContext.ctx.sp_ctx.cntr = spriteFormat | 0x80000000;
     mContext.ctx.sp_ctx.linoff = linoff;
     mContext.ctx.sp_ctx.stride = stride;
@@ -96,11 +96,8 @@ bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
     mContext.ctx.sp_ctx.size =
         ((dstH - 1) & 0xfff) << 16 | ((dstW - 1) & 0xfff);
     mContext.ctx.sp_ctx.update_mask = SPRITE_UPDATE_ALL;
-
     if (mForceBottom)
         mContext.ctx.sp_ctx.cntr  |= 0x00000004;
-    if (mAbovePrimary)
-        mContext.ctx.sp_ctx.cntr  |= 0x00000002;
 
     VTRACE("cntr = %#x, linoff = %#x, stride = %#x,"
           "surf = %#x, pos = %#x, size = %#x",

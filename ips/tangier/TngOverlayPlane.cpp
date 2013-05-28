@@ -52,9 +52,6 @@ bool TngOverlayPlane::flip()
 {
     RETURN_FALSE_IF_NOT_INIT();
 
-    if (!DisplayPlane::flip())
-        return false;
-
     mContext.type = DC_OVERLAY_PLANE;
     mContext.ctx.ov_ctx.ovadd = 0x0;
     mContext.ctx.ov_ctx.ovadd = (mBackBuffer->gttOffsetInPage << 12);

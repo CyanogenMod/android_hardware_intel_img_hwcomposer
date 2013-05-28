@@ -41,7 +41,6 @@ public:
 public:
     bool setDataBuffer(uint32_t handle);
     bool assignToDevice(int disp);
-    bool disable();
 private:
     void setFramebufferTarget(DataBuffer& buf);
 };

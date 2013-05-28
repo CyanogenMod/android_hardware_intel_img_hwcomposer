@@ -41,8 +41,6 @@ bool PlaneCapabilities::isFormatSupported(int planeType, uint32_t format)
         switch (format) {
         case HAL_PIXEL_FORMAT_BGRA_8888:
         case HAL_PIXEL_FORMAT_BGRX_8888:
-        case HAL_PIXEL_FORMAT_RGBA_8888:
-        case HAL_PIXEL_FORMAT_RGBX_8888:
         case HAL_PIXEL_FORMAT_RGB_565:
             return true;
         default:

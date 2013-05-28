@@ -42,7 +42,6 @@ HwcLayer::HwcLayer(int index, hwc_layer_1_t *layer)
       mLayer(layer),
       mPlane(0),
       mFormat(DataBuffer::FORMAT_INVALID),
-      mUsage(0),
       mIsProtected(false),
       mType(LAYER_FB)
 {
@@ -75,7 +74,6 @@ void HwcLayer::setType(uint32_t type)
     switch (type) {
     case LAYER_OVERLAY:
         mLayer->compositionType = HWC_OVERLAY;
-        mLayer->hints |= HWC_HINT_CLEAR_FB;
         break;
     // NOTE: set compositionType to HWC_FRAMEBUFFER here so that we have
     // a chance to submit the primary changes to HW.
@@ -103,11 +101,6 @@ int HwcLayer::getIndex() const
 uint32_t HwcLayer::getFormat() const
 {
     return mFormat;
-}
-
-uint32_t HwcLayer::getUsage() const
-{
-    return mUsage;
 }
 
 bool HwcLayer::isProtected() const
@@ -186,8 +179,6 @@ void HwcLayer::setupAttributes()
          ETRACE("failed to get buffer");
      } else {
         mFormat = buffer->getFormat();
-        GraphicBuffer *gBuffer = (GraphicBuffer*)buffer;
-        mUsage = gBuffer->getUsage();
         mIsProtected = GraphicBuffer::isProtectedBuffer((GraphicBuffer*)buffer);
         bm->put(*buffer);
     }
@@ -229,7 +220,6 @@ HwcLayerList::~HwcLayerList()
         // delete HWC layer
         delete hwcLayer;
     }
-    mLayers.clear();
 }
 
 //------------------------------------------------------------------------------
@@ -262,12 +252,6 @@ bool HwcLayerList::checkSupported(int planeType, HwcLayer *hwcLayer)
 
     if (layer.handle == 0) {
         WTRACE("invalid buffer handle");
-        return false;
-    }
-
-    // check usage
-    if (!hwcLayer->getUsage() & GRALLOC_USAGE_HW_COMPOSER) {
-        WTRACE("not a composer layer");
         return false;
     }
 
@@ -463,14 +447,13 @@ void HwcLayerList::analyze(uint32_t index)
         mLayers.add(hwcLayer);
 
         // if a HWC_FRAMEBUFFER_TARGET layer, save it to the last
-        if (layer->compositionType == HWC_FRAMEBUFFER_TARGET) {
+        if (layer->compositionType & HWC_FRAMEBUFFER_TARGET) {
             mFramebufferTarget = hwcLayer;
             continue;
         }
 
         if (layer->handle == NULL) {
             VTRACE("null buffer handle");
-            mFBLayers.add(hwcLayer);
             continue;
         }
 
@@ -479,16 +462,12 @@ void HwcLayerList::analyze(uint32_t index)
             VTRACE("sprite check passed for layer %d", i);
             plane = mDisplayPlaneManager.getSpritePlane();
             if (plane) {
-                // enable plane
-                if (!plane->enable()) {
-                    ETRACE("sprite plane is not ready");
-                    mDisplayPlaneManager.putSpritePlane(*plane);
-                    continue;
-                }
                 // attach plane to hwc layer
                 hwcLayer->attachPlane(plane);
                 // set the layer type to overlay
                 hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
+                // clear fb
+                layer->hints |=  HWC_HINT_CLEAR_FB;
                 mOverlayLayers.add(hwcLayer);
                 continue;
             } else {
@@ -514,6 +493,8 @@ void HwcLayerList::analyze(uint32_t index)
             if (plane) {
                 hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
                 hwcLayer->attachPlane(plane);
+                // clear fb
+                layer->hints |=  HWC_HINT_CLEAR_FB;
                 mOverlayLayers.add(hwcLayer);
                 continue;
             } else if (hwcLayer->isProtected()) {
@@ -524,7 +505,6 @@ void HwcLayerList::analyze(uint32_t index)
                 continue;
             } else {
                 // fall back to GPU rendering
-                hwcLayer->setType(HwcLayer::LAYER_FB);
                 ITRACE("overlay plane is not available for video layer %d", i);
             }
         }
@@ -663,14 +643,13 @@ bool HwcLayerList::hasVisibleLayer()
 void HwcLayerList::dump(Dump& d)
 {
     d.append("Layer list: (number of layers %d):\n", mLayers.size());
-    d.append(" LAYER |          TYPE          |   PLANE  | INDEX  \n");
-    d.append("-------+------------------------+------------------ \n");
+    d.append(" LAYER |          TYPE          |   PLANE INDEX  \n");
+    d.append("-------+------------------------+----------------\n");
     for (size_t i = 0; i < mLayers.size(); i++) {
         HwcLayer *hwcLayer = mLayers.itemAt(i);
         DisplayPlane *plane;
         int planeIndex = -1;
-        const char *type = "HWC_FB";
-        const char *planeType = "N/A";
+        const char *type;
 
         if (hwcLayer) {
             switch (hwcLayer->getType()) {
@@ -688,29 +667,15 @@ void HwcLayerList::dump(Dump& d)
             }
 
             plane = hwcLayer->getPlane();
-            if (plane) {
+            if (plane)
                 planeIndex = plane->getIndex();
 
-                switch (plane->getType()) {
-                case DisplayPlane::PLANE_OVERLAY:
-                    planeType = "OVERLAY";
-                    break;
-                case DisplayPlane::PLANE_SPRITE:
-                    planeType = "SPRITE";
-                    break;
-                case DisplayPlane::PLANE_PRIMARY:
-                    planeType = "PRIMARY";
-                    break;
-                default:
-                    planeType = "Unknown";
-                }
-            }
 
-            d.append("  %2d   | %22s | %8s | %3D \n",
-                     i, type, planeType, planeIndex);
+            d.append("  %2d   | %10s   |%10D  \n", i, type, planeIndex);
         }
     }
 }
+
 
 } // namespace intel
 } // namespace android
