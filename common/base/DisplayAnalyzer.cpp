@@ -41,7 +41,10 @@ namespace intel {
 DisplayAnalyzer::DisplayAnalyzer()
     : mInitialized(false),
       mVideoExtendedMode(false),
-      mForceCloneMode(false)
+      mForceCloneMode(false),
+      mBlankDevice(false),
+      mBlankPending(false),
+      mBlankMutex()
 {
 }
 
@@ -51,6 +54,10 @@ DisplayAnalyzer::~DisplayAnalyzer()
 
 bool DisplayAnalyzer::initialize()
 {
+    mVideoExtendedMode = false;
+    mForceCloneMode = false;
+    mBlankPending = false;
+    mBlankDevice = false;
     mInitialized = true;
     return true;
 }
@@ -58,12 +65,12 @@ bool DisplayAnalyzer::initialize()
 void DisplayAnalyzer::uninitialize()
 {
     mInitialized = false;
-    mVideoExtendedMode = false;
 }
 
 void DisplayAnalyzer::analyzeContents(
         size_t numDisplays, hwc_display_contents_1_t** displays)
 {
+    blankSecondaryDevice(numDisplays, displays);
     detectVideoExtendedMode(numDisplays, displays);
     if (mVideoExtendedMode) {
         detectTrickMode(displays[IDisplayDevice::DEVICE_PRIMARY]);
@@ -95,6 +102,7 @@ void DisplayAnalyzer::detectVideoExtendedMode(
 {
     bool geometryChanged = false;
     int activeDisplays = 0;
+
     hwc_display_contents_1_t *content = NULL;
     for (int i = 0; i < (int)numDisplays; i++) {
         content = displays[i];
@@ -126,7 +134,7 @@ void DisplayAnalyzer::detectVideoExtendedMode(
         return;
     }
 
-    uint32_t videoHandle = NULL;
+    uint32_t videoHandle = 0;
     bool videoLayerExist = false;
     // exclude the frame buffer target layer
     for (int j = 0; j < (int)content->numHwLayers - 1; j++) {
@@ -181,6 +189,60 @@ bool DisplayAnalyzer::isVideoLayer(hwc_layer_1_t &layer)
     return ret;
 }
 
+bool DisplayAnalyzer::blankSecondaryDevice(bool blank)
+{
+    ITRACE("Blanking secondary device: %d", blank);
+    Mutex::Autolock lock(mBlankMutex);
+    mBlankDevice = blank;
+    mBlankPending = true;
+    Hwcomposer::getInstance().invalidate();
+    return true;
+}
+
+bool DisplayAnalyzer::blankSecondaryDevice(
+    size_t numDisplays,
+    hwc_display_contents_1_t** displays)
+{
+    Mutex::Autolock lock(mBlankMutex);
+    if (!mBlankPending && !mBlankDevice) {
+        // if device needs to be blanked all layers should be marked as HWC_OVERLAY and skipped.
+        // otherwise nothing to do
+        return false;
+    }
+
+    hwc_display_contents_1_t *content = NULL;
+    hwc_layer_1 *layer = NULL;
+    for (int i = 0; i < (int)numDisplays; i++) {
+        if (i == IDisplayDevice::DEVICE_PRIMARY) {
+            continue;
+        }
+        content = displays[i];
+        if (content == NULL) {
+            continue;
+        }
+
+        if (mBlankPending){
+            content->flags = HWC_GEOMETRY_CHANGED;
+            mBlankPending = false;
+        }
+
+        for (int j = 0; j < (int)content->numHwLayers - 1; j++) {
+            layer = &content->hwLayers[j];
+            if (!layer) {
+                continue;
+            }
+            if (mBlankDevice) {
+                layer->hints |= HWC_HINT_CLEAR_FB;
+                layer->flags &= ~HWC_SKIP_LAYER;
+                layer->compositionType = HWC_OVERLAY;
+            } else {
+                layer->hints &= ~HWC_HINT_CLEAR_FB;
+                layer->compositionType = HWC_FRAMEBUFFER;
+            }
+        }
+    }
+    return true;
+}
 
 } // namespace intel
 } // namespace android

@@ -99,6 +99,10 @@ private:
      void deinitMDSClient();
 
 private:
+    status_t setPhoneState(MDS_PHONE_STATE state);
+    friend class MultiDisplayCallback;
+
+private:
     enum {
         THREAD_LOOP_DELAY = 10, // 10 ms
         THREAD_LOOP_BOUND = 500,// 5s

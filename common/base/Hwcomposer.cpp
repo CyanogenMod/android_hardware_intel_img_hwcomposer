@@ -274,6 +274,16 @@ void Hwcomposer::hotplug(int disp, int connected)
     mVsyncManager->handleHotplugEvent(disp, connected);
 }
 
+void Hwcomposer::invalidate()
+{
+    RETURN_VOID_IF_NOT_INIT();
+
+    if (mProcs && mProcs->invalidate) {
+        ITRACE("invalidate screen");
+        mProcs->invalidate(const_cast<hwc_procs_t*>(mProcs));
+    }
+}
+
 bool Hwcomposer::release()
 {
     RETURN_FALSE_IF_NOT_INIT();

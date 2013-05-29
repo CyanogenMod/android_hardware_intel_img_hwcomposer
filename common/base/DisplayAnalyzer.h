@@ -28,6 +28,7 @@
 #ifndef DISPLAY_ANALYZER_H
 #define DISPLAY_ANALYZER_H
 
+#include <utils/threads.h>
 
 
 namespace android {
@@ -45,8 +46,10 @@ public:
     void analyzeContents(size_t numDisplays, hwc_display_contents_1_t** displays);
     bool checkVideoExtendedMode();
     bool isVideoLayer(hwc_layer_1_t &layer);
+    bool blankSecondaryDevice(bool blank);
 
 private:
+    bool blankSecondaryDevice(size_t numDisplays, hwc_display_contents_1_t** displays);
     void detectVideoExtendedMode(size_t numDisplays, hwc_display_contents_1_t** displays);
     void detectTrickMode(hwc_display_contents_1_t *list);
 
@@ -54,6 +57,10 @@ private:
     bool mVideoExtendedMode;
     bool mForceCloneMode;
 
+    // for blanking the secondary display
+    bool mBlankDevice;
+    bool mBlankPending;
+    Mutex mBlankMutex;
 };
 
 } // namespace intel

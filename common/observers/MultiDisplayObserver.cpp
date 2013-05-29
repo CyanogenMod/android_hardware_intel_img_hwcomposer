@@ -28,6 +28,8 @@
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
 #include <binder/IServiceManager.h>
 #include <HwcTrace.h>
+#include <Hwcomposer.h>
+#include <DisplayAnalyzer.h>
 #endif
 
 #include <MultiDisplayObserver.h>
@@ -54,6 +56,7 @@ status_t MultiDisplayCallback::setPhoneState(MDS_PHONE_STATE state)
 {
     mPhoneState = state;
     ITRACE("state: %d", state);
+    mDispObserver->setPhoneState(state);
     return NO_ERROR;
 }
 
@@ -262,6 +265,15 @@ bool MultiDisplayObserver::threadLoop()
     }
 
     return true; // keep trying
+}
+
+
+status_t MultiDisplayObserver::setPhoneState(MDS_PHONE_STATE state)
+{
+    // blank secondary display if phone call is active
+    bool blank = (state == MDS_PHONE_STATE_ON);
+    Hwcomposer::getInstance().getDisplayAnalyzer()->blankSecondaryDevice(blank);
+    return 0;
 }
 
 #endif //TARGET_HAS_MULTIPLE_DISPLAY
