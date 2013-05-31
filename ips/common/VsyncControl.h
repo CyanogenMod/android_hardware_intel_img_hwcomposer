@@ -36,9 +36,16 @@ namespace intel {
 class VsyncControl : public IVsyncControl {
 public:
     VsyncControl();
+    virtual ~VsyncControl();
+
 public:
-    bool control(int disp, int enabled);
+    bool initialize();
+    void deinitialize();
+    bool control(int disp, bool enabled);
     bool wait(int disp, int64_t& timestamp);
+
+private:
+    bool mInitialized;
 };
 
 } // namespace intel

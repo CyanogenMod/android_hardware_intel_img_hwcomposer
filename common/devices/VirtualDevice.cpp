@@ -40,15 +40,16 @@ namespace intel {
 
 VirtualDevice::CachedBuffer::CachedBuffer(BufferManager *mgr, buffer_handle_t handle)
     : manager(mgr),
-      buffer(mgr->get((uint32_t) handle)),
-      mapper(mgr->map(*buffer))
+      mapper(NULL)
 {
+    DataBuffer *buffer = manager->lockDataBuffer((uint32_t) handle);
+    mapper = manager->map(*buffer);
+    manager->unlockDataBuffer(buffer);
 }
 
 VirtualDevice::CachedBuffer::~CachedBuffer()
 {
-    manager->unmap(*mapper);
-    manager->put(*buffer);
+    manager->unmap(mapper);
 }
 
 VirtualDevice::VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
@@ -298,13 +299,13 @@ bool VirtualDevice::commit(hwc_display_contents_1_t *display, IDisplayContext *c
     return true;
 }
 
-bool VirtualDevice::vsyncControl(int enabled)
+bool VirtualDevice::vsyncControl(bool enabled)
 {
     RETURN_FALSE_IF_NOT_INIT();
     return true;
 }
 
-bool VirtualDevice::blank(int blank)
+bool VirtualDevice::blank(bool blank)
 {
     RETURN_FALSE_IF_NOT_INIT();
     return true;

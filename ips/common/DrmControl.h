@@ -35,7 +35,7 @@ namespace intel {
 class DrmControl  {
 public:
     DrmControl();
-    ~DrmControl();
+    virtual ~DrmControl();
 
 public:
     int getVideoExtCommand();

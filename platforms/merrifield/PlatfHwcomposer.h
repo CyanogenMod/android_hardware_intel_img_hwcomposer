@@ -37,7 +37,7 @@ namespace intel {
 class PlatfHwcomposer : public Hwcomposer {
 public:
     PlatfHwcomposer();
-    ~PlatfHwcomposer();
+    virtual ~PlatfHwcomposer();
 
 protected:
     DisplayPlaneManager* createDisplayPlaneManager();

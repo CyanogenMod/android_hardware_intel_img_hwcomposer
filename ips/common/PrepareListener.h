@@ -36,6 +36,7 @@ namespace intel {
 class PrepareListener : public IPrepareListener {
 public:
     PrepareListener();
+    virtual ~PrepareListener();
 public:
     virtual void onProtectedLayerStart(int disp);
 };

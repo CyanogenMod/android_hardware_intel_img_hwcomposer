@@ -43,10 +43,20 @@ HwcLayer::HwcLayer(int index, hwc_layer_1_t *layer)
       mPlane(0),
       mFormat(DataBuffer::FORMAT_INVALID),
       mUsage(0),
+      mHandle(0),
       mIsProtected(false),
       mType(LAYER_FB)
 {
     setupAttributes();
+}
+
+HwcLayer::~HwcLayer()
+{
+    if (mPlane) {
+        WTRACE("HwcLayer is not cleaned up");
+    }
+    mLayer = NULL;
+    mPlane = NULL;
 }
 
 bool HwcLayer::attachPlane(DisplayPlane* plane)
@@ -110,6 +120,11 @@ uint32_t HwcLayer::getUsage() const
     return mUsage;
 }
 
+uint32_t HwcLayer::getHandle() const
+{
+    return mHandle;
+}
+
 bool HwcLayer::isProtected() const
 {
     return mIsProtected;
@@ -147,7 +162,7 @@ bool HwcLayer::update(hwc_layer_1_t *layer, int disp)
         if (ret == true) {
             return true;
         }
-        ETRACE("failed to set data buffer, handle = %#x", (uint32_t)layer->handle);
+        WTRACE("failed to set data buffer, handle = %#x", (uint32_t)layer->handle);
         if (!mIsProtected) {
             // typical case: rotated buffer is not ready or handle is null
             return false;
@@ -155,7 +170,7 @@ bool HwcLayer::update(hwc_layer_1_t *layer, int disp)
             // protected video has to be rendered using overlay.
             // if buffer is not ready overlay will still be attached to this layer
             // but rendering needs to be skipped.
-            ETRACE("ignoring result of data buffer setting for protected video");
+            WTRACE("ignoring result of data buffer setting for protected video");
             return true;
         }
     }
@@ -165,7 +180,12 @@ bool HwcLayer::update(hwc_layer_1_t *layer, int disp)
 
 void HwcLayer::setupAttributes()
 {
+    // update handle always as it can become "NULL"
+    // if the given layer is not ready
+    mHandle = (uint32_t)mLayer->handle;
+
     if (mFormat != DataBuffer::FORMAT_INVALID) {
+        // other attributes have been set.
         return;
     }
 
@@ -180,7 +200,7 @@ void HwcLayer::setupAttributes()
         return;
     }
 
-    DataBuffer *buffer = bm->get((uint32_t)mLayer->handle);
+    DataBuffer *buffer = bm->lockDataBuffer((uint32_t)mLayer->handle);
      if (!buffer) {
          ETRACE("failed to get buffer");
      } else {
@@ -188,7 +208,7 @@ void HwcLayer::setupAttributes()
         GraphicBuffer *gBuffer = (GraphicBuffer*)buffer;
         mUsage = gBuffer->getUsage();
         mIsProtected = GraphicBuffer::isProtectedBuffer((GraphicBuffer*)buffer);
-        bm->put(*buffer);
+        bm->unlockDataBuffer(buffer);
     }
 }
 
@@ -279,14 +299,14 @@ bool HwcLayerList::checkSupported(int planeType, HwcLayer *hwcLayer)
     valid = PlaneCapabilities::isFormatSupported(planeType, hwcLayer->getFormat());
     if (!valid) {
         VTRACE("plane type %d: (bad buffer format)", planeType);
-        goto check_out;
+        return false;
     }
 
     valid = PlaneCapabilities::isTransformSupported(planeType,
                                                     layer.transform);
     if (!valid) {
         VTRACE("plane type %d: (bad transform)", planeType);
-        goto check_out;
+        return false;
     }
 
     // check layer blending
@@ -294,7 +314,7 @@ bool HwcLayerList::checkSupported(int planeType, HwcLayer *hwcLayer)
                                                   (uint32_t)layer.blending);
     if (!valid) {
         VTRACE("plane type %d: (bad blending)", planeType);
-        goto check_out;
+        return false;
     }
 
     // check layer scaling
@@ -303,12 +323,11 @@ bool HwcLayerList::checkSupported(int planeType, HwcLayer *hwcLayer)
                                                   layer.displayFrame);
     if (!valid) {
         VTRACE("plane type %d: (bad scaling)", planeType);
-        goto check_out;
+        return false;
     }
 
-    // check visible region?
-check_out:
-    return valid;
+    // TODO: check visible region?
+    return true;
 }
 
 void HwcLayerList::setZOrder()
@@ -435,6 +454,7 @@ void HwcLayerList::revisit()
         }
     }
 
+    // TODO: what if handle of mFramebufferTaget is NULL?
     // if there is still FB layers, attach frame buffer target
     if (mFramebufferTarget && !primaryPlaneUsed) {
         VTRACE("using frame buffer target");
@@ -544,7 +564,13 @@ void HwcLayerList::analyze()
                 }
             }
 
-            plane = mDisplayPlaneManager.getOverlayPlane();
+            if (hwc.getDisplayAnalyzer()->isOverlayAllowed()) {
+                plane = mDisplayPlaneManager.getOverlayPlane();
+            } else {
+                WTRACE("overlay use is not allowed.");
+                plane = NULL;
+            }
+
             if (plane) {
                 hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
                 hwcLayer->attachPlane(plane);
@@ -653,6 +679,11 @@ DisplayPlane* HwcLayerList::getPlane(uint32_t index) const
     hwcLayer = mLayers.itemAt(index);
     if (!hwcLayer || (hwcLayer->getType() == HwcLayer::LAYER_FB))
         return 0;
+
+    if (hwcLayer->getHandle() == 0) {
+        WTRACE("plane is attached with invalid handle");
+        return 0;
+    }
 
     return hwcLayer->getPlane();
 }

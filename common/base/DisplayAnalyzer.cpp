@@ -43,8 +43,13 @@ DisplayAnalyzer::DisplayAnalyzer()
       mVideoExtendedMode(false),
       mForceCloneMode(false),
       mBlankDevice(false),
-      mBlankPending(false),
-      mBlankMutex()
+      mVideoPlaying(false),
+      mVideoPreparing(false),
+      mOverlayAllowed(true),
+      mCachedNumDisplays(0),
+      mCachedDisplays(0),
+      mPendingEvents(),
+      mEventMutex()
 {
 }
 
@@ -56,25 +61,43 @@ bool DisplayAnalyzer::initialize()
 {
     mVideoExtendedMode = false;
     mForceCloneMode = false;
-    mBlankPending = false;
     mBlankDevice = false;
+    mVideoPlaying = false;
+    mVideoPreparing = false;
+    mOverlayAllowed = true;
+    mCachedNumDisplays = 0;
+    mCachedDisplays = 0;
+    mPendingEvents.clear();
     mInitialized = true;
     return true;
 }
 
 void DisplayAnalyzer::deinitialize()
 {
+    mPendingEvents.clear();
     mInitialized = false;
 }
 
 void DisplayAnalyzer::analyzeContents(
         size_t numDisplays, hwc_display_contents_1_t** displays)
 {
-    blankSecondaryDevice(numDisplays, displays);
-    detectVideoExtendedMode(numDisplays, displays);
-    if (mVideoExtendedMode) {
-        detectTrickMode(displays[IDisplayDevice::DEVICE_PRIMARY]);
+    // cache and use them only in this context during analysis
+    mCachedNumDisplays = numDisplays;
+    mCachedDisplays = displays;
+
+    handlePendingEvents();
+
+    if (mBlankDevice) {
+        blankSecondaryDevice();
     }
+
+    detectVideoExtendedMode();
+    if (mVideoExtendedMode) {
+        detectTrickMode(mCachedDisplays[IDisplayDevice::DEVICE_PRIMARY]);
+    }
+
+    mCachedNumDisplays = 0;
+    mCachedDisplays = 0;
 }
 
 void DisplayAnalyzer::detectTrickMode(hwc_display_contents_1_t *list)
@@ -99,15 +122,20 @@ void DisplayAnalyzer::detectTrickMode(hwc_display_contents_1_t *list)
     }
 }
 
-void DisplayAnalyzer::detectVideoExtendedMode(
-        size_t numDisplays, hwc_display_contents_1_t** displays)
+void DisplayAnalyzer::detectVideoExtendedMode()
 {
+    if (!mVideoPlaying) {
+        mVideoExtendedMode = false;
+        mForceCloneMode = false;
+        return;
+    }
+
     bool geometryChanged = false;
     int activeDisplays = 0;
 
     hwc_display_contents_1_t *content = NULL;
-    for (int i = 0; i < (int)numDisplays; i++) {
-        content = displays[i];
+    for (int i = 0; i < (int)mCachedNumDisplays; i++) {
+        content = mCachedDisplays[i];
         if (content == NULL) {
             continue;
         }
@@ -131,7 +159,7 @@ void DisplayAnalyzer::detectVideoExtendedMode(
     mVideoExtendedMode = false;
 
     // check if there is video layer in the primary device
-    content = displays[0];
+    content = mCachedDisplays[0];
     if (content == NULL) {
         return;
     }
@@ -155,8 +183,8 @@ void DisplayAnalyzer::detectVideoExtendedMode(
     // check whether video layer exists in external device or virtual device
     // TODO: video may exist in virtual device but no in external device or vice versa
     // TODO: multiple video layers are not addressed here
-    for (int i = 1; i < (int)numDisplays; i++) {
-        content = displays[i];
+    for (int i = 1; i < (int)mCachedNumDisplays; i++) {
+        content = mCachedDisplays[i];
         if (content == NULL) {
             continue;
         }
@@ -183,12 +211,15 @@ bool DisplayAnalyzer::isVideoLayer(hwc_layer_1_t &layer)
 {
     bool ret = false;
     BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
-    DataBuffer *buffer = bm->get((uint32_t)layer.handle);
+    if (!layer.handle) {
+        return false;
+    }
+    DataBuffer *buffer = bm->lockDataBuffer((uint32_t)layer.handle);
      if (!buffer) {
          ETRACE("failed to get buffer");
      } else {
         ret = DisplayQuery::isVideoFormat(buffer->getFormat());
-        bm->put(*buffer);
+        bm->unlockDataBuffer(buffer);
     }
     return ret;
 }
@@ -222,41 +253,131 @@ bool DisplayAnalyzer::isVideoEmbedded(hwc_layer_1_t &layer)
     return embedded;
 }
 
-bool DisplayAnalyzer::blankSecondaryDevice(bool blank)
+bool DisplayAnalyzer::isVideoPlaying()
 {
-    ITRACE("Blanking secondary device: %d", blank);
-    Mutex::Autolock lock(mBlankMutex);
-    mBlankDevice = blank;
-    mBlankPending = true;
-    Hwcomposer::getInstance().invalidate();
-    return true;
+    return mVideoPlaying;
 }
 
-bool DisplayAnalyzer::blankSecondaryDevice(
-    size_t numDisplays,
-    hwc_display_contents_1_t** displays)
+bool DisplayAnalyzer::isOverlayAllowed()
 {
-    Mutex::Autolock lock(mBlankMutex);
-    if (!mBlankPending && !mBlankDevice) {
-        // if device needs to be blanked all layers should be marked as HWC_OVERLAY and skipped.
-        // otherwise nothing to do
-        return false;
+    return mOverlayAllowed;
+}
+
+void DisplayAnalyzer::postHotplugEvent(bool connected)
+{
+    // TODO: turn on primary display immeidately
+
+    if (!connected) {
+        // enable vsync on the primary device immediately
+        Hwcomposer::getInstance().getVsyncManager()->resetVsyncSource();
+    } else {
+        // handle hotplug event (vsync switch) asynchronously
+        Event e;
+        e.type = HOTPLUG_EVENT;
+        e.connected = connected;
+        postEvent(e);
+        Hwcomposer::getInstance().invalidate();
+    }
+}
+
+void DisplayAnalyzer::postVideoEvent(bool preparing, bool playing)
+{
+    Event e;
+    e.type = VIDEO_EVENT;
+    e.videoEvent.preparing = preparing;
+    e.videoEvent.playing = playing;
+    postEvent(e);
+}
+
+void DisplayAnalyzer::postBlankEvent(bool blank)
+{
+    Event e;
+    e.type = BLANK_EVENT;
+    e.blank = blank;
+    postEvent(e);
+    Hwcomposer::getInstance().invalidate();
+}
+
+void DisplayAnalyzer::postEvent(Event& e)
+{
+    Mutex::Autolock lock(mEventMutex);
+    mPendingEvents.add(e);
+}
+
+void DisplayAnalyzer::handlePendingEvents()
+{
+    Mutex::Autolock lock(mEventMutex);
+    if (mPendingEvents.size() == 0) {
+        return;
     }
 
-    hwc_display_contents_1_t *content = NULL;
-    hwc_layer_1 *layer = NULL;
-    for (int i = 0; i < (int)numDisplays; i++) {
+    while (mPendingEvents.size() != 0) {
+        Event e = mPendingEvents[0];
+        mPendingEvents.removeAt(0);
+        switch (e.type) {
+        case HOTPLUG_EVENT:
+            handleHotplugEvent(e.connected);
+            break;
+        case BLANK_EVENT:
+            handleBlankEvent(e.blank);
+            break;
+        case VIDEO_EVENT:
+            handleVideoEvent(e.videoEvent.preparing, e.videoEvent.playing);
+            break;
+        }
+    }
+}
+
+void DisplayAnalyzer::handleHotplugEvent(bool connected)
+{
+    Hwcomposer::getInstance().getVsyncManager()->resetVsyncSource();
+}
+
+void DisplayAnalyzer::handleBlankEvent(bool blank)
+{
+    mBlankDevice = blank;
+    // force geometry changed in the secondary device to reset layer composition type
+    for (int i = 0; i < (int)mCachedNumDisplays; i++) {
         if (i == IDisplayDevice::DEVICE_PRIMARY) {
             continue;
         }
-        content = displays[i];
-        if (content == NULL) {
+        if (mCachedDisplays[i]) {
+            mCachedDisplays[i]->flags |= HWC_GEOMETRY_CHANGED;
+        }
+    }
+    blankSecondaryDevice();
+}
+
+void DisplayAnalyzer::handleVideoEvent(bool preparing, bool playing)
+{
+// TODO: MDS needs to set MDS_VIDEO_PREPARED
+#if 0
+    if (preparing != mVideoPreparing) {
+        for (int i = 0; i < (int)mCachedNumDisplays; i++) {
+            if (mCachedDisplays[i]) {
+                mCachedDisplays[i]->flags = HWC_GEOMETRY_CHANGED;
+            }
+        }
+        mVideoPreparing = preparing;
+        // if video is in preparing stage, overlay use is temporarily not allowed to avoid
+        // scrambed RGB overlay if video is protected.
+        mOverlayAllowed = !preparing;
+    }
+#endif
+    mVideoPlaying = playing;
+}
+
+void DisplayAnalyzer::blankSecondaryDevice()
+{
+    hwc_display_contents_1_t *content = NULL;
+    hwc_layer_1 *layer = NULL;
+    for (int i = 0; i < (int)mCachedNumDisplays; i++) {
+        if (i == IDisplayDevice::DEVICE_PRIMARY) {
             continue;
         }
-
-        if (mBlankPending){
-            content->flags = HWC_GEOMETRY_CHANGED;
-            mBlankPending = false;
+        content = mCachedDisplays[i];
+        if (content == NULL) {
+            continue;
         }
 
         for (int j = 0; j < (int)content->numHwLayers - 1; j++) {
@@ -274,7 +395,6 @@ bool DisplayAnalyzer::blankSecondaryDevice(
             }
         }
     }
-    return true;
 }
 
 } // namespace intel

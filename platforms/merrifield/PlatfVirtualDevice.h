@@ -40,7 +40,7 @@ class PlatfVirtualDevice : public VirtualDevice {
 public:
     PlatfVirtualDevice(Hwcomposer& hwc,
                         DisplayPlaneManager& dpm);
-    ~PlatfVirtualDevice();
+    virtual ~PlatfVirtualDevice();
     virtual IVideoPayloadManager* createVideoPayloadManager();
 };
 

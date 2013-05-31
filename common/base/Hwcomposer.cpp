@@ -66,7 +66,6 @@ bool Hwcomposer::prepare(size_t numDisplays,
 {
     bool ret = true;
 
-    //Mutex::Autolock _l(mLock);
     RETURN_FALSE_IF_NOT_INIT();
     ATRACE("display count = %d", numDisplays);
 
@@ -88,11 +87,6 @@ bool Hwcomposer::prepare(size_t numDisplays,
             continue;
         }
 
-        if (!device->isConnected()) {
-            VTRACE("device %d is disconnected", i);
-            continue;
-        }
-
         device->prePrepare(displays[i]);
     }
 
@@ -100,11 +94,6 @@ bool Hwcomposer::prepare(size_t numDisplays,
         IDisplayDevice *device = mDisplayDevices.itemAt(i);
         if (!device) {
             VTRACE("device %d doesn't exist", i);
-            continue;
-        }
-
-        if (!device->isConnected()) {
-            VTRACE("device %d is disconnected", i);
             continue;
         }
 
@@ -123,7 +112,6 @@ bool Hwcomposer::commit(size_t numDisplays,
 {
     bool ret = true;
 
-    //Mutex::Autolock _l(mLock);
     RETURN_FALSE_IF_NOT_INIT();
     ATRACE("display count = %d", numDisplays);
 
@@ -154,15 +142,15 @@ bool Hwcomposer::commit(size_t numDisplays,
     }
 
     mDisplayContext->commitEnd(numDisplays, displays);
-
-    return ret;
+    // return true always
+    return true;
 }
 
 bool Hwcomposer::vsyncControl(int disp, int enabled)
 {
     RETURN_FALSE_IF_NOT_INIT();
     ATRACE("disp = %d, enabled = %d", disp, enabled);
-    return mVsyncManager->handleVsyncControl(disp, enabled);
+    return mVsyncManager->handleVsyncControl(disp, enabled ? true : false);
 }
 
 bool Hwcomposer::blank(int disp, int blank)
@@ -181,7 +169,7 @@ bool Hwcomposer::blank(int disp, int blank)
         return false;
     }
 
-    return device->blank(blank);
+    return device->blank(blank ? true : false);
 }
 
 bool Hwcomposer::getDisplayConfigs(int disp,
@@ -247,7 +235,6 @@ bool Hwcomposer::compositionComplete(int disp)
 
 void Hwcomposer::vsync(int disp, int64_t timestamp)
 {
-    //Mutex::Autolock _l(mLock);
     RETURN_VOID_IF_NOT_INIT();
 
     if (mProcs && mProcs->vsync) {
@@ -258,9 +245,8 @@ void Hwcomposer::vsync(int disp, int64_t timestamp)
     }
 }
 
-void Hwcomposer::hotplug(int disp, int connected)
+void Hwcomposer::hotplug(int disp, bool connected)
 {
-    //Mutex::Autolock _l(mLock);
     RETURN_VOID_IF_NOT_INIT();
 
     mMultiDisplayObserver->notifyHotPlug(disp, connected);
@@ -270,7 +256,7 @@ void Hwcomposer::hotplug(int disp, int connected)
         mProcs->hotplug(const_cast<hwc_procs_t*>(mProcs), disp, connected);
     }
 
-    mVsyncManager->handleHotplugEvent(disp, connected);
+    mDisplayAnalyzer->postHotplugEvent(connected);
 }
 
 void Hwcomposer::invalidate()
@@ -278,7 +264,7 @@ void Hwcomposer::invalidate()
     RETURN_VOID_IF_NOT_INIT();
 
     if (mProcs && mProcs->invalidate) {
-        ITRACE("invalidate screen");
+        ITRACE("invalidating screen...");
         mProcs->invalidate(const_cast<hwc_procs_t*>(mProcs));
     }
 }
@@ -428,6 +414,11 @@ DisplayAnalyzer* Hwcomposer::getDisplayAnalyzer()
 MultiDisplayObserver* Hwcomposer::getMultiDisplayObserver()
 {
     return mMultiDisplayObserver;
+}
+
+VsyncManager* Hwcomposer::getVsyncManager()
+{
+    return mVsyncManager;
 }
 
 } // namespace intel

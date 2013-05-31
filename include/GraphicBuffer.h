@@ -44,11 +44,16 @@ public:
     GraphicBuffer(uint32_t handle);
     virtual ~GraphicBuffer() {}
 
+    virtual void resetBuffer(uint32_t handle);
+
     uint32_t getUsage() const { return mUsage; }
     uint32_t getBpp() const { return mBpp; }
 
     static bool isProtectedUsage(uint32_t usage);
     static bool isProtectedBuffer(GraphicBuffer *buffer);
+
+private:
+    void initBuffer(uint32_t handle);
 
 protected:
     uint32_t mUsage;

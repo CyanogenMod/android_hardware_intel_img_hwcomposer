@@ -40,7 +40,7 @@ class TngGrallocBufferMapper : public GrallocBufferMapperBase {
 public:
     TngGrallocBufferMapper(IMG_gralloc_module_public_t& module,
                                DataBuffer& buffer);
-    ~TngGrallocBufferMapper();
+    virtual ~TngGrallocBufferMapper();
 public:
     bool map();
     bool unmap();

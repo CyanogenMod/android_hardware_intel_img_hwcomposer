@@ -32,40 +32,77 @@
 namespace android {
 namespace intel {
 
-HotplugEventObserver::HotplugEventObserver(ExternalDevice& disp,
-                                              IHotplugControl& hotplug)
+HotplugEventObserver::HotplugEventObserver(ExternalDevice& disp)
     : mDisplayDevice(disp),
-      mHotplug(hotplug)
+      mHotplugControl(NULL),
+      mThread(),
+      mExitThread(false),
+      mInitialized(false)
 {
     CTRACE();
 }
 
 HotplugEventObserver::~HotplugEventObserver()
 {
-    CTRACE();
+    WARN_IF_NOT_DEINIT();
+}
+
+bool HotplugEventObserver::initialize()
+{
+    if (mInitialized) {
+        WTRACE("object has been initialized");
+        return true;
+    }
+
+    mExitThread = false;
+    mHotplugControl = mDisplayDevice.createHotplugControl();
+    if (!mHotplugControl || !mHotplugControl->initialize()) {
+        DEINIT_AND_RETURN_FALSE("failed to create hotplug control");
+    }
+
+    mThread = new WorkingThread(this);
+    if (!mThread.get()) {
+        DEINIT_AND_RETURN_FALSE("failed to create working thread.");
+    }
+
+    mInitialized = true;
+    mThread->run("HotplugEventObserver", PRIORITY_URGENT_DISPLAY);
+    return true;
+}
+
+void HotplugEventObserver::deinitialize()
+{
+    mExitThread = true;
+
+    // deinitialize hotplug control to break thread loop
+    if (mHotplugControl) {
+        mHotplugControl->deinitialize();
+    }
+
+    if (mThread.get()) {
+        mThread->requestExitAndWait();
+        mThread = NULL;
+    }
+
+    if (mHotplugControl) {
+        delete mHotplugControl;
+        mHotplugControl = NULL;
+    }
+
+    mInitialized = false;
 }
 
 bool HotplugEventObserver::threadLoop()
 {
-    int event;
+    if (mExitThread) {
+        ITRACE("exiting hotplug event thread");
+        return false;
+    }
 
-    // wait for hotplug event
-    if (mHotplug.wait(mDisplayDevice.getType(), event))
+    if (mHotplugControl->waitForEvent()) {
         mDisplayDevice.onHotplug();
-
+    }
     return true;
-}
-
-status_t HotplugEventObserver::readyToRun()
-{
-    CTRACE();
-    return NO_ERROR;
-}
-
-void HotplugEventObserver::onFirstRef()
-{
-    CTRACE();
-    run("HotplugEventObserver", PRIORITY_URGENT_DISPLAY);
 }
 
 } // namespace intel

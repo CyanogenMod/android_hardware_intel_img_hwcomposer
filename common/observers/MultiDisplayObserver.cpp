@@ -63,7 +63,9 @@ status_t MultiDisplayCallback::setPhoneState(MDS_PHONE_STATE state)
 status_t MultiDisplayCallback::setVideoState(MDS_VIDEO_STATE state)
 {
     mVideoState = state;
-    ITRACE("state: %d", state);
+    // TODO: check why setVideoState is called multiple times during startup
+    VTRACE("state: %d", state);
+    mDispObserver->setVideoState(state);
     return NO_ERROR;
 }
 
@@ -285,7 +287,16 @@ status_t MultiDisplayObserver::setPhoneState(MDS_PHONE_STATE state)
 {
     // blank secondary display if phone call is active
     bool blank = (state == MDS_PHONE_STATE_ON);
-    Hwcomposer::getInstance().getDisplayAnalyzer()->blankSecondaryDevice(blank);
+    Hwcomposer::getInstance().getDisplayAnalyzer()->postBlankEvent(blank);
+    return 0;
+}
+
+status_t MultiDisplayObserver::setVideoState(MDS_VIDEO_STATE state)
+{
+    bool preparing = (state == MDS_VIDEO_PREPARING);
+    bool playing = (state != MDS_VIDEO_UNPREPARED);
+    ITRACE("video state: preparing %d, playing %d", preparing, playing);
+    Hwcomposer::getInstance().getDisplayAnalyzer()->postVideoEvent(preparing, playing);
     return 0;
 }
 

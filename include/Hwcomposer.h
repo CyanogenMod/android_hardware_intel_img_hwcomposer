@@ -70,7 +70,7 @@ public:
 
     // callbacks
     virtual void vsync(int disp, int64_t timestamp);
-    virtual void hotplug(int disp, int connected);
+    virtual void hotplug(int disp, bool connected);
     virtual void invalidate();
 
     virtual bool initCheck() const;
@@ -83,6 +83,7 @@ public:
     BufferManager* getBufferManager();
     IDisplayContext* getDisplayContext();
     DisplayAnalyzer* getDisplayAnalyzer();
+    VsyncManager* getVsyncManager();
     MultiDisplayObserver* getMultiDisplayObserver();
 
 protected:
@@ -120,7 +121,6 @@ protected:
     IDisplayContext *mDisplayContext;
     VsyncManager *mVsyncManager;
     MultiDisplayObserver *mMultiDisplayObserver;
-    Mutex mLock;
     bool mInitialized;
 private:
     static Hwcomposer *sInstance;

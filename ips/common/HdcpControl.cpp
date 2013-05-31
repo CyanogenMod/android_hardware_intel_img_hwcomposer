@@ -163,7 +163,7 @@ bool HdcpControl::enableAuthentication()
     int fd = Hwcomposer::getInstance().getDrm()->getDrmFd();
     int ret = drmCommandNone(fd, DRM_PSB_ENABLE_HDCP);
     if (ret != 0) {
-        ETRACE("failed to start HDCP authentication");
+        ETRACE("failed to enable HDCP authentication");
         return false;
     }
     return true;
@@ -174,7 +174,7 @@ bool HdcpControl::disableAuthentication()
     int fd = Hwcomposer::getInstance().getDrm()->getDrmFd();
     int ret = drmCommandNone(fd, DRM_PSB_DISABLE_HDCP);
     if (ret != 0) {
-        ETRACE("failed to stop HDCP authentication");
+        ETRACE("failed to stop disable authentication");
         return false;
     }
     return true;

@@ -32,40 +32,106 @@
 namespace android {
 namespace intel {
 
-VsyncEventObserver::VsyncEventObserver(PhysicalDevice& disp,
-                                          IVsyncControl& vsync)
-    : mDisplayDevice(disp),
-      mVsync(vsync),
-      mEnabled(0)
+VsyncEventObserver::VsyncEventObserver(PhysicalDevice& disp)
+    : mLock(),
+      mCondition(),
+      mDisplayDevice(disp),
+      mVsyncControl(NULL),
+      mThread(),
+      mDevice(IDisplayDevice::DEVICE_COUNT),
+      mEnabled(false),
+      mExitThread(false),
+      mInitialized(false)
 {
     CTRACE();
 }
 
 VsyncEventObserver::~VsyncEventObserver()
 {
-
+    WARN_IF_NOT_DEINIT();
 }
 
-void VsyncEventObserver::control(int enabled)
+bool VsyncEventObserver::initialize()
 {
-    ATRACE("enabled = %s", enabled ? "True" : "False");
+    if (mInitialized) {
+        WTRACE("object has been initialized");
+        return true;
+    }
+
+    mExitThread = false;
+    mEnabled = false;
+    mDevice = mDisplayDevice.getType();
+    mVsyncControl = mDisplayDevice.createVsyncControl();
+    if (!mVsyncControl || !mVsyncControl->initialize()) {
+        DEINIT_AND_RETURN_FALSE("failed to initialize vsync control");
+    }
+
+    mThread = new WorkingThread(this);
+    if (!mThread.get()) {
+        DEINIT_AND_RETURN_FALSE("failed to create working thread.");
+    }
+
+    mThread->run("VsyncEventObserver", PRIORITY_URGENT_DISPLAY);
+
+    mInitialized = true;
+    return true;
+}
+
+void VsyncEventObserver::deinitialize()
+{
+    if (mEnabled) {
+        WTRACE("vsync is still enabled");
+        control(false);
+    }
+    mInitialized = false;
+    mExitThread = true;
+    mEnabled = false;
+    mCondition.signal();
+
+    if (mThread.get()) {
+        mThread->requestExitAndWait();
+        mThread = NULL;
+    }
+
+    DEINIT_AND_DELETE_OBJ(mVsyncControl);
+}
+
+bool VsyncEventObserver::control(bool enabled)
+{
+    ATRACE("enabled = %d on device %d", enabled, mDevice);
+    if (enabled == mEnabled) {
+        WTRACE("vsync state %d is not changed", enabled);
+        return true;
+    }
+
+    bool ret = mVsyncControl->control(mDevice, enabled);
+    if (!ret) {
+        ETRACE("failed to control (%d) vsync on display %d", enabled, mDevice);
+        return false;
+    }
 
     Mutex::Autolock _l(mLock);
     mEnabled = enabled;
     mCondition.signal();
+    return true;
 }
 
 bool VsyncEventObserver::threadLoop()
 {
-    { // scope for lock
+     do {
+        // scope for lock
         Mutex::Autolock _l(mLock);
         while (!mEnabled) {
             mCondition.wait(mLock);
+            if (mExitThread) {
+                ITRACE("exiting thread loop");
+                return false;
+            }
         }
-    }
+    } while (0);
 
     int64_t timestamp;
-    bool ret = mVsync.wait(mDisplayDevice.getType(), timestamp);
+    bool ret = mVsyncControl->wait(mDevice, timestamp);
 
     if (ret == false) {
         WTRACE("failed to wait for vsync, check vsync enabling...");
@@ -75,18 +141,6 @@ bool VsyncEventObserver::threadLoop()
     // notify device
     mDisplayDevice.onVsync(timestamp);
     return true;
-}
-
-status_t VsyncEventObserver::readyToRun()
-{
-    ATRACE("disp = %d", mDisplayDevice.getType());
-    return NO_ERROR;
-}
-
-void VsyncEventObserver::onFirstRef()
-{
-    ATRACE("disp = %d", mDisplayDevice.getType());
-    run("VsyncEventObserver", PRIORITY_URGENT_DISPLAY);
 }
 
 } // namespace intel

@@ -37,7 +37,7 @@ namespace intel {
 class HdcpControl : public IHdcpControl {
 public:
     HdcpControl();
-    ~HdcpControl();
+    virtual ~HdcpControl();
 
 public:
     virtual bool startHdcp();

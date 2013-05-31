@@ -60,17 +60,17 @@ public:
     };
 public:
     DataBuffer(uint32_t handle)
-        : mHandle(handle),
-          mFormat(0),
-          mWidth(0),
-          mHeight(0),
-          mKey(handle)
     {
-        memset(&mStride, 0, sizeof(stride_t));
-        memset(&mCrop, 0, sizeof(crop_t));
+        initBuffer(handle);
     }
     virtual ~DataBuffer() {}
+
 public:
+    virtual void resetBuffer(uint32_t handle) {
+        // nothing to reset, just do initialization
+        initBuffer(handle);
+    }
+
     uint32_t getHandle() const { return mHandle; }
 
     void setStride(stride_t& stride) { mStride = stride; }
@@ -90,6 +90,17 @@ public:
     uint32_t getFormat() const { return mFormat; }
 
     uint64_t getKey() const { return mKey; }
+
+private:
+    void initBuffer(uint32_t handle) {
+        mHandle = handle;
+        mFormat = 0;
+        mWidth = 0;
+        mHeight = 0;
+        mKey = handle;
+        memset(&mStride, 0, sizeof(stride_t));
+        memset(&mCrop, 0, sizeof(crop_t));
+    }
 protected:
     uint32_t mHandle;
     stride_t mStride;

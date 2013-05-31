@@ -36,7 +36,7 @@ namespace intel {
 class PlatfBufferManager : public BufferManager {
 public:
     PlatfBufferManager();
-    ~PlatfBufferManager();
+    virtual ~PlatfBufferManager();
 
 public:
     bool initialize();

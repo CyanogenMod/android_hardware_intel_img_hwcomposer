@@ -34,50 +34,51 @@ namespace android {
 namespace intel {
 
 VsyncControl::VsyncControl()
-    : IVsyncControl()
+    : IVsyncControl(),
+      mInitialized(false)
 {
-
 }
 
-bool VsyncControl::control(int disp, int enabled)
+VsyncControl::~VsyncControl()
 {
-    Drm *drm = Hwcomposer::getInstance().getDrm();
-    struct drm_psb_vsync_set_arg arg;
-    bool ret;
+    WARN_IF_NOT_DEINIT();
+}
 
+bool VsyncControl::initialize()
+{
+    mInitialized = true;
+    return true;
+}
+
+void VsyncControl::deinitialize()
+{
+    mInitialized = false;
+}
+
+bool VsyncControl::control(int disp, bool enabled)
+{
     ATRACE("disp = %d, enabled = %d", disp, enabled);
 
-    if (!drm) {
-        ETRACE("failed to get drm");
-        return false;
-    }
-
+    struct drm_psb_vsync_set_arg arg;
     memset(&arg, 0, sizeof(struct drm_psb_vsync_set_arg));
 
     // pipe equals to disp
     arg.vsync.pipe = disp;
 
-    if (enabled)
+    if (enabled) {
         arg.vsync_operation_mask = VSYNC_ENABLE;
-    else
+    } else {
         arg.vsync_operation_mask = VSYNC_DISABLE;
-
+    }
+    Drm *drm = Hwcomposer::getInstance().getDrm();
     return drm->writeReadIoctl(DRM_PSB_VSYNC_SET, &arg, sizeof(arg));
 }
 
 bool VsyncControl::wait(int disp, int64_t& timestamp)
 {
-    Drm *drm = Hwcomposer::getInstance().getDrm();
-    struct drm_psb_vsync_set_arg arg;
-    bool ret;
-
     ATRACE("disp = %d", disp);
 
-    if (!drm) {
-        ETRACE("failed to get drm");
-        return false;
-    }
-
+    struct drm_psb_vsync_set_arg arg;
     memset(&arg, 0, sizeof(struct drm_psb_vsync_set_arg));
 
     arg.vsync_operation_mask = VSYNC_WAIT;
@@ -85,7 +86,8 @@ bool VsyncControl::wait(int disp, int64_t& timestamp)
     // pipe equals to disp
     arg.vsync.pipe = disp;
 
-    ret = drm->writeReadIoctl(DRM_PSB_VSYNC_SET, &arg, sizeof(arg));
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+    bool ret = drm->writeReadIoctl(DRM_PSB_VSYNC_SET, &arg, sizeof(arg));
     timestamp = (int64_t)arg.vsync.timestamp;
     return ret;
 }

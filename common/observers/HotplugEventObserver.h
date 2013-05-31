@@ -36,18 +36,43 @@ namespace intel {
 
 class ExternalDevice;
 
-class HotplugEventObserver : public Thread
+class HotplugEventObserver
 {
 public:
-    HotplugEventObserver(ExternalDevice& disp, IHotplugControl& hotplug);
+    HotplugEventObserver(ExternalDevice& disp);
     virtual ~HotplugEventObserver();
+    virtual bool initialize();
+    virtual void deinitialize();
+
 private:
-    virtual bool threadLoop();
-    virtual android::status_t readyToRun();
-    virtual void onFirstRef();
+    class WorkingThread: public Thread {
+    public:
+        WorkingThread(HotplugEventObserver *owner) {
+            mOwner = owner;
+        }
+        WorkingThread() {
+            mOwner = NULL;
+         }
+
+    private:
+        virtual bool threadLoop() {
+            return mOwner->threadLoop();
+        }
+
+    private:
+        HotplugEventObserver *mOwner;
+    };
+
+    friend class WorkingThread;
+    bool threadLoop();
+
+
 private:
     ExternalDevice& mDisplayDevice;
-    IHotplugControl& mHotplug;
+    IHotplugControl *mHotplugControl;
+    sp<WorkingThread> mThread;
+    bool mExitThread;
+    bool mInitialized;
 }; // HotplugEventObserver
 }
 }

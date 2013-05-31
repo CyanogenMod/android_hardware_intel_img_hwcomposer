@@ -37,13 +37,13 @@ namespace intel {
 class TngPrimaryPlane : public TngSpritePlane {
 public:
     TngPrimaryPlane(int index, int disp);
-    ~TngPrimaryPlane();
+    virtual ~TngPrimaryPlane();
 public:
     bool setDataBuffer(uint32_t handle);
     bool assignToDevice(int disp);
     bool disable();
 private:
-    void setFramebufferTarget(DataBuffer& buf);
+    void setFramebufferTarget(uint32_t handle);
 };
 
 } // namespace intel

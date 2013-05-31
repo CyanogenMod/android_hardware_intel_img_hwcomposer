@@ -39,6 +39,10 @@ PrepareListener::PrepareListener()
 {
 }
 
+PrepareListener::~PrepareListener()
+{
+}
+
 void PrepareListener::onProtectedLayerStart(int disp)
 {
     ATRACE("disp = %d", disp);

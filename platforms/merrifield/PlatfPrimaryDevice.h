@@ -38,7 +38,7 @@ class PlatfPrimaryDevice : public PrimaryDevice {
 public:
     PlatfPrimaryDevice(Hwcomposer& hwc,
                         DisplayPlaneManager& dpm);
-    ~PlatfPrimaryDevice();
+    virtual ~PlatfPrimaryDevice();
 
 protected:
     IVsyncControl* createVsyncControl();

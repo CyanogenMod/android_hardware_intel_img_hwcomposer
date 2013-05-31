@@ -36,8 +36,10 @@ namespace intel {
 class BlankControl : public IBlankControl {
 public:
     BlankControl();
+    virtual ~BlankControl();
+
 public:
-    bool blank(int disp, int blank);
+    bool blank(int disp, bool blank);
 };
 
 } // namespace intel

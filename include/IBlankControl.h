@@ -36,7 +36,7 @@ public:
     IBlankControl() {}
     virtual ~IBlankControl() {}
 public:
-    virtual bool blank(int disp, int blank) = 0;
+    virtual bool blank(int disp, bool blank) = 0;
 };
 
 } // namespace intel

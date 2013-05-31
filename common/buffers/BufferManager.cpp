@@ -35,10 +35,12 @@ namespace android {
 namespace intel {
 
 BufferManager::BufferManager()
-    : mGrallocModule(0),
-      mAllocDev(0),
+    : mGrallocModule(NULL),
+      mAllocDev(NULL),
       mFrameBuffers(),
-      mBufferPool(0),
+      mBufferPool(NULL),
+      mDataBuffer(NULL),
+      mDataBufferLock(),
       mInitialized(false)
 {
     CTRACE();
@@ -77,6 +79,12 @@ bool BufferManager::initialize()
         DEINIT_AND_RETURN_FALSE("failed to open alloc device");
     }
 
+    // create a dummy data buffer
+    mDataBuffer = createDataBuffer(mGrallocModule, 0);
+    if (!mDataBuffer) {
+        DEINIT_AND_RETURN_FALSE("failed to create data buffer");
+    }
+
     mInitialized = true;
     return true;
 }
@@ -89,16 +97,12 @@ void BufferManager::deinitialize()
         // unmap & delete all cached buffer mappers
         for (size_t i = 0; i < mBufferPool->getCacheSize(); i++) {
             BufferMapper *mapper = mBufferPool->getMapper(i);
-            if (mapper) {
-                mapper->unmap();
-                // delete this mapper
-                delete mapper;
-            }
+            mapper->unmap();
+            delete mapper;
         }
 
-        // delete buffer pool
         delete mBufferPool;
-        mBufferPool = 0;
+        mBufferPool = NULL;
     }
 
     for (size_t j = 0; j < mFrameBuffers.size(); j++) {
@@ -112,6 +116,11 @@ void BufferManager::deinitialize()
         gralloc_close(mAllocDev);
         mAllocDev = NULL;
     }
+
+    if (mDataBuffer) {
+        delete mDataBuffer;
+        mDataBuffer = NULL;
+    }
 }
 
 void BufferManager::dump(Dump& d)
@@ -120,14 +129,26 @@ void BufferManager::dump(Dump& d)
     return;
 }
 
+DataBuffer* BufferManager::lockDataBuffer(uint32_t handle)
+{
+    mDataBufferLock.lock();
+    mDataBuffer->resetBuffer(handle);
+    return mDataBuffer;
+}
+
+void BufferManager::unlockDataBuffer(DataBuffer *buffer)
+{
+    mDataBufferLock.unlock();
+}
+
 DataBuffer* BufferManager::get(uint32_t handle)
 {
     return createDataBuffer(mGrallocModule, handle);
 }
 
-void BufferManager::put(DataBuffer& buffer)
+void BufferManager::put(DataBuffer *buffer)
 {
-    delete &buffer;
+    delete buffer;
 }
 
 BufferMapper* BufferManager::map(DataBuffer& buffer)
@@ -139,64 +160,59 @@ BufferMapper* BufferManager::map(DataBuffer& buffer)
 
     //try to get mapper from pool
     mapper = mBufferPool->getMapper(buffer.getKey());
-    if (!mapper) {
+    if (mapper) {
+        // increase mapper ref count
+        mapper->incRef();
+        return mapper;
+    }
+
+    // create a new buffer mapper and add it to pool
+    do {
         VTRACE("new buffer, will add it");
         mapper = createBufferMapper(mGrallocModule, buffer);
         if (!mapper) {
             ETRACE("failed to allocate mapper");
-            goto mapper_err;
+            break;
         }
-        // map buffer
         ret = mapper->map();
         if (!ret) {
             ETRACE("failed to map");
-            goto map_err;
+            break;
         }
-
-        // add mapper
         ret = mBufferPool->addMapper(buffer.getKey(), mapper);
         if (!ret) {
             ETRACE("failed to add mapper");
-            goto add_err;
+            break;
         }
-    }
+        // increase mapper ref count
+        mapper->incRef();
+        return mapper;
+    } while (0);
 
-    // increase mapper ref count
-    mapper->incRef();
-    return mapper;
-add_err:
-    mapper->unmap();
-map_err:
-    delete mapper;
-mapper_err:
-    return 0;
+    // error handling
+    if (mapper) {
+        mapper->unmap();
+        delete mapper;
+    }
+    return NULL;
 }
 
-void BufferManager::unmap(BufferMapper& mapper)
+void BufferManager::unmap(BufferMapper *mapper)
 {
-    BufferMapper* cachedMapper;
-    int refCount;
-
-    CTRACE();
-
-    // try to get mapper from pool
-    cachedMapper = mBufferPool->getMapper(mapper.getKey());
-    if (!cachedMapper) {
-        ETRACE("invalid buffer mapper");
+    if (!mapper) {
+        ETRACE("invalid mapper");
         return;
     }
 
-    // decrease mapper ref count
-    refCount = cachedMapper->decRef();
-
     // unmap & remove this mapper from buffer when refCount = 0
-    if (!refCount) {
-        // unmap it
-        cachedMapper->unmap();
+    int refCount = mapper->decRef();
+    if (refCount < 0) {
+        ETRACE("invalid ref count");
+    } else if (!refCount) {
         // remove mapper from buffer pool
-        mBufferPool->removeMapper(cachedMapper);
-        // delete this mapper
-        delete cachedMapper;
+        mBufferPool->removeMapper(mapper);
+        mapper->unmap();
+        delete mapper;
     }
 }
 
@@ -216,7 +232,7 @@ uint32_t BufferManager::allocFrameBuffer(int width, int height, int *stride)
             width,
             height,
             DrmConfig::getFrameBufferFormat(),
-            0,
+            0,  // GRALLOC_USAGE_HW_FB
             (buffer_handle_t *)&handle,
             stride);
 
@@ -225,26 +241,48 @@ uint32_t BufferManager::allocFrameBuffer(int width, int height, int *stride)
         return 0;
     }
 
-    DataBuffer *buffer = get(handle);
-    if (!buffer) {
-        ETRACE("failed to get data buffer, handle = %#x", handle);
-        mAllocDev->free(mAllocDev, (buffer_handle_t)handle);
-        return 0;
-    }
+    DataBuffer *buffer = NULL;
+    BufferMapper *mapper = NULL;
 
-    BufferMapper *mapper = createBufferMapper(mGrallocModule, *buffer);
-    put(*buffer);
-    if (!mapper) {
-        ETRACE("failed to create buffer mapper");
-        mAllocDev->free(mAllocDev, (buffer_handle_t)handle);
-        return 0;
-    }
+    do {
+        buffer = lockDataBuffer(handle);
+        if (!buffer) {
+            ETRACE("failed to get data buffer, handle = %#x", handle);
+            break;
+        }
 
-    mapper->map();
-    uint32_t kHandle = mapper->getKHandle(0);
-    DTRACE("kernel handle of frame buffer is %#x", kHandle);
-    mFrameBuffers.add(kHandle, mapper);
-    return kHandle;
+        mapper = createBufferMapper(mGrallocModule, *buffer);
+        if (!mapper) {
+            ETRACE("failed to create buffer mapper");
+            break;
+        }
+
+        if (!mapper->map()) {
+            ETRACE("failed to map buffer");
+            break;
+        }
+
+        uint32_t kHandle = mapper->getKHandle(0);
+        if (!kHandle) {
+            ETRACE("invalid kernel handle");
+            break;
+        }
+
+        mFrameBuffers.add(kHandle, mapper);
+        unlockDataBuffer(buffer);
+        return kHandle;
+    } while (0);
+
+    // error handling, release all allocated resources
+    if (buffer) {
+        unlockDataBuffer(buffer);
+    }
+    if (mapper) {
+        mapper->unmap();
+        delete mapper;
+    }
+    mAllocDev->free(mAllocDev, (buffer_handle_t)handle);
+    return 0;
 }
 
 void BufferManager::freeFrameBuffer(uint32_t kHandle)
@@ -252,6 +290,7 @@ void BufferManager::freeFrameBuffer(uint32_t kHandle)
     RETURN_VOID_IF_NOT_INIT();
     ssize_t index = mFrameBuffers.indexOfKey(kHandle);
     if (index < 0) {
+        ETRACE("invalid kernel handle");
         return;
     }
 
@@ -259,7 +298,7 @@ void BufferManager::freeFrameBuffer(uint32_t kHandle)
     uint32_t handle = mapper->getHandle();
     mapper->unmap();
     delete mapper;
-    mFrameBuffers.removeItemsAt(index);
+    mFrameBuffers.removeItem(kHandle);
     mAllocDev->free(mAllocDev, (buffer_handle_t)handle);
 }
 

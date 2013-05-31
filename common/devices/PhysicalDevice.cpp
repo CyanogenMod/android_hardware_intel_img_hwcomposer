@@ -38,11 +38,10 @@ PhysicalDevice::PhysicalDevice(uint32_t type, Hwcomposer& hwc, DisplayPlaneManag
       mHwc(hwc),
       mDisplayPlaneManager(dpm),
       mActiveDisplayConfig(-1),
-      mVsyncControl(0),
-      mBlankControl(0),
-      mPrepareListener(0),
-      mVsyncObserver(0),
-      mLayerList(0),
+      mBlankControl(NULL),
+      mPrepareListener(NULL),
+      mVsyncObserver(NULL),
+      mLayerList(NULL),
       mConnected(false),
       mDisplayState(DEVICE_DISPLAY_ON),
       mInitialized(false)
@@ -116,15 +115,12 @@ bool PhysicalDevice::prePrepare(hwc_display_contents_1_t *display)
 {
     RETURN_FALSE_IF_NOT_INIT();
 
-    Mutex::Autolock _l(mLock);
-
-    if (!mConnected)
-        return false;
-
     // for a null list, delete hwc list
-    if (!display) {
-        delete mLayerList;
-        mLayerList = 0;
+    if (!mConnected || !display) {
+        if (mLayerList) {
+            delete mLayerList;
+            mLayerList = 0;
+        }
         return true;
     }
 
@@ -139,12 +135,8 @@ bool PhysicalDevice::prePrepare(hwc_display_contents_1_t *display)
 bool PhysicalDevice::prepare(hwc_display_contents_1_t *display)
 {
     RETURN_FALSE_IF_NOT_INIT();
-    Mutex::Autolock _l(mLock);
 
-    if (!mConnected)
-        return true;
-
-    if (!display)
+    if (!mConnected || !display)
         return true;
 
     // check if geometry is changed
@@ -168,35 +160,23 @@ bool PhysicalDevice::commit(hwc_display_contents_1_t *display, IDisplayContext *
 {
     RETURN_FALSE_IF_NOT_INIT();
 
-    if (!display || !context) {
-        return false;
+    if (!display || !context || !mLayerList) {
+        return true;
     }
     return context->commitContents(display, mLayerList);
 }
 
-bool PhysicalDevice::vsyncControl(int enabled)
+bool PhysicalDevice::vsyncControl(bool enabled)
 {
     RETURN_FALSE_IF_NOT_INIT();
-
-    //Mutex::Autolock _l(mLock);
 
     ATRACE("disp = %d, enabled = %d", mType, enabled);
-
-    bool ret = mVsyncControl->control(mType, enabled);
-    if (ret == false) {
-        ETRACE("failed set vsync");
-        return false;
-    }
-
-    mVsyncObserver->control(enabled);
-    return true;
+    return mVsyncObserver->control(enabled);
 }
 
-bool PhysicalDevice::blank(int blank)
+bool PhysicalDevice::blank(bool blank)
 {
     RETURN_FALSE_IF_NOT_INIT();
-
-    //Mutex::Autolock _l(mLock);
 
     if (!mConnected)
         return false;
@@ -215,7 +195,7 @@ bool PhysicalDevice::getDisplayConfigs(uint32_t *configs,
 {
     RETURN_FALSE_IF_NOT_INIT();
 
-    //Mutex::Autolock _l(mLock);
+    Mutex::Autolock _l(mLock);
 
     if (!mConnected)
         return false;
@@ -237,7 +217,7 @@ bool PhysicalDevice::getDisplayAttributes(uint32_t configs,
 {
     RETURN_FALSE_IF_NOT_INIT();
 
-    //Mutex::Autolock _l(mLock);
+    Mutex::Autolock _l(mLock);
 
     if (!mConnected)
         return false;
@@ -304,12 +284,7 @@ bool PhysicalDevice::detectDisplayConfigs()
     bool ret;
     Drm *drm = Hwcomposer::getInstance().getDrm();
 
-    CTRACE();
-
-    if (!drm) {
-        ETRACE("failed to get drm");
-        return false;
-    }
+    Mutex::Autolock _l(mLock);
 
     // reset display configs
     removeDisplayConfigs();
@@ -381,12 +356,6 @@ bool PhysicalDevice::initialize()
         DEINIT_AND_RETURN_FALSE("failed to detect display config");
     }
 
-    // create vsync control
-    mVsyncControl = createVsyncControl();
-    if (!mVsyncControl) {
-        DEINIT_AND_RETURN_FALSE("failed to create vsync control");
-    }
-
     // create blank control
     mBlankControl = createBlankControl();
     if (!mBlankControl) {
@@ -400,8 +369,8 @@ bool PhysicalDevice::initialize()
     }
 
     // create vsync event observer
-    mVsyncObserver = new VsyncEventObserver(*this, *mVsyncControl);
-    if (!mVsyncObserver.get()) {
+    mVsyncObserver = new VsyncEventObserver(*this);
+    if (!mVsyncObserver || !mVsyncObserver->initialize()) {
         DEINIT_AND_RETURN_FALSE("failed to create vsync observer");
     }
 
@@ -416,22 +385,12 @@ void PhysicalDevice::deinitialize()
         mLayerList = 0;
     }
 
-    // destroy vsync event observer
-    if (mVsyncObserver.get()) {
-        mVsyncObserver->requestExit();
-        mVsyncObserver = 0;
-    }
+    DEINIT_AND_DELETE_OBJ(mVsyncObserver);
 
     // destroy blank control
     if (mBlankControl) {
         delete mBlankControl;
         mBlankControl = 0;
-    }
-
-    // destroy vsync control
-    if (mVsyncControl) {
-        delete mVsyncControl;
-        mVsyncControl = 0;
     }
 
     if (mPrepareListener) {
@@ -466,8 +425,6 @@ void PhysicalDevice::onVsync(int64_t timestamp)
 {
     RETURN_VOID_IF_NOT_INIT();
     ATRACE("timestamp = %lld", timestamp);
-
-    //Mutex::Autolock _l(mLock);
 
     if (!mConnected)
         return;

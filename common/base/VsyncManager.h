@@ -29,7 +29,7 @@
 #define VSYNC_MANAGER_H
 
 #include <IDisplayDevice.h>
-#include <utils/Mutex.h>
+#include <utils/threads.h>
 
 namespace android {
 namespace intel {
@@ -43,20 +43,21 @@ public:
 public:
     bool initialize();
     void deinitialize();
-    bool handleVsyncControl(int disp, int enabled);
-    void handleHotplugEvent(int disp, int connected);
+    bool handleVsyncControl(int disp, bool enabled);
+    void resetVsyncSource();
     int getVsyncSource();
 
 private:
-    bool enableVsync();
-    bool disableVsync();
+    inline bool enableVsync();
+    inline bool disableVsync();
 
 private:
     Vector<IDisplayDevice*>& mDevices;
-    Mutex mMutex;
     bool mInitialized;
+    bool mEnableDynamicVsync;
     bool mEnabled;
     int  mVsyncSource;
+    Mutex mLock;
 };
 
 } // namespace intel

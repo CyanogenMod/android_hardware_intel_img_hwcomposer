@@ -44,6 +44,21 @@ HotplugControl::HotplugControl()
       mUeventFd(-1)
 {
     CTRACE();
+}
+
+HotplugControl::~HotplugControl()
+{
+    if (mUeventFd != -1) {
+        ETRACE("object is not deinitialized");
+    }
+}
+
+bool HotplugControl::initialize()
+{
+    if (mUeventFd != -1) {
+        WTRACE("object has been initialized");
+        return true;
+    }
 
     // init uevent socket
     struct sockaddr_nl addr;
@@ -57,46 +72,52 @@ HotplugControl::HotplugControl()
     addr.nl_groups = 0xffffffff;
 
     mUeventFd = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_KOBJECT_UEVENT);
-    if(mUeventFd < 0) {
+    if (mUeventFd < 0) {
         DTRACE("failed to create uevent socket");
-        return;
+        return false;
     }
 
     setsockopt(mUeventFd, SOL_SOCKET, SO_RCVBUFFORCE, &sz, sizeof(sz));
 
-    if(bind(mUeventFd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-        close(mUeventFd);
-        mUeventFd = -1;
-        return;
+    if (bind(mUeventFd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+        ETRACE("failed to bind scoket");
+        deinitialize();
+        return false;
     }
 
     memset(mUeventMessage, 0, UEVENT_MSG_LEN);
+    return true;
 }
 
-HotplugControl::~HotplugControl()
+void HotplugControl::deinitialize()
 {
-    // close socket
-    close(mUeventFd);
-    mUeventFd = -1;
+    if (mUeventFd != -1) {
+        close(mUeventFd);
+        mUeventFd = -1;
+    }
 }
 
-bool HotplugControl::wait(int disp, int& event)
+bool HotplugControl::waitForEvent()
 {
+    if (mUeventFd == -1) {
+        ETRACE("invalid uEvent file descriptor");
+        return false;
+    }
+
     struct pollfd fds;
     int nr;
-
-    // event is useless
-    event = 0;
 
     fds.fd = mUeventFd;
     fds.events = POLLIN;
     fds.revents = 0;
     nr = poll(&fds, 1, -1);
 
-    if(nr > 0 && fds.revents == POLLIN) {
+    if (nr > 0 && fds.revents == POLLIN) {
         int count = recv(mUeventFd, mUeventMessage, UEVENT_MSG_LEN - 2, 0);
         if (count > 0)
             return isHotplugEvent(mUeventMessage, UEVENT_MSG_LEN - 2);
+    } else {
+        ITRACE("exiting wait");
     }
 
     return false;

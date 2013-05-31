@@ -29,6 +29,7 @@
 #define DISPLAY_ANALYZER_H
 
 #include <utils/threads.h>
+#include <utils/Vector.h>
 
 
 namespace android {
@@ -47,21 +48,55 @@ public:
     bool checkVideoExtendedMode();
     bool isVideoLayer(hwc_layer_1_t &layer);
     bool isVideoEmbedded(hwc_layer_1_t &layer);
-    bool blankSecondaryDevice(bool blank);
+    bool isVideoPlaying();
+    bool isOverlayAllowed();
+    void postHotplugEvent(bool connected);
+    void postVideoEvent(bool preparing, bool playing);
+    void postBlankEvent(bool blank);
 
 private:
-    bool blankSecondaryDevice(size_t numDisplays, hwc_display_contents_1_t** displays);
-    void detectVideoExtendedMode(size_t numDisplays, hwc_display_contents_1_t** displays);
+    enum DisplayEventType {
+        HOTPLUG_EVENT,
+        BLANK_EVENT,
+        VIDEO_EVENT,
+    };
+
+    struct Event {
+        int type;
+
+        struct VideoEvent {
+            bool preparing;
+            bool playing;
+        };
+
+        union {
+            bool connected;
+            bool blank;
+            VideoEvent videoEvent;
+        };
+    };
+    inline void postEvent(Event& e);
+    void handlePendingEvents();
+    void handleHotplugEvent(bool connected);
+    void handleBlankEvent(bool blank);
+    void handleVideoEvent(bool preparing, bool playing);
+
+    void blankSecondaryDevice();
+    void detectVideoExtendedMode();
     void detectTrickMode(hwc_display_contents_1_t *list);
 
+private:
     bool mInitialized;
     bool mVideoExtendedMode;
     bool mForceCloneMode;
-
-    // for blanking the secondary display
     bool mBlankDevice;
-    bool mBlankPending;
-    Mutex mBlankMutex;
+    bool mVideoPlaying;
+    bool mVideoPreparing;
+    bool mOverlayAllowed;
+    int mCachedNumDisplays;
+    hwc_display_contents_1_t** mCachedDisplays;
+    Vector<Event> mPendingEvents;
+    Mutex mEventMutex;
 };
 
 } // namespace intel

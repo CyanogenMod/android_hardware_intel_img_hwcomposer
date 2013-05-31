@@ -101,6 +101,7 @@ private:
 
 private:
     status_t setPhoneState(MDS_PHONE_STATE state);
+    status_t setVideoState(MDS_VIDEO_STATE state);
     friend class MultiDisplayCallback;
 
 private:

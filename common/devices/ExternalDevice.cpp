@@ -36,9 +36,8 @@ namespace intel {
 
 ExternalDevice::ExternalDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
     : PhysicalDevice(DEVICE_EXTERNAL, hwc, dpm),
-      mHotplugControl(NULL),
       mHdcpControl(NULL),
-      mHotplugObserver(),
+      mHotplugObserver(NULL),
       mHotplugEventPending(false)
 {
     CTRACE();
@@ -55,11 +54,6 @@ bool ExternalDevice::initialize()
         DEINIT_AND_RETURN_FALSE("failed to initialize physical device");
     }
 
-    mHotplugControl = createHotplugControl();
-    if (!mHotplugControl) {
-        DEINIT_AND_RETURN_FALSE("failed to create hotplug control");
-    }
-
     mHdcpControl = createHdcpControl();
     if (!mHdcpControl) {
         DEINIT_AND_RETURN_FALSE("failed to create HDCP control");
@@ -71,8 +65,8 @@ bool ExternalDevice::initialize()
     }
 
     // create hotplug observer
-    mHotplugObserver = new HotplugEventObserver(*this, *mHotplugControl);
-    if (!mHotplugObserver.get()) {
+    mHotplugObserver = new HotplugEventObserver(*this);
+    if (!mHotplugObserver || !mHotplugObserver->initialize()) {
         DEINIT_AND_RETURN_FALSE("failed to create hotplug observer");
     }
     return true;
@@ -80,18 +74,7 @@ bool ExternalDevice::initialize()
 
 void ExternalDevice::deinitialize()
 {
-    // destroy hotplug event observer
-    if (mHotplugObserver.get()) {
-        mHotplugObserver->requestExit();
-        mHotplugObserver = 0;
-    }
-
-    // destroy hotplug control
-    if (mHotplugControl) {
-        delete mHotplugControl;
-        mHotplugControl = 0;
-    }
-
+    DEINIT_AND_DELETE_OBJ(mHotplugObserver);
     if (mHdcpControl) {
         mHdcpControl->stopHdcp();
         delete mHdcpControl;
@@ -138,15 +121,6 @@ void ExternalDevice::onHotplug()
     if (ret == false) {
         DTRACE("failed to detect display config");
         return;
-    }
-
-    {   // lock scope
-        Mutex::Autolock _l(mLock);
-        // delete device layer list
-        if (!mConnected && mLayerList){
-            delete mLayerList;
-            mLayerList = 0;
-        }
     }
 
     ITRACE("hotpug event: %d", mConnected);

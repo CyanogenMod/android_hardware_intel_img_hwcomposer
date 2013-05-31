@@ -40,10 +40,14 @@ class GrallocBufferBase : public GraphicBuffer {
 public:
     GrallocBufferBase(uint32_t handle);
     virtual ~GrallocBufferBase() {}
+    virtual void resetBuffer(uint32_t handle);
 
 protected:
-    // fully initialize buffer
-    virtual void initialize();
+    // helper function to be invoked by the derived class
+    void initStride();
+
+private:
+    void initBuffer(uint32_t handle);
 };
 
 } // namespace intel

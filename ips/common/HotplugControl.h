@@ -39,9 +39,12 @@ class HotplugControl : public IHotplugControl {
     };
 public:
     HotplugControl();
-    ~HotplugControl();
+    virtual ~HotplugControl();
+
 public:
-    bool wait(int disp, int& event);
+    bool initialize();
+    void deinitialize();
+    bool waitForEvent();
 private:
     bool isHotplugEvent(const char *msg, int msgLen);
 private:

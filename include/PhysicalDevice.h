@@ -53,8 +53,8 @@ public:
     virtual bool prepare(hwc_display_contents_1_t *display);
     virtual bool commit(hwc_display_contents_1_t *display, IDisplayContext *context);
 
-    virtual bool vsyncControl(int enabled);
-    virtual bool blank(int blank);
+    virtual bool vsyncControl(bool enabled);
+    virtual bool blank(bool blank);
     virtual bool getDisplayConfigs(uint32_t *configs,
                                        size_t *numConfigs);
     virtual bool getDisplayAttributes(uint32_t config,
@@ -85,6 +85,8 @@ protected:
     virtual IVsyncControl* createVsyncControl() = 0;
     virtual IBlankControl* createBlankControl() = 0;
     virtual IPrepareListener* createPrepareListener() = 0;
+    friend class VsyncEventObserver;
+
 protected:
     uint32_t mType;
     const char *mName;
@@ -96,14 +98,10 @@ protected:
     Vector<DisplayConfig*> mDisplayConfigs;
     int mActiveDisplayConfig;
 
-    // vsync control
-    IVsyncControl *mVsyncControl;
-    // blank control
-    IBlankControl *mBlankControl;
 
+    IBlankControl *mBlankControl;
     IPrepareListener *mPrepareListener;
-    // vsync event observer
-    sp<VsyncEventObserver> mVsyncObserver;
+    VsyncEventObserver *mVsyncObserver;
 
     // layer list
     HwcLayerList *mLayerList;

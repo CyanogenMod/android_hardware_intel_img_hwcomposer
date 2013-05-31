@@ -29,6 +29,7 @@
 #include <common/Wsbm.h>
 
 Wsbm::Wsbm(int drmFD)
+    : mInitialized(false)
 {
     CTRACE();
     mDrmFD = drmFD;
@@ -36,24 +37,39 @@ Wsbm::Wsbm(int drmFD)
 
 Wsbm::~Wsbm()
 {
-    psbWsbmTakedown();
+    WARN_IF_NOT_DEINIT();
 }
 
 bool Wsbm::initialize()
 {
+    if (mInitialized) {
+        WTRACE("object is initialized");
+        return true;
+    }
+
     int ret = psbWsbmInitialize(mDrmFD);
-    if(ret) {
+    if (ret) {
         ETRACE("failed to initialize Wsbm");
         return false;
     }
 
+    mInitialized = true;
     return true;
+}
+
+void Wsbm::deinitialize()
+{
+    if (!mInitialized) {
+        return;
+    }
+    psbWsbmTakedown();
+    mInitialized = false;
 }
 
 bool Wsbm::allocateTTMBuffer(uint32_t size, uint32_t align, void ** buf)
 {
     int ret = psbWsbmAllocateTTMBuffer(size, align, buf);
-    if(ret) {
+    if (ret) {
         ETRACE("failed to allocate buffer");
         return false;
     }
@@ -64,7 +80,7 @@ bool Wsbm::allocateTTMBuffer(uint32_t size, uint32_t align, void ** buf)
 bool Wsbm::destroyTTMBuffer(void * buf)
 {
     int ret = psbWsbmDestroyTTMBuffer(buf);
-    if(ret) {
+    if (ret) {
         ETRACE("failed to destroy buffer");
         return false;
     }
