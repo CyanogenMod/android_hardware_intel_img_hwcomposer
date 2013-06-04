@@ -92,11 +92,12 @@ void DisplayPlane::deinitialize()
 void DisplayPlane::checkPosition(int& x, int& y, int& w, int& h)
 {
     Drm *drm = Hwcomposer::getInstance().getDrm();
-    drmModeModeInfoPtr mode = drm->getModeInfo(mDevice);
-    if (!mode) {
-        ETRACE("invalid mode");
+    drmModeModeInfo modeInfo;
+    if (!drm->getModeInfo(mDevice, modeInfo)) {
+        ETRACE("failed to get mode info");
         return;
     }
+    drmModeModeInfoPtr mode = &modeInfo;
 
     if (x < 0)
         x = 0;
@@ -107,7 +108,6 @@ void DisplayPlane::checkPosition(int& x, int& y, int& w, int& h)
     if ((y + h) > mode->vdisplay)
         h = mode->vdisplay - y;
 }
-
 
 void DisplayPlane::setPosition(int x, int y, int w, int h)
 {

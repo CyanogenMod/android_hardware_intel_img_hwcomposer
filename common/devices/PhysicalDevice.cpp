@@ -43,7 +43,7 @@ PhysicalDevice::PhysicalDevice(uint32_t type, Hwcomposer& hwc, DisplayPlaneManag
       mPrepareListener(0),
       mVsyncObserver(0),
       mLayerList(0),
-      mConnection(DEVICE_DISCONNECTED),
+      mConnected(false),
       mDisplayState(DEVICE_DISPLAY_ON),
       mInitialized(false)
 {
@@ -118,7 +118,7 @@ bool PhysicalDevice::prePrepare(hwc_display_contents_1_t *display)
 
     Mutex::Autolock _l(mLock);
 
-    if (mConnection != DEVICE_CONNECTED)
+    if (!mConnected)
         return false;
 
     // for a null list, delete hwc list
@@ -141,7 +141,7 @@ bool PhysicalDevice::prepare(hwc_display_contents_1_t *display)
     RETURN_FALSE_IF_NOT_INIT();
     Mutex::Autolock _l(mLock);
 
-    if (mConnection != DEVICE_CONNECTED)
+    if (!mConnected)
         return true;
 
     if (!display)
@@ -198,7 +198,7 @@ bool PhysicalDevice::blank(int blank)
 
     //Mutex::Autolock _l(mLock);
 
-    if (mConnection != DEVICE_CONNECTED)
+    if (!mConnected)
         return false;
 
     bool ret = mBlankControl->blank(mType, blank);
@@ -217,7 +217,7 @@ bool PhysicalDevice::getDisplayConfigs(uint32_t *configs,
 
     //Mutex::Autolock _l(mLock);
 
-    if (mConnection != DEVICE_CONNECTED)
+    if (!mConnected)
         return false;
 
     if (!configs || !numConfigs) {
@@ -239,7 +239,7 @@ bool PhysicalDevice::getDisplayAttributes(uint32_t configs,
 
     //Mutex::Autolock _l(mLock);
 
-    if (mConnection != DEVICE_CONNECTED)
+    if (!mConnected)
         return false;
 
     if (!attributes || !values) {
@@ -299,138 +299,8 @@ void PhysicalDevice::removeDisplayConfigs()
     mActiveDisplayConfig = -1;
 }
 
-bool PhysicalDevice::updateDisplayConfigs(struct Output *output)
-{
-    drmModeConnectorPtr drmConnector;
-    drmModeCrtcPtr drmCrtc;
-    drmModeModeInfoPtr drmMode;
-    drmModeModeInfoPtr drmPreferredMode;
-    drmModeFBPtr drmFb;
-    int drmModeCount;
-    float physWidthInch;
-    float physHeightInch;
-    int dpiX, dpiY;
-
-    CTRACE();
-
-    Mutex::Autolock _l(mLock);
-
-    drmConnector = output->connector;
-    if (!drmConnector) {
-        ETRACE("output has no connector");
-        return false;
-    }
-
-    physWidthInch = (float)drmConnector->mmWidth * 0.039370f;
-    physHeightInch = (float)drmConnector->mmHeight * 0.039370f;
-
-    drmModeCount = drmConnector->count_modes;
-    drmPreferredMode = 0;
-
-    // reset display configs
-    removeDisplayConfigs();
-
-    // reset the number of display configs
-    mDisplayConfigs.setCapacity(drmModeCount + 1);
-
-    VTRACE("mode count %d", drmModeCount);
-
-    // find preferred mode of this display device
-    for (int i = 0; i < drmModeCount; i++) {
-        drmMode = &drmConnector->modes[i];
-        dpiX = drmMode->hdisplay / physWidthInch;
-        dpiY = drmMode->vdisplay / physHeightInch;
-
-        if ((drmMode->type & DRM_MODE_TYPE_PREFERRED)) {
-            drmPreferredMode = drmMode;
-            continue;
-        }
-
-        VTRACE("adding new config %dx%d@%d",
-              drmMode->hdisplay,
-              drmMode->vdisplay,
-              drmMode->vrefresh);
-
-        // if not preferred mode add it to display configs
-        DisplayConfig *config = new DisplayConfig(drmMode->vrefresh,
-                                                  drmMode->hdisplay,
-                                                  drmMode->vdisplay,
-                                                  dpiX, dpiY);
-        mDisplayConfigs.add(config);
-    }
-
-    // update device connection status
-    mConnection = (output->connected) ? DEVICE_CONNECTED : DEVICE_DISCONNECTED;
-
-    // if device is connected, continue checking current mode
-    if (mConnection != DEVICE_CONNECTED)
-        goto use_preferred_mode;
-    else if (mConnection == DEVICE_CONNECTED) {
-        // use active fb and mode
-        drmCrtc = output->crtc;
-        drmFb = output->fb;
-        if (!drmCrtc || !drmFb) {
-            ETRACE("impossible");
-            goto use_preferred_mode;
-        }
-
-        drmMode = &drmCrtc->mode;
-        if (!drmCrtc->mode_valid)
-            goto use_preferred_mode;
-
-        VTRACE("using current mode %dx%d@%d",
-              drmMode->hdisplay,
-              drmMode->vdisplay,
-              drmMode->vrefresh);
-
-        // use current drm mode, likely it's preferred mode
-        dpiX = drmMode->hdisplay / physWidthInch;
-        dpiY = drmMode->vdisplay / physHeightInch;
-        // use active fb dimension as config width/height
-        DisplayConfig *config = new DisplayConfig(drmMode->vrefresh,
-                                                  //drmFb->width,
-                                                  //drmFb->height,
-                                                  drmMode->hdisplay,
-                                                  drmMode->vdisplay,
-                                                  dpiX, dpiY);
-        // add it to the front of other configs
-        mDisplayConfigs.push_front(config);
-    }
-
-    // init the active display config
-    mActiveDisplayConfig = 0;
-
-    return true;
-use_preferred_mode:
-    if (drmPreferredMode) {
-        dpiX = drmPreferredMode->hdisplay / physWidthInch;
-        dpiY = drmPreferredMode->vdisplay / physHeightInch;
-        DisplayConfig *config = new DisplayConfig(drmPreferredMode->vrefresh,
-                                                  drmPreferredMode->hdisplay,
-                                                  drmPreferredMode->vdisplay,
-                                                  dpiX, dpiY);
-        if (!config) {
-            ETRACE("failed to allocate display config");
-            return false;
-        }
-
-        VTRACE("using preferred mode %dx%d@%d",
-              drmPreferredMode->hdisplay,
-              drmPreferredMode->vdisplay,
-              drmPreferredMode->vrefresh);
-
-        // add it to the front of other configs
-        mDisplayConfigs.push_front(config);
-    }
-
-    // init the active display config
-    mActiveDisplayConfig = 0;
-    return true;
-}
-
 bool PhysicalDevice::detectDisplayConfigs()
 {
-    struct Output *output;
     bool ret;
     Drm *drm = Hwcomposer::getInstance().getDrm();
 
@@ -441,22 +311,59 @@ bool PhysicalDevice::detectDisplayConfigs()
         return false;
     }
 
+    // reset display configs
+    removeDisplayConfigs();
+
     // detect
-    ret = drm->detect();
-    if (ret == false) {
-        ETRACE("drm detection failed");
+    ret = drm->detect(mType);
+    if (!ret) {
+        ETRACE("drm detection on device %d failed ", mType);
         return false;
     }
 
-    // get output
-    output = drm->getOutput(mType);
-    if (!output) {
-        ETRACE("failed to get output");
+    // update device connection status
+    mConnected = drm->isConnected(mType);
+    if (!mConnected) {
+        return true;
+    }
+
+    // reset the number of display configs
+    mDisplayConfigs.setCapacity(1);
+
+    drmModeModeInfo mode;
+    ret = drm->getModeInfo(mType, mode);
+    if (!ret) {
+        ETRACE("failed to get mode info");
+        mConnected = false;
         return false;
     }
 
-    // update display configs
-    return updateDisplayConfigs(output);
+    uint32_t mmWidth, mmHeight;
+    ret = drm->getPhysicalSize(mType, mmWidth, mmHeight);
+    if (!ret) {
+        ETRACE("failed to get physical size");
+        mConnected = false;
+        return false;
+    }
+
+    float physWidthInch = (float)mmWidth * 0.039370f;
+    float physHeightInch = (float)mmHeight * 0.039370f;
+
+    // use current drm mode, likely it's preferred mode
+    int dpiX = mode.hdisplay / physWidthInch;
+    int dpiY = mode.vdisplay / physHeightInch;
+    // use active fb dimension as config width/height
+    DisplayConfig *config = new DisplayConfig(mode.vrefresh,
+                                              mode.hdisplay,
+                                              mode.vdisplay,
+                                              dpiX, dpiY);
+    // add it to the front of other configs
+    mDisplayConfigs.push_front(config);
+
+    // init the active display config
+    mActiveDisplayConfig = 0;
+
+    return true;
 }
 
 bool PhysicalDevice::initialize()
@@ -542,7 +449,7 @@ bool PhysicalDevice::isConnected() const
 {
     RETURN_FALSE_IF_NOT_INIT();
 
-    return (mConnection == DEVICE_CONNECTED) ? true : false;
+    return mConnected;
 }
 
 const char* PhysicalDevice::getName() const
@@ -562,7 +469,7 @@ void PhysicalDevice::onVsync(int64_t timestamp)
 
     //Mutex::Autolock _l(mLock);
 
-    if (mConnection != DEVICE_CONNECTED)
+    if (!mConnected)
         return;
 
     // notify hwc
@@ -573,7 +480,7 @@ void PhysicalDevice::dump(Dump& d)
 {
     d.append("-------------------------------------------------------------\n");
     d.append("Device Name: %s (%s)\n", mName,
-            mConnection ? "connected" : "disconnected");
+            mConnected ? "connected" : "disconnected");
     d.append("Display configs (count = %d):\n", mDisplayConfigs.size());
     d.append(" CONFIG | VSYNC_PERIOD | WIDTH | HEIGHT | DPI_X | DPI_Y \n");
     d.append("--------+--------------+-------+--------+-------+-------\n");

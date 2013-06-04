@@ -42,6 +42,7 @@ GrallocBufferMapperBase::GrallocBufferMapperBase(DataBuffer& buffer)
         mGttOffsetInPage[i] = 0;
         mCpuAddress[i] = 0;
         mSize[i] = 0;
+        mKHandle[i] = 0;
     }
 }
 
@@ -70,6 +71,14 @@ uint32_t GrallocBufferMapperBase::getSize(int subIndex) const
         return mSize[subIndex];
     return 0;
 }
+
+uint32_t GrallocBufferMapperBase::getKHandle(int subIndex) const
+{
+    if (subIndex >= 0 && subIndex < SUB_BUFFER_MAX)
+        return mKHandle[subIndex];
+    return 0;
+}
+
 
 } // namespace intel
 } // namespace android

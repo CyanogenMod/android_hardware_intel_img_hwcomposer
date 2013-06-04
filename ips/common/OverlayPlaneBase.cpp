@@ -488,11 +488,12 @@ bool OverlayPlaneBase::rotatedBufferReady(BufferMapper& mapper)
 void OverlayPlaneBase::checkPosition(int& x, int& y, int& w, int& h)
 {
     Drm *drm = Hwcomposer::getInstance().getDrm();
-    drmModeModeInfoPtr mode = drm->getModeInfo(mDevice);
-    if (!mode) {
-        ETRACE("invalid mode");
+    drmModeModeInfo modeInfo;
+    if (!drm->getModeInfo(mDevice, modeInfo)) {
+        ETRACE("failed to get mode info");
         return;
     }
+    drmModeModeInfoPtr mode = &modeInfo;
 
     if (Hwcomposer::getInstance().getDisplayAnalyzer()->checkVideoExtendedMode() &&
         mDevice == IDisplayDevice::DEVICE_EXTERNAL) {

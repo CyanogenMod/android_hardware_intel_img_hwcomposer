@@ -45,8 +45,31 @@ uint32_t DrmConfig::getDrmConnector(int device)
         return DRM_MODE_CONNECTOR_MIPI;
     else if (device == IDisplayDevice::DEVICE_EXTERNAL)
         return DRM_MODE_CONNECTOR_DVID;
-
     return DRM_MODE_CONNECTOR_Unknown;
+}
+
+uint32_t DrmConfig::getDrmEncoder(int device)
+{
+    if (device == IDisplayDevice::DEVICE_PRIMARY)
+        return DRM_MODE_ENCODER_MIPI;
+    else if (device == IDisplayDevice::DEVICE_EXTERNAL)
+        return DRM_MODE_ENCODER_TMDS;
+    return DRM_MODE_ENCODER_NONE;
+}
+
+uint32_t DrmConfig::getFrameBufferFormat()
+{
+    return HAL_PIXEL_FORMAT_RGBX_8888;
+}
+
+uint32_t DrmConfig::getFrameBufferDepth()
+{
+    return 24;
+}
+
+uint32_t DrmConfig::getFrameBufferBpp()
+{
+    return 32;
 }
 
 const char* DrmConfig::getHotplugEnvelope()
