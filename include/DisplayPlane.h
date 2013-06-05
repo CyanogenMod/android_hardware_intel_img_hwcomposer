@@ -45,6 +45,7 @@ typedef struct {
 enum {
     // support up to 4 overlays
     MAX_OVERLAY_COUNT = 4,
+    MAX_SPRITE_COUNT = 4,
 };
 
 typedef struct {
@@ -52,6 +53,8 @@ typedef struct {
     int planeCount;
     int overlayCount;
     int overlayIndexes[MAX_OVERLAY_COUNT];
+    int spriteCount;
+    int spriteIndexes[MAX_SPRITE_COUNT];
     int primaryIndex;
 } ZOrderConfig;
 

@@ -77,6 +77,24 @@ void SpritePlaneBase::setZOrderConfig(ZOrderConfig& config)
         mForceBottom = false;
     else
         mForceBottom = true;
+
+    // set sprite to be above primary by default
+    mAbovePrimary = true;
+
+    // configure sprite z order
+    if (config.spriteCount) {
+        if (!config.primaryIndex) {
+            // if frame buffer target is active
+            if (config.spriteIndexes[0] == 0)
+                mAbovePrimary = false;
+            else if (config.spriteIndexes[0] == (config.layerCount - 1))
+                mAbovePrimary = true;
+            else
+                WTRACE("unsupported z order config, will use default");
+        } else if (config.spriteIndexes[0] < config.primaryIndex)
+            // if primary was used as sprite
+            mAbovePrimary = false;
+    }
 }
 
 bool SpritePlaneBase::enablePlane(bool enabled)
