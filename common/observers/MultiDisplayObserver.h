@@ -97,6 +97,7 @@ private:
      bool isMDSRunning();
      bool initMDSClient();
      void deinitMDSClient();
+     bool startInnerThread();
 
 private:
     status_t setPhoneState(MDS_PHONE_STATE state);
@@ -105,7 +106,7 @@ private:
 private:
     enum {
         THREAD_LOOP_DELAY = 10, // 10 ms
-        THREAD_LOOP_BOUND = 500,// 5s
+        THREAD_LOOP_BOUND = 2000, // 20s
     };
 
 private:
