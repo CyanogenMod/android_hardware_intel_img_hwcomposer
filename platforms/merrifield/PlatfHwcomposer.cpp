@@ -74,8 +74,10 @@ IDisplayDevice* PlatfHwcomposer::createDisplayDevice(int disp,
             return new PlatfPrimaryDevice(*this, dpm);
         case IDisplayDevice::DEVICE_EXTERNAL:
             return new PlatfExternalDevice(*this, dpm);
+#ifdef INTEL_WIDI_MERRIFIELD
         case IDisplayDevice::DEVICE_VIRTUAL:
             return new PlatfVirtualDevice(*this, dpm);
+#endif
         default:
             ETRACE("invalid display device %d", disp);
             return NULL;

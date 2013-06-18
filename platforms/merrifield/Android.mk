@@ -35,7 +35,6 @@ LOCAL_SRC_FILES := \
     ../../common/devices/PhysicalDevice.cpp \
     ../../common/devices/PrimaryDevice.cpp \
     ../../common/devices/ExternalDevice.cpp \
-    ../../common/devices/VirtualDevice.cpp \
     ../../common/observers/HotplugEventObserver.cpp \
     ../../common/observers/VsyncEventObserver.cpp \
     ../../common/observers/MultiDisplayObserver.cpp \
@@ -77,7 +76,6 @@ LOCAL_SRC_FILES += \
     PlatfBufferManager.cpp \
     PlatfPrimaryDevice.cpp \
     PlatfExternalDevice.cpp \
-    PlatfVirtualDevice.cpp \
     PlatfDisplayPlaneManager.cpp \
     PlatfHwcomposer.cpp
 
@@ -115,7 +113,12 @@ LOCAL_CFLAGS:= -DLINUX
 
 #$(error local path is: $(LOCAL_C_INCLUDES))
 ifeq ($(INTEL_WIDI_MERRIFIELD), true)
+LOCAL_SRC_FILES += \
+    ../../common/devices/VirtualDevice.cpp \
+    PlatfVirtualDevice.cpp
+
    LOCAL_SHARED_LIBRARIES += libhwcwidi libbinder
+   LOCAL_CFLAGS += -DINTEL_WIDI_MERRIFIELD
 endif
 
 ifeq ($(TARGET_HAS_MULTIPLE_DISPLAY),true)
