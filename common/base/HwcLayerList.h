@@ -79,7 +79,8 @@ private:
 
 class HwcLayerList {
 public:
-    HwcLayerList(hwc_display_contents_1_t *list, DisplayPlaneManager& dpm, int disp);
+    HwcLayerList(hwc_display_contents_1_t *list, DisplayPlaneManager& dpm,
+                  int disp);
     virtual ~HwcLayerList();
 
     class HwcLayerVector : public SortedVector<HwcLayer*> {
@@ -110,9 +111,6 @@ private:
     ZOrderConfig mZOrderConfig;
     // need a display plane manager to get display plane info;
     DisplayPlaneManager& mDisplayPlaneManager;
-    // primary plane of attached display device
-    DisplayPlane* mPrimaryPlane;
-    bool mReclaimPrimaryPlane;
     HwcLayer *mFramebufferTarget;
     int mDisplayIndex;
 };

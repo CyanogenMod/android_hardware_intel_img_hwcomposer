@@ -46,6 +46,7 @@ namespace intel {
 OverlayPlaneBase::OverlayPlaneBase(int index, int disp)
     : DisplayPlane(index, PLANE_OVERLAY, disp),
       mTTMBuffers(),
+      mActiveTTMBuffers(),
       mBackBuffer(0),
       mWsbm(0),
       mPipeConfig(0)
@@ -70,6 +71,7 @@ bool OverlayPlaneBase::initialize(uint32_t bufferCount)
         bufferCount = OVERLAY_DATA_BUFFER_COUNT;
     }
     mTTMBuffers.setCapacity(bufferCount);
+    mActiveTTMBuffers.setCapacity(MIN_DATA_BUFFER_COUNT);
 
     // init wsbm
     mWsbm = new Wsbm(drm->getDrmFd());
@@ -102,6 +104,11 @@ void OverlayPlaneBase::deinitialize()
     // delete back buffer
     deleteBackBuffer();
 
+    // invalidate TTM active buffers
+    if (mActiveTTMBuffers.size() > 0) {
+        invalidateActiveTTMBuffers();
+    }
+
     // delete wsbm
     if (mWsbm) {
         delete mWsbm;
@@ -117,11 +124,12 @@ void OverlayPlaneBase::invalidateBufferCache()
     DisplayPlane::invalidateBufferCache();
 
     // clear TTM buffer cache
-    while (mTTMBuffers.size() > 0) {
-        mapper = mTTMBuffers.valueAt(0);
+    for (size_t i = 0; i < mTTMBuffers.size(); i++) {
+        mapper = mTTMBuffers.valueAt(i);
         // putTTMMapper removes mapper from cache
         putTTMMapper(mapper);
     }
+    mTTMBuffers.clear();
 }
 
 bool OverlayPlaneBase::assignToDevice(int disp)
@@ -159,6 +167,13 @@ void OverlayPlaneBase::setZOrderConfig(ZOrderConfig& config)
 bool OverlayPlaneBase::reset()
 {
     RETURN_FALSE_IF_NOT_INIT();
+
+    DisplayPlane::reset();
+
+    // invalidate active TTM buffers
+    if (mActiveTTMBuffers.size() > 0) {
+        invalidateActiveTTMBuffers();
+    }
 
     // reset back buffer
     resetBackBuffer();
@@ -411,6 +426,9 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
             goto map_err;
         }
 
+        // increase mapper refCount
+        mapper->incRef();
+
         // add mapper
         index = mTTMBuffers.add(khandle, mapper);
         if (index < 0) {
@@ -440,14 +458,58 @@ void OverlayPlaneBase::putTTMMapper(BufferMapper* mapper)
     if (!mapper)
         return;
 
-    // unmap it
-    mapper->unmap();
+    if (!mapper->decRef()) {
+        // unmap it
+        mapper->unmap();
 
-    // remove it from recorded TTM buffers
-    mTTMBuffers.removeItem(mapper->getKey());
+        // destroy this mapper
+        delete mapper;
+    }
+}
 
-    // destroy this mapper
-    delete mapper;
+bool OverlayPlaneBase::isActiveTTMBuffer(BufferMapper *mapper)
+{
+    for (size_t i = 0; i < mActiveTTMBuffers.size(); i++) {
+        BufferMapper *activeMapper = mActiveTTMBuffers.itemAt(i);
+        if (!activeMapper)
+            continue;
+        if (activeMapper->getKey() == mapper->getKey())
+            return true;
+    }
+
+    return false;
+}
+
+void OverlayPlaneBase::updateActiveTTMBuffers(BufferMapper *mapper)
+{
+    // unmap the first entry (oldest buffer)
+    if (mActiveTTMBuffers.size() >= MIN_DATA_BUFFER_COUNT) {
+        BufferMapper *oldest = mActiveTTMBuffers.itemAt(0);
+        putTTMMapper(oldest);
+        mActiveTTMBuffers.removeAt(0);
+    }
+
+    // queue it to cached buffers
+    if (!isActiveTTMBuffer(mapper)) {
+        mapper->incRef();
+        mActiveTTMBuffers.push_back(mapper);
+    }
+}
+
+void OverlayPlaneBase::invalidateActiveTTMBuffers()
+{
+    BufferMapper* mapper;
+
+    RETURN_VOID_IF_NOT_INIT();
+
+    for (size_t i = 0; i < mActiveTTMBuffers.size(); i++) {
+        mapper = mActiveTTMBuffers.itemAt(i);
+        // unmap it
+        putTTMMapper(mapper);
+    }
+
+    // clear recorded data buffers
+    mActiveTTMBuffers.clear();
 }
 
 bool OverlayPlaneBase::rotatedBufferReady(BufferMapper& mapper)
@@ -938,6 +1000,7 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
 bool OverlayPlaneBase::setDataBuffer(BufferMapper& grallocMapper)
 {
     BufferMapper *mapper;
+    BufferMapper *rotatedMapper = 0;
     bool ret;
 
     RETURN_FALSE_IF_NOT_INIT();
@@ -956,6 +1019,8 @@ bool OverlayPlaneBase::setDataBuffer(BufferMapper& grallocMapper)
             ETRACE("failed to get rotated buffer");
             return false;
         }
+
+        rotatedMapper = mapper;
     }
 
     OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
@@ -983,6 +1048,11 @@ bool OverlayPlaneBase::setDataBuffer(BufferMapper& grallocMapper)
     }
 
     backBuffer->OCMD |= 0x1;
+
+    // add to active ttm buffers if it's a rotated buffer
+    if (rotatedMapper) {
+        updateActiveTTMBuffers(mapper);
+    }
 
     return true;
 }

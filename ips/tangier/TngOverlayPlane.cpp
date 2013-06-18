@@ -107,7 +107,7 @@ bool TngOverlayPlane::flush(uint32_t flags)
     else if (flags & PLANE_ENABLE)
         arg.plane_enable_mask = 1;
 
-    arg.plane.type = mType;
+    arg.plane.type = DC_OVERLAY_PLANE;
     arg.plane.index = mIndex;
     arg.plane.ctx = (mBackBuffer->gttOffsetInPage << 12);
     // pipe select

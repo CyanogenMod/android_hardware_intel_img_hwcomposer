@@ -39,8 +39,7 @@ DisplayPlane::DisplayPlane(int index, int type, int disp)
       mDevice(disp),
       mInitialized(false),
       mDataBuffers(),
-      mRingBuffers(),
-      mDataBuffersCap(0),
+      mActiveBuffers(),
       mIsProtectedBuffer(false),
       mTransform(PLANE_TRANSFORM_0),
       mCurrentDataBuffer(0),
@@ -68,24 +67,27 @@ bool DisplayPlane::initialize(uint32_t bufferCount)
     // create buffer cache, adding few extra slots as buffer rendering is async
     // buffer could still be queued in the display pipeline such that they
     // can't be unmapped
-    // TODO: determine the optimal number of extra slots, 1 is minimum
-    // otherwise buffer cache will be unnecessarily invalidated
-    mDataBuffersCap = bufferCount + 1;
-    mDataBuffers.setCapacity(mDataBuffersCap);
-    mRingBuffers.setCapacity(MIN_DATA_BUFFER_COUNT);
+    mDataBuffers.setCapacity(bufferCount);
+    mActiveBuffers.setCapacity(MIN_DATA_BUFFER_COUNT);
     mInitialized = true;
     return true;
 }
 
 void DisplayPlane::deinitialize()
 {
-    if (mDataBuffers.size() || mRingBuffers.size()) {
+    // invalidate cached data buffers
+    if (mDataBuffers.size()) {
         // invalidateBufferCache will assert if object is not initialized
         // so invoking it only there is buffer to invalidate.
         invalidateBufferCache();
     }
+
+    // invalidate active buffers
+    if (mActiveBuffers.size()) {
+        invalidateActiveBuffers();
+    }
+
     mCurrentDataBuffer = 0;
-    mDataBuffersCap = 0;
     mInitialized = false;
 }
 
@@ -210,89 +212,114 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
     index = mDataBuffers.indexOfKey(buffer->getKey());
     if (index < 0) {
         VTRACE("unmapped buffer, mapping...");
-        mapper = bm->map(*buffer);
+        mapper = mapBuffer(buffer);
         if (!mapper) {
-            ETRACE("failed to map buffer, invalidate buffer cache and map again!");
+            // NOTE: this barely happens, but if it happened it means either the
+            // graphics memory is low, or buffer cache is full.
+            WTRACE("map failed, invalidate and try again...");
+            // invalidate buffer cache will release all old mappers and clear
+            // the buffer cache
             invalidateBufferCache();
-            mapper = bm->map(*buffer);
+            mapper = mapBuffer(buffer);
             if (!mapper) {
-                ETRACE("failed to map buffer");
-                goto mapper_err;
+                ETRACE("failed to map buffer %#x", handle);
+                bm->put(*buffer);
+                return false;
             }
-        }
-
-        if ((int)mDataBuffers.size() == mDataBuffersCap) {
-            DTRACE("rebuilding data buffer cache...");
-            // remove all stale buffers from the cache and
-            // add the most recent used buffers to the cache
-            invalidateDataBuffers();
-            for (size_t i = 0; i < mRingBuffers.size(); i++) {
-                BufferMapper *temp = mRingBuffers.itemAt(i);
-                if (mDataBuffers.indexOfKey(temp->getKey()) < 0) {
-                    temp->incRef();
-                    mDataBuffers.add(temp->getKey(), temp);
-                } else {
-                    WTRACE("duplicate buffer found in the ring buffers");
-                }
-            }
-        }
-
-        // add it to data buffers
-        index = mDataBuffers.add(buffer->getKey(), mapper);
-        if (index < 0) {
-            ETRACE("failed to add mapper");
-            goto add_err;
         }
     } else {
         VTRACE("got mapper in saved data buffers");
         mapper = mDataBuffers.valueAt(index);
     }
 
-    // unmap and remove the oldest buffer
-    if (mRingBuffers.size() == MIN_DATA_BUFFER_COUNT) {
-        BufferMapper *temp = mRingBuffers.itemAt(0);
-        bm->unmap(*temp);
-        mRingBuffers.removeAt(0);
-    }
-
-    // cache the latest buffer
-    mapper->incRef();
-    mRingBuffers.push(mapper);
-
     // put buffer after getting mapper
     bm->put(*buffer);
 
     ret = setDataBuffer(*mapper);
-    if (ret)
+    if (ret) {
         mCurrentDataBuffer = handle;
-    return ret;
-add_err:
-    bm->unmap(*mapper);
-mapper_err:
-    bm->put(*buffer);
+        // update active buffers
+        updateActiveBuffers(mapper);
+    }
+    return true;;
+}
+
+BufferMapper* DisplayPlane::mapBuffer(DataBuffer *buffer)
+{
+    BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
+    BufferMapper *mapper = bm->map(*buffer);
+    if (!mapper) {
+        ETRACE("failed to map buffer");
+        return NULL;
+    }
+
+    // add it to data buffers
+    ssize_t index = mDataBuffers.add(buffer->getKey(), mapper);
+    if (index < 0) {
+        ETRACE("failed to add mapper");
+        bm->unmap(*mapper);
+        return NULL;
+    }
+
+    return mapper;
+}
+
+bool DisplayPlane::isActiveBuffer(BufferMapper *mapper)
+{
+    for (size_t i = 0; i < mActiveBuffers.size(); i++) {
+        BufferMapper *activeMapper = mActiveBuffers.itemAt(i);
+        if (!activeMapper)
+            continue;
+        if (activeMapper->getKey() == mapper->getKey())
+            return true;
+    }
+
     return false;
+}
+
+void DisplayPlane::updateActiveBuffers(BufferMapper *mapper)
+{
+    BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
+
+    // unmap the first entry (oldest buffer)
+    if (mActiveBuffers.size() >= MIN_DATA_BUFFER_COUNT) {
+        BufferMapper *oldest = mActiveBuffers.itemAt(0);
+        bm->unmap(*oldest);
+        mActiveBuffers.removeAt(0);
+    }
+
+    // queue it to active buffers
+    if (!isActiveBuffer(mapper)) {
+        mapper->incRef();
+        mActiveBuffers.push_back(mapper);
+    }
+}
+
+void DisplayPlane::invalidateActiveBuffers()
+{
+    BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
+    BufferMapper* mapper;
+
+    RETURN_VOID_IF_NOT_INIT();
+
+    VTRACE("invalidating active buffers");
+
+    for (size_t i = 0; i < mActiveBuffers.size(); i++) {
+        mapper = mActiveBuffers.itemAt(i);
+        // unmap it
+        bm->unmap(*mapper);
+    }
+
+    // clear recorded data buffers
+    mActiveBuffers.clear();
 }
 
 void DisplayPlane::invalidateBufferCache()
 {
-    RETURN_VOID_IF_NOT_INIT();
-
-    invalidateDataBuffers();
-
-    // clean up ring buffers
-    BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
-    for (size_t i = 0; i < mRingBuffers.size(); i++) {
-       BufferMapper *mapper = mRingBuffers.itemAt(i);
-        if (mapper)
-            bm->unmap(*mapper);
-    }
-    mRingBuffers.clear();
-}
-
-void DisplayPlane::invalidateDataBuffers()
-{
     BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
     BufferMapper* mapper;
+
+    RETURN_VOID_IF_NOT_INIT();
 
     for (size_t i = 0; i < mDataBuffers.size(); i++) {
         mapper = mDataBuffers.valueAt(i);
@@ -301,9 +328,7 @@ void DisplayPlane::invalidateDataBuffers()
             bm->unmap(*mapper);
     }
 
-    // clear recorded data buffers
     mDataBuffers.clear();
-
     // reset current buffer
     mCurrentDataBuffer = 0;
 }
@@ -326,6 +351,20 @@ bool DisplayPlane::flip(void *ctx)
         return false;
     else
         return true;
+}
+
+bool DisplayPlane::reset()
+{
+    // reclaim all allocated resources
+    if (mDataBuffers.size() > 0) {
+        invalidateBufferCache();
+    }
+
+    if (mActiveBuffers.size() > 0) {
+        invalidateActiveBuffers();
+    }
+
+    return true;
 }
 
 } // namespace intel

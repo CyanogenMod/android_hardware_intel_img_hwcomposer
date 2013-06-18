@@ -38,7 +38,7 @@ public:
     PlatfDisplayPlaneManager();
     ~PlatfDisplayPlaneManager();
 protected:
-    void detect();
+    bool detect(int&spriteCount, int& overlayCount, int& primaryCount);
     DisplayPlane* allocPlane(int index, int type);
 };
 

@@ -45,20 +45,17 @@ PlatfDisplayPlaneManager::~PlatfDisplayPlaneManager()
 
 }
 
-void PlatfDisplayPlaneManager::detect()
+bool PlatfDisplayPlaneManager::detect(int&spriteCount,
+                                           int& overlayCount,
+                                           int& primaryCount)
 {
     CTRACE();
 
-    mSpritePlaneCount = 1;
-    mPrimaryPlaneCount = 3;
-    mOverlayPlaneCount = 2;
-    mTotalPlaneCount = mSpritePlaneCount + mPrimaryPlaneCount + mOverlayPlaneCount;
+    spriteCount = 1;
+    overlayCount = 2;
+    primaryCount = 3;
 
-    mFreeSpritePlanes = 0x1;
-    // plane A, B & C
-    mFreePrimaryPlanes = 0x7;
-    // both overlay A & C
-    mFreeOverlayPlanes = 0x3;
+    return true;
 }
 
 DisplayPlane* PlatfDisplayPlaneManager::allocPlane(int index, int type)
