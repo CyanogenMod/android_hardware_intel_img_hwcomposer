@@ -212,8 +212,13 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
         VTRACE("unmapped buffer, mapping...");
         mapper = bm->map(*buffer);
         if (!mapper) {
-            ETRACE("failed to map buffer");
-            goto mapper_err;
+            ETRACE("failed to map buffer, invalidate buffer cache and map again!");
+            invalidateBufferCache();
+            mapper = bm->map(*buffer);
+            if (!mapper) {
+                ETRACE("failed to map buffer");
+                goto mapper_err;
+            }
         }
 
         if ((int)mDataBuffers.size() == mDataBuffersCap) {
