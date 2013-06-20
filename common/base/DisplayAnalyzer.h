@@ -46,6 +46,7 @@ public:
     void analyzeContents(size_t numDisplays, hwc_display_contents_1_t** displays);
     bool checkVideoExtendedMode();
     bool isVideoLayer(hwc_layer_1_t &layer);
+    bool isVideoEmbedded(hwc_layer_1_t &layer);
     bool blankSecondaryDevice(bool blank);
 
 private:
