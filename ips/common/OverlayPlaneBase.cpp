@@ -230,7 +230,7 @@ OverlayBackBuffer* OverlayPlaneBase::createBackBuffer()
     void *wsbmBufferObject = 0;
     bool ret = mWsbm->allocateTTMBuffer(size, alignment, &wsbmBufferObject);
     if (ret == false) {
-        ETRACE("failed to allocate buffer");
+        ETRACE("failed to allocate TTM buffer");
         return 0;
     }
 
@@ -254,7 +254,7 @@ void OverlayPlaneBase::deleteBackBuffer()
     void *wsbmBufferObject = (void *)mBackBuffer->bufObject;
     bool ret = mWsbm->destroyTTMBuffer(wsbmBufferObject);
     if (ret == false) {
-        WTRACE("failed to delete back buffer");
+        WTRACE("failed to destroy TTM buffer");
     }
     // free back buffer
     free(mBackBuffer);

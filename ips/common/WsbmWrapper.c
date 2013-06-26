@@ -226,6 +226,51 @@ int psbWsbmWrapTTMBuffer(uint32_t handle, void **buf)
     return 0;
 }
 
+int psbWsbmWrapTTMBuffer2(uint32_t handle, void **buf)
+{
+    int ret = 0;
+    struct _WsbmBufferObject *wsbmBuf;
+
+    if (!buf) {
+        ETRACE("invalid parameter");
+        return -EINVAL;
+    }
+
+    ret = wsbmGenBuffers(mainPool, 1, &wsbmBuf, 4096,
+            (WSBM_PL_FLAG_SHARED | DRM_PSB_FLAG_MEM_MMU | WSBM_PL_FLAG_UNCACHED));
+
+    if (ret) {
+        ETRACE("wsbmGenBuffers failed with error code %d", ret);
+        return ret;
+    }
+
+    *buf = (void *)wsbmBuf;
+
+    VTRACE("wrap buffer %p for handle %#x", wsbmBuf, handle);
+    return 0;
+}
+
+
+int psbWsbmCreateFromUB(void *buf, uint32_t size, void *vaddr)
+{
+    int ret = 0;
+    struct _WsbmBufferObject *wsbmBuf;
+
+    if (!buf || !vaddr) {
+        ETRACE("invalid parameter");
+        return -EINVAL;
+    }
+
+    wsbmBuf = (struct _WsbmBufferObject *)buf;
+    ret = wsbmBODataUB(wsbmBuf, size, NULL, NULL, 0, vaddr);
+    if (ret) {
+        ETRACE("wsbmBODataUB failed with error code %d", ret);
+        return ret;
+    }
+
+    return 0;
+}
+
 int psbWsbmUnReference(void *buf)
 {
     struct _WsbmBufferObject *wsbmBuf;

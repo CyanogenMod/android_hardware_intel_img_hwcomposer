@@ -31,6 +31,7 @@
 #include <HotplugEventObserver.h>
 #include <PhysicalDevice.h>
 #include <IHdcpControl.h>
+#include <SimpleThread.h>
 
 namespace android {
 namespace intel {
@@ -44,6 +45,7 @@ public:
 public:
     virtual bool initialize();
     virtual void deinitialize();
+    virtual bool setDrmMode(drmModeModeInfo& value);
 
 protected:
     virtual void onHotplug();
@@ -51,6 +53,7 @@ protected:
 private:
     static void HdcpLinkStatusListener(bool success, void *userData);
     void HdcpLinkStatusListener(bool success);
+    void setDrmMode();
 
 protected:
     virtual IHotplugControl* createHotplugControl() = 0;
@@ -62,7 +65,12 @@ protected:
     friend class HotplugEventObserver;
 
 private:
+    Condition mAbortModeSettingCond;
+    drmModeModeInfo mPendingDrmMode;
     bool mHotplugEventPending;
+
+private:
+    DECLARE_THREAD(ModeSettingThread, ExternalDevice);
 };
 
 }

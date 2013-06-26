@@ -38,6 +38,8 @@ ExternalDevice::ExternalDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
     : PhysicalDevice(DEVICE_EXTERNAL, hwc, dpm),
       mHdcpControl(NULL),
       mHotplugObserver(NULL),
+      mAbortModeSettingCond(),
+      mPendingDrmMode(),
       mHotplugEventPending(false)
 {
     CTRACE();
@@ -74,7 +76,15 @@ bool ExternalDevice::initialize()
 
 void ExternalDevice::deinitialize()
 {
+    // abort mode settings if it is in the middle
+    mAbortModeSettingCond.signal();
+    if (mThread.get()) {
+        mThread->join();
+        mThread = NULL;
+    }
+
     DEINIT_AND_DELETE_OBJ(mHotplugObserver);
+
     if (mHdcpControl) {
         mHdcpControl->stopHdcp();
         delete mHdcpControl;
@@ -83,6 +93,88 @@ void ExternalDevice::deinitialize()
 
     mHotplugEventPending = false;
     PhysicalDevice::deinitialize();
+}
+
+bool ExternalDevice::setDrmMode(drmModeModeInfo& value)
+{
+    if (!mConnected) {
+        WTRACE("external device is not connected");
+        return false;
+    }
+
+    if (mThread.get()) {
+        mThread->join();
+        mThread = NULL;
+    }
+
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+    drmModeModeInfo mode;
+    drm->getModeInfo(mType, mode);
+    if (mode.hdisplay == value.hdisplay &&
+        mode.vdisplay == value.vdisplay &&
+        mode.vrefresh == value.vrefresh &&
+        (mode.flags & value.flags) == value.flags) {
+        ITRACE("Drm mode is not changed");
+        return true;
+    }
+
+    // any issue here by faking connection status?
+    mConnected = false;
+    mPendingDrmMode = value;
+
+    // setting mode in a working thread
+    mThread = new ModeSettingThread(this);
+    if (!mThread.get()) {
+        ETRACE("failed to create mode settings thread");
+        return false;
+    }
+
+    mThread->run("ModeSettingsThread", PRIORITY_URGENT_DISPLAY);
+    return true;
+}
+
+bool ExternalDevice::threadLoop()
+{
+    // one-time execution
+    setDrmMode();
+    return false;
+}
+
+void ExternalDevice::setDrmMode()
+{
+    ITRACE("start mode setting...");
+
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+
+    mConnected = false;
+    mHwc.hotplug(mType, false);
+
+    {
+        Mutex::Autolock lock(mLock);
+        // TODO: make timeout value flexible, or wait until surface flinger
+        // acknowledges hot unplug event.
+        status_t err = mAbortModeSettingCond.waitRelative(mLock, milliseconds(20));
+        if (err != -ETIMEDOUT) {
+            ITRACE("Mode settings is interrupted");
+            return;
+        }
+    }
+
+    // TODO: potential threading issue with onHotplug callback
+    mHdcpControl->stopHdcp();
+    if (!drm->setDrmMode(mType, mPendingDrmMode)) {
+        ETRACE("failed to set Drm mode");
+        return;
+    }
+
+    if (!PhysicalDevice::updateDisplayConfigs()) {
+        ETRACE("failed to update display configs");
+        return;
+    }
+    mConnected = true;
+    mHotplugEventPending = true;
+    // delay sending hotplug event until HDCP is authenticated
+    mHdcpControl->startHdcpAsync(HdcpLinkStatusListener, this);
 }
 
 
@@ -115,6 +207,9 @@ void ExternalDevice::onHotplug()
     bool ret;
 
     CTRACE();
+
+    // abort mode settings if it is in the middle
+    mAbortModeSettingCond.signal();
 
     // detect display configs
     ret = detectDisplayConfigs();

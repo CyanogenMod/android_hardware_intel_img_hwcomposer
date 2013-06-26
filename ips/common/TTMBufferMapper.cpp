@@ -100,6 +100,7 @@ bool TTMBufferMapper::unmap()
     mGttOffsetInPage = 0;
     mCpuAddress = 0;
     mSize = 0;
+    mBufferObject = 0;
     return true;
 }
 

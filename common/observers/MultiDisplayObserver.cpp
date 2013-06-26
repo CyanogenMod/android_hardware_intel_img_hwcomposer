@@ -30,6 +30,7 @@
 #include <binder/IServiceManager.h>
 #include <Hwcomposer.h>
 #include <DisplayAnalyzer.h>
+#include <ExternalDevice.h>
 #endif
 
 #include <MultiDisplayObserver.h>
@@ -72,6 +73,7 @@ status_t MultiDisplayCallback::setVideoState(int sessionNum, int sessionId, MDS_
 status_t MultiDisplayCallback::setDisplayTiming(
         MDS_DISPLAY_ID dpyId, MDSDisplayTiming *timing)
 {
+    mDispObserver->setDisplayTiming(dpyId, timing);
     return NO_ERROR;
 }
 
@@ -101,10 +103,10 @@ status_t MultiDisplayCallback::setOverscan(
 MultiDisplayObserver::MultiDisplayObserver()
     : mMDSClient(NULL),
       mMDSCallback(),
-      mThread(),
       mLock(),
       mCondition(),
       mThreadLoopCount(0),
+      mDeviceConnected(false),
       mInitialized(false)
 {
     CTRACE();
@@ -155,6 +157,8 @@ bool MultiDisplayObserver::initMDSClient()
         return false;
     }
 
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+    mDeviceConnected = drm->isConnected(IDisplayDevice::DEVICE_EXTERNAL);
     ITRACE("MDS client is initialized");
     return true;
 }
@@ -170,24 +174,25 @@ void MultiDisplayObserver::deinitMDSClient()
         mMDSClient = NULL;
     }
 
+    mDeviceConnected = false;
     mMDSCallback = NULL;
 }
 
-bool MultiDisplayObserver::startInnerThread()
+bool MultiDisplayObserver::initMDSClientAsync()
 {
     if (mThread.get()) {
-        WTRACE("inner thread was already created.");
+        WTRACE("working thread has been already created.");
         return true;
     }
 
-    mThread = new MultiDisplayObserverThread(this);
+    mThread = new MDSClientInitThread(this);
     if (mThread.get() == NULL) {
-        ETRACE("failed to create multi display observer thread");
+        ETRACE("failed to create MDS client init thread");
         return false;
     }
     mThreadLoopCount = 0;
     // TODO: check return value
-    mThread->run("MultiDisplayObserverThread", PRIORITY_URGENT_DISPLAY);
+    mThread->run("MDSClientInitThread", PRIORITY_URGENT_DISPLAY);
     return true;
 }
 
@@ -209,11 +214,11 @@ bool MultiDisplayObserver::initialize()
         if (!initMDSClient()) {
             ETRACE("failed to initialize MDS client");
             // FIXME: NOT a common case for system server crash.
-            // Start the inner thread if encounter exceptions.
-            ret = startInnerThread();
+            // Start a working thread to initialize MDS client if exception happens
+            ret = initMDSClientAsync();
         }
     } else {
-        ret = startInnerThread();
+        ret = initMDSClientAsync();
     }
 
     mInitialized = true;
@@ -222,7 +227,7 @@ bool MultiDisplayObserver::initialize()
 
 void MultiDisplayObserver::deinitialize()
 {
-    sp<MultiDisplayObserverThread> detachedThread;
+    sp<MDSClientInitThread> detachedThread;
     do {
         Mutex::Autolock _l(mLock);
 
@@ -242,16 +247,18 @@ void MultiDisplayObserver::deinitialize()
     }
 }
 
-status_t MultiDisplayObserver::notifyHotPlug(int disp, int connected)
+status_t MultiDisplayObserver::notifyHotPlug(int disp, bool connected)
 {
     Mutex::Autolock _l(mLock);
     if (!mMDSClient) {
         return NO_INIT;
     }
 
-    return mMDSClient->notifyHotPlug(
-            (MDS_DISPLAY_ID)disp,
-            (connected == 1) ? true : false);
+    if (connected == mDeviceConnected)
+        return NO_ERROR;
+
+    mDeviceConnected = connected;
+    return mMDSClient->notifyHotPlug((MDS_DISPLAY_ID)disp, connected);
 }
 
 bool MultiDisplayObserver::threadLoop()
@@ -315,6 +322,29 @@ status_t MultiDisplayObserver::getVideoSourceInfo(int sessionID, MDSVideoSourceI
         ITRACE("Video Session[%d] source info: %dx%d@%d", sessionID,
                 info->displayW, info->displayH, info->frameRate);
     return ret;
+}
+
+status_t MultiDisplayObserver::setDisplayTiming(
+        MDS_DISPLAY_ID dpyId, MDSDisplayTiming *timing)
+{
+    if ((int)dpyId != (int)IDisplayDevice::DEVICE_EXTERNAL) {
+        ETRACE("invalid display id %d", dpyId);
+        return INVALID_OPERATION;
+    }
+
+    drmModeModeInfo mode;
+    mode.hdisplay = timing->width;
+    mode.vdisplay = timing->height;
+    mode.vrefresh = timing->refresh;
+    // TODO: interlace needs to be replaced by flags
+    mode.flags = timing->interlace ? DRM_MODE_FLAG_INTERLACE : 0;
+    ITRACE("timing to set: %dx%d@%dHz", timing->width, timing->height, timing->refresh);
+    ExternalDevice *dev =
+        (ExternalDevice *)Hwcomposer::getInstance().getDisplayDevice(dpyId);
+    if (dev) {
+        dev->setDrmMode(mode);
+    }
+    return 0;
 }
 
 #endif //TARGET_HAS_MULTIPLE_DISPLAY

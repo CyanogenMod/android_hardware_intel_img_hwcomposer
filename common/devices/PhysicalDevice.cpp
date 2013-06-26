@@ -197,8 +197,10 @@ bool PhysicalDevice::getDisplayConfigs(uint32_t *configs,
 
     Mutex::Autolock _l(mLock);
 
-    if (!mConnected)
+    if (!mConnected) {
+        ITRACE("device is not connected");
         return false;
+    }
 
     if (!configs || !numConfigs) {
         ETRACE("invalid parameters");
@@ -219,8 +221,10 @@ bool PhysicalDevice::getDisplayAttributes(uint32_t configs,
 
     Mutex::Autolock _l(mLock);
 
-    if (!mConnected)
+    if (!mConnected) {
+        ITRACE("device is not connected");
         return false;
+    }
 
     if (!attributes || !values) {
         ETRACE("invalid parameters");
@@ -281,20 +285,23 @@ void PhysicalDevice::removeDisplayConfigs()
 
 bool PhysicalDevice::detectDisplayConfigs()
 {
-    bool ret;
-    Drm *drm = Hwcomposer::getInstance().getDrm();
-
     Mutex::Autolock _l(mLock);
 
-    // reset display configs
-    removeDisplayConfigs();
-
-    // detect
-    ret = drm->detect(mType);
-    if (!ret) {
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+    if (!drm->detect(mType)) {
         ETRACE("drm detection on device %d failed ", mType);
         return false;
     }
+    return updateDisplayConfigs();
+}
+
+bool PhysicalDevice::updateDisplayConfigs()
+{
+    bool ret;
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+
+    // reset display configs
+    removeDisplayConfigs();
 
     // update device connection status
     mConnected = drm->isConnected(mType);

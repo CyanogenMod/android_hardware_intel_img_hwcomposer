@@ -243,7 +243,7 @@ uint32_t BufferManager::allocFrameBuffer(int width, int height, int *stride)
             width,
             height,
             DrmConfig::getFrameBufferFormat(),
-            0,  // GRALLOC_USAGE_HW_FB
+            0, // GRALLOC_USAGE_HW_FB
             (buffer_handle_t *)&handle,
             stride);
 

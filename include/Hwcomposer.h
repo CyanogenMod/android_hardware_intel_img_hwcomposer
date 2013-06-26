@@ -85,6 +85,7 @@ public:
     DisplayAnalyzer* getDisplayAnalyzer();
     VsyncManager* getVsyncManager();
     MultiDisplayObserver* getMultiDisplayObserver();
+    IDisplayDevice* getDisplayDevice(int disp);
 
 protected:
     Hwcomposer();

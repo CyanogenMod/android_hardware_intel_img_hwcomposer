@@ -41,7 +41,6 @@ HdcpControl::HdcpControl()
       mMutex(),
       mStoppedCondition(),
       mCompletedCondition(),
-      mThread(),
       mWaitForCompletion(false),
       mStopped(true),
       mAuthenticated(false),

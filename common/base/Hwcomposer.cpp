@@ -249,11 +249,14 @@ void Hwcomposer::hotplug(int disp, bool connected)
 {
     RETURN_VOID_IF_NOT_INIT();
 
-    mMultiDisplayObserver->notifyHotPlug(disp, connected);
+    // TODO: Two fake hotplug events are sent during mode setting. To avoid
+    // unnecessary audio switch, real connection status should be sent to MDS
+    mMultiDisplayObserver->notifyHotPlug(disp, mDrm->isConnected(disp));
 
     if (mProcs && mProcs->hotplug) {
-        VTRACE("report hotplug on disp %d, connected %d", disp, connected);
+        ITRACE("report hotplug on disp %d, connected %d", disp, connected);
         mProcs->hotplug(const_cast<hwc_procs_t*>(mProcs), disp, connected);
+        ITRACE("hotplug callback processed and returned!");
     }
 
     mDisplayAnalyzer->postHotplugEvent(connected);
@@ -418,6 +421,15 @@ DisplayAnalyzer* Hwcomposer::getDisplayAnalyzer()
 MultiDisplayObserver* Hwcomposer::getMultiDisplayObserver()
 {
     return mMultiDisplayObserver;
+}
+
+IDisplayDevice* Hwcomposer::getDisplayDevice(int disp)
+{
+    if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
+        ETRACE("invalid disp %d", disp);
+        return NULL;
+    }
+    return mDisplayDevices.itemAt(disp);
 }
 
 VsyncManager* Hwcomposer::getVsyncManager()

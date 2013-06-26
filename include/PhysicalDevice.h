@@ -81,7 +81,7 @@ public:
 
 protected:
     void onGeometryChanged(hwc_display_contents_1_t *list);
-
+    bool updateDisplayConfigs();
     virtual IVsyncControl* createVsyncControl() = 0;
     virtual IBlankControl* createBlankControl() = 0;
     virtual IPrepareListener* createPrepareListener() = 0;

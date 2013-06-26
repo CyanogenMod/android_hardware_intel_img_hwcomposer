@@ -25,36 +25,26 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef HOTPLUGEVENTOBSERVER_H_
-#define HOTPLUGEVENTOBSERVER_H_
 
-#include <IHotplugControl.h>
-#include <SimpleThread.h>
+#ifndef SIMPLE_THREAD_H
+#define SIMPLE_THREAD_H
 
-namespace android {
-namespace intel {
+#include <utils/threads.h>
 
-class ExternalDevice;
+#define DECLARE_THREAD(THREADNAME, THREADOWNER) \
+    class THREADNAME: public Thread { \
+    public: \
+        THREADNAME(THREADOWNER *owner) { mOwner = owner; } \
+        THREADNAME() { mOwner = NULL; } \
+    private: \
+        virtual bool threadLoop() { return mOwner->threadLoop(); } \
+    private: \
+        THREADOWNER *mOwner; \
+    }; \
+    friend class THREADNAME; \
+    bool threadLoop(); \
+    sp<THREADNAME> mThread;
 
-class HotplugEventObserver
-{
-public:
-    HotplugEventObserver(ExternalDevice& disp);
-    virtual ~HotplugEventObserver();
-    virtual bool initialize();
-    virtual void deinitialize();
 
-private:
-    ExternalDevice& mDisplayDevice;
-    IHotplugControl *mHotplugControl;
-    bool mExitThread;
-    bool mInitialized;
+#endif /* SIMPLE_THREAD_H */
 
-private:
-    DECLARE_THREAD(HotplugEventPollThread, HotplugEventObserver);
-
-}; // HotplugEventObserver
-}
-}
-
-#endif /* HOTPLUGEVENTOBSERVER_H_ */

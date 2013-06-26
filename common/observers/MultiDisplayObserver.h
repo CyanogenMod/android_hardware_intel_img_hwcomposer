@@ -33,7 +33,7 @@
 #include <display/IMultiDisplayListener.h>
 #include <display/MultiDisplayType.h>
 #include <display/MultiDisplayClient.h>
-#include <utils/threads.h>
+#include <SimpleThread.h>
 #endif
 
 namespace android {
@@ -69,40 +69,17 @@ public:
 public:
     bool initialize();
     void deinitialize();
-    status_t notifyHotPlug(int disp, int connected);
+    status_t notifyHotPlug(int disp, bool connected);
     status_t getVideoSourceInfo(int sessionID, MDSVideoSourceInfo* info);
 
 private:
-    class MultiDisplayObserverThread : public Thread {
-     public:
-         MultiDisplayObserverThread(MultiDisplayObserver *owner) {
-             mOwner = owner;
-         }
-         ~MultiDisplayObserverThread() {
-             mOwner = NULL;
-          }
-
-     private:
-         virtual bool threadLoop() {
-             return mOwner->threadLoop();
-         }
-
-     private:
-         MultiDisplayObserver *mOwner;
-     };
-
-     friend class MultiDisplayObserverThread;
-
-private:
-     bool threadLoop();
      bool isMDSRunning();
      bool initMDSClient();
+     bool initMDSClientAsync();
      void deinitMDSClient();
-     bool startInnerThread();
-
-private:
     status_t setPhoneState(MDS_PHONE_STATE state);
     status_t setVideoState(MDS_VIDEO_STATE state);
+    status_t setDisplayTiming(MDS_DISPLAY_ID dpyId, MDSDisplayTiming *timing);
     friend class MultiDisplayCallback;
 
 private:
@@ -114,11 +91,14 @@ private:
 private:
     MultiDisplayClient *mMDSClient;
     sp<MultiDisplayCallback> mMDSCallback;
-    sp<MultiDisplayObserverThread> mThread;
     mutable Mutex mLock;
     Condition mCondition;
     int mThreadLoopCount;
+    bool mDeviceConnected;
     bool mInitialized;
+
+private:
+    DECLARE_THREAD(MDSClientInitThread, MultiDisplayObserver);
 };
 
 #else
@@ -131,7 +111,7 @@ public:
 
     bool initialize() { return true; }
     void deinitialize() {}
-    status_t notifyHotPlug(int disp, int connected) { return NO_ERROR; }
+    status_t notifyHotPlug(int disp, bool connected) { return NO_ERROR; }
 };
 
 #endif //TARGET_HAS_MULTIPLE_DISPLAY

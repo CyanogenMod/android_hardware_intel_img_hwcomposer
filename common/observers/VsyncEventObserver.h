@@ -28,7 +28,7 @@
 #ifndef __VSYNC_EVENT_OBSERVER_H__
 #define __VSYNC_EVENT_OBSERVER_H__
 
-#include <utils/threads.h>
+#include <SimpleThread.h>
 #include <IVsyncControl.h>
 
 namespace android {
@@ -47,37 +47,17 @@ public:
     bool control(bool enabled);
 
 private:
-    class WorkingThread: public Thread {
-    public:
-        WorkingThread(VsyncEventObserver *owner) {
-            mOwner = owner;
-        }
-        WorkingThread() {
-            mOwner = NULL;
-         }
-
-    private:
-        virtual bool threadLoop() {
-            return mOwner->threadLoop();
-        }
-
-    private:
-        VsyncEventObserver *mOwner;
-    };
-
-    friend class WorkingThread;
-    bool threadLoop();
-
-private:
     mutable Mutex mLock;
     Condition mCondition;
     PhysicalDevice& mDisplayDevice;
     IVsyncControl *mVsyncControl;
-    sp<WorkingThread> mThread;
     int  mDevice;
     bool mEnabled;
     bool mExitThread;
     bool mInitialized;
+
+private:
+    DECLARE_THREAD(VsyncEventPollThread, VsyncEventObserver);
 };
 
 } // namespace intel

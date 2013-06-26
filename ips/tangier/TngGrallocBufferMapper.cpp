@@ -29,6 +29,7 @@
 #include <Drm.h>
 #include <Hwcomposer.h>
 #include <tangier/TngGrallocBufferMapper.h>
+#include <common/WsbmWrapper.h>
 
 namespace android {
 namespace intel {
@@ -144,7 +145,7 @@ bool TngGrallocBufferMapper::map()
     }
 
     if (i == SUB_BUFFER_MAX) {
-        return true;
+        return mapKhandle();
     }
 
     // error handling
@@ -182,6 +183,29 @@ bool TngGrallocBufferMapper::unmap()
     }
     return err;
 }
+
+bool TngGrallocBufferMapper::mapKhandle()
+{
+    // TODO: this is a complete hack and temporary workaround
+    // need support from DDK to map khandle
+    void *wsbmBufferObject = 0;
+    int ret = psbWsbmWrapTTMBuffer2(mHandle, &wsbmBufferObject);
+    if (ret != 0) {
+        ETRACE("Wrap ttm buffer failed!");
+        return false;
+    }
+
+    ret = psbWsbmCreateFromUB(wsbmBufferObject, mWidth * mHeight, mCpuAddress[0]);
+    if (ret != 0) {
+        ETRACE("Creat from UB failed!");
+        return false;
+    }
+
+    mKHandle[0] = psbWsbmGetKBufHandle(wsbmBufferObject);
+    psbWsbmUnReference(wsbmBufferObject);
+    return true;
+}
+
 
 } // namespace intel
 } // namespace android
