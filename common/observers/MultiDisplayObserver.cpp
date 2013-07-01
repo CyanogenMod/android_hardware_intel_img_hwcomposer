@@ -60,7 +60,7 @@ status_t MultiDisplayCallback::setPhoneState(MDS_PHONE_STATE state)
     return NO_ERROR;
 }
 
-status_t MultiDisplayCallback::setVideoState(MDS_VIDEO_STATE state)
+status_t MultiDisplayCallback::setVideoState(int sessionNum, int sessionId, MDS_VIDEO_STATE state)
 {
     mVideoState = state;
     // TODO: check why setVideoState is called multiple times during startup
@@ -300,6 +300,21 @@ status_t MultiDisplayObserver::setVideoState(MDS_VIDEO_STATE state)
     ITRACE("video state: preparing %d, playing %d", preparing, playing);
     Hwcomposer::getInstance().getDisplayAnalyzer()->postVideoEvent(preparing, playing);
     return 0;
+}
+
+status_t MultiDisplayObserver::getVideoSourceInfo(int sessionID, MDSVideoSourceInfo* info)
+{
+    Mutex::Autolock _l(mLock);
+    if (!mMDSClient) {
+        return NO_INIT;
+    }
+    if (info == NULL)
+        return UNKNOWN_ERROR;
+    status_t ret = mMDSClient->getVideoSourceInfo(sessionID, info);
+    if (ret == NO_ERROR)
+        ITRACE("Video Session[%d] source info: %dx%d@%d", sessionID,
+                info->displayW, info->displayH, info->frameRate);
+    return ret;
 }
 
 #endif //TARGET_HAS_MULTIPLE_DISPLAY
