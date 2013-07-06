@@ -40,6 +40,7 @@ DisplayPlane::DisplayPlane(int index, int type, int disp)
       mInitialized(false),
       mDataBuffers(),
       mActiveBuffers(),
+      mCacheCapacity(0),
       mIsProtectedBuffer(false),
       mTransform(PLANE_TRANSFORM_0),
       mCurrentDataBuffer(0),
@@ -66,7 +67,8 @@ bool DisplayPlane::initialize(uint32_t bufferCount)
 
     // create buffer cache, adding few extra slots as buffer rendering is async
     // buffer could still be queued in the display pipeline such that they
-    // can't be unmapped
+    // can't be unmapped]
+    mCacheCapacity = bufferCount;
     mDataBuffers.setCapacity(bufferCount);
     mActiveBuffers.setCapacity(MIN_DATA_BUFFER_COUNT);
     mInitialized = true;
@@ -249,6 +251,12 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
 BufferMapper* DisplayPlane::mapBuffer(DataBuffer *buffer)
 {
     BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
+
+    // don't map buffer if cache was full
+    if (mDataBuffers.size() >= mCacheCapacity) {
+        return NULL;
+    }
+
     BufferMapper *mapper = bm->map(*buffer);
     if (!mapper) {
         ETRACE("failed to map buffer");

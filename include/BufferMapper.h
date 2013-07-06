@@ -53,6 +53,11 @@ public:
         return mRefCount;
     }
 
+    int getRef() const
+    {
+        return mRefCount;
+    }
+
     // map the given buffer into both DC & CPU MMU
     virtual bool map() = 0;
     // unmap the give buffer from both DC & CPU MMU
