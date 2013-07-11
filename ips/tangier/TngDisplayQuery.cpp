@@ -60,6 +60,11 @@ int DisplayQuery::getOverlayLumaStrideAlignment(uint32_t format)
     }
 }
 
+uint32_t DisplayQuery::queryNV12Format()
+{
+    return HAL_PIXEL_FORMAT_NV12;
+}
+
 } // namespace intel
 } // namespace android
 

@@ -313,5 +313,40 @@ void BufferManager::freeFrameBuffer(uint32_t kHandle)
     mAllocDev->free(mAllocDev, (buffer_handle_t)handle);
 }
 
+uint32_t BufferManager::allocGrallocBuffer(uint32_t width, uint32_t height, uint32_t format, uint32_t usage)
+{
+    RETURN_NULL_IF_NOT_INIT();
+
+    if (!width || !height) {
+        ETRACE("invalid input parameter");
+        return 0;
+    }
+
+    ITRACE("size of graphic buffer to create: %dx%d", width, height);
+    uint32_t handle = 0;
+    int stride;
+    status_t err  = mAllocDev->alloc(
+                mAllocDev,
+                width,
+                height,
+                format,
+                usage,
+                (buffer_handle_t *)&handle,
+                &stride);
+    if (err != 0) {
+        ETRACE("failed to allocate gralloc buffer, error = %d", err);
+        return 0;
+    }
+
+    return handle;
+}
+
+void BufferManager::freeGrallocBuffer(uint32_t handle)
+{
+    RETURN_VOID_IF_NOT_INIT();
+    if (handle)
+        mAllocDev->free(mAllocDev, (buffer_handle_t)handle);
+}
+
 } // namespace intel
 } // namespace android

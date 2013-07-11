@@ -35,14 +35,16 @@
 #include <binder/IServiceManager.h>
 #include <binder/ProcessState.h>
 
+#define NUM_CSC_BUFFERS 4
+
 namespace android {
 namespace intel {
 
-VirtualDevice::CachedBuffer::CachedBuffer(BufferManager *mgr, buffer_handle_t handle)
+VirtualDevice::CachedBuffer::CachedBuffer(BufferManager *mgr, uint32_t handle)
     : manager(mgr),
       mapper(NULL)
 {
-    DataBuffer *buffer = manager->lockDataBuffer((uint32_t) handle);
+    DataBuffer *buffer = manager->lockDataBuffer(handle);
     mapper = manager->map(*buffer);
     manager->unlockDataBuffer(buffer);
 }
@@ -50,6 +52,46 @@ VirtualDevice::CachedBuffer::CachedBuffer(BufferManager *mgr, buffer_handle_t ha
 VirtualDevice::CachedBuffer::~CachedBuffer()
 {
     manager->unmap(mapper);
+}
+
+VirtualDevice::HeldCscBuffer::HeldCscBuffer(const sp<VirtualDevice>& vd, uint32_t grallocHandle)
+    : vd(vd),
+      handle(grallocHandle)
+{
+}
+
+VirtualDevice::HeldCscBuffer::~HeldCscBuffer()
+{
+    Mutex::Autolock _l(vd->mCscLock);
+    BufferManager* mgr = vd->mHwc.getBufferManager();
+    DataBuffer* dataBuf = mgr->lockDataBuffer(handle);
+    uint32_t bufWidth = dataBuf->getWidth();
+    uint32_t bufHeight = dataBuf->getHeight();
+    mgr->unlockDataBuffer(dataBuf);
+    if (bufWidth == vd->mCscWidth && bufHeight == vd->mCscHeight) {
+        VTRACE("Pushing back the handle %d to mAvailableCscBuffers", handle);
+        vd->mAvailableCscBuffers.push_back(handle);
+    } else {
+        VTRACE("Deleting the gralloc buffer associated with handle (%d)", handle);
+        mgr->freeGrallocBuffer(handle);
+        vd->mCscBuffersToCreate++;
+    }
+}
+
+VirtualDevice::HeldDecoderBuffer::HeldDecoderBuffer(const sp<VirtualDevice>& vd, const android::sp<CachedBuffer>& cachedBuffer)
+    : vd(vd),
+      cachedBuffer(cachedBuffer)
+{
+    if (!vd->mPayloadManager->setRenderStatus(cachedBuffer->mapper, true)) {
+        ETRACE("Failed to set render status");
+    }
+}
+
+VirtualDevice::HeldDecoderBuffer::~HeldDecoderBuffer()
+{
+    if (!vd->mPayloadManager->setRenderStatus(cachedBuffer->mapper, false)) {
+        ETRACE("Failed to set render status");
+    }
 }
 
 VirtualDevice::VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
@@ -65,15 +107,15 @@ VirtualDevice::~VirtualDevice()
     WARN_IF_NOT_DEINIT();
 }
 
-sp<VirtualDevice::CachedBuffer> VirtualDevice::getDisplayBuffer(buffer_handle_t handle)
+sp<VirtualDevice::CachedBuffer> VirtualDevice::getMappedBuffer(uint32_t handle)
 {
-    ssize_t index = mDisplayBufferCache.indexOfKey(handle);
+    ssize_t index = mMappedBufferCache.indexOfKey(handle);
     sp<CachedBuffer> cachedBuffer;
     if (index == NAME_NOT_FOUND) {
         cachedBuffer = new CachedBuffer(mHwc.getBufferManager(), handle);
-        mDisplayBufferCache.add(handle, cachedBuffer);
+        mMappedBufferCache.add(handle, cachedBuffer);
     } else {
-        cachedBuffer = mDisplayBufferCache[index];
+        cachedBuffer = mMappedBufferCache[index];
     }
     return cachedBuffer;
 }
@@ -106,6 +148,11 @@ status_t VirtualDevice::stop(bool isConnected)
     mNextConfig.policy.refresh = 60;
     mNextConfig.extendedModeEnabled = false;
     mNextConfig.forceNotify = false;
+    {
+        Mutex::Autolock _l(mCscLock);
+        mCscWidth = 0;
+        mCscHeight = 0;
+    }
     return NO_ERROR;
 }
 
@@ -117,10 +164,7 @@ status_t VirtualDevice::notifyBufferReturned(int khandle)
     if (index == NAME_NOT_FOUND) {
         ETRACE("Couldn't find returned khandle %x", khandle);
     } else {
-        sp<CachedBuffer> cachedBuffer = mHeldBuffers.valueAt(index);
-        if (!mPayloadManager->setRenderStatus(cachedBuffer->mapper, false)) {
-            ETRACE("Failed to set render status");
-        }
+        VTRACE("Removing heldBuffer associated with handle (%d)", khandle);
         mHeldBuffers.removeItemsAt(index, 1);
     }
     return NO_ERROR;
@@ -149,87 +193,63 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
         return true;
     }
 
+    mRenderTimestamp = systemTime();
     {
         Mutex::Autolock _l(mConfigLock);
         mCurrentConfig = mNextConfig;
         mNextConfig.forceNotify = false;
     }
 
-    buffer_handle_t videoFrame = NULL;
-    hwc_layer_1_t* videoLayer = NULL;
+    if (mCurrentConfig.typeChangeListener == NULL) {
+        //clear the buffer queues if any from the previous Widi session
+        mMappedBufferCache.clear();
+        {
+            Mutex::Autolock _l(mCscLock);
+            if (!mAvailableCscBuffers.empty()) {
+                for (List<uint32_t>::iterator i = mAvailableCscBuffers.begin(); i != mAvailableCscBuffers.end(); ++i) {
+                    VTRACE("Deleting the gralloc buffer associated with handle (%d)", (*i));
+                    mHwc.getBufferManager()->freeGrallocBuffer(*i);
+                }
+                mAvailableCscBuffers.clear();
+            }
+        }
+        return false;
+    }
+
+    // by default send the FRAMEBUFFER_TARGET layer (composited image)
+    mLayerToSend = display->numHwLayers-1;
+
+    DisplayAnalyzer *analyzer = mHwc.getDisplayAnalyzer();
+    if ((display->numHwLayers-1) == 1) {
+        hwc_layer_1_t& layer = display->hwLayers[0];
+        if (analyzer->isPresentationLayer(layer) && layer.transform == 0 && layer.blending == HWC_BLENDING_NONE) {
+            mLayerToSend = 0;
+            VTRACE("Layer (%d) is Presentation layer", mLayerToSend);
+        }
+    }
 
     if (mCurrentConfig.extendedModeEnabled) {
-        DisplayAnalyzer *analyzer = mHwc.getDisplayAnalyzer();
         if (analyzer->checkVideoExtendedMode()) {
             for (size_t i = 0; i < display->numHwLayers-1; i++) {
                 hwc_layer_1_t& layer = display->hwLayers[i];
                 if (analyzer->isVideoLayer(layer)) {
-                    videoFrame = layer.handle;
-                    videoLayer = &layer;
+                    VTRACE("Layer (%d) is extended video layer", mLayerToSend);
+                    mLayerToSend = i;
                     break;
                 }
             }
         }
     }
 
-    bool extActive = false;
-    if (mCurrentConfig.typeChangeListener != NULL) {
+    hwc_layer_1_t& streamingLayer = display->hwLayers[mLayerToSend];
+
+    // if we're streaming the target framebuffer, just notify widi stack and return
+    if (streamingLayer.compositionType == HWC_FRAMEBUFFER_TARGET) {
         FrameInfo frameInfo;
-
-        if (videoFrame != NULL) {
-            sp<CachedBuffer> cachedBuffer;
-            if ((cachedBuffer = getDisplayBuffer(videoFrame)) == NULL) {
-                ETRACE("Failed to map display buffer");
-            } else {
-                memset(&frameInfo, 0, sizeof(frameInfo));
-
-                IVideoPayloadManager::MetaData metadata;
-                if (mPayloadManager->getMetaData(cachedBuffer->mapper, &metadata)) {
-
-                    frameInfo.frameType = HWC_FRAMETYPE_VIDEO;
-                    frameInfo.bufferFormat = metadata.format;
-
-                    hwc_layer_1_t& layer = *videoLayer;
-                    if ((metadata.transform & HAL_TRANSFORM_ROT_90) == 0) {
-                        frameInfo.contentWidth = layer.sourceCrop.right - layer.sourceCrop.left;
-                        frameInfo.contentHeight = layer.sourceCrop.bottom - layer.sourceCrop.top;
-                    } else {
-                        frameInfo.contentWidth = layer.sourceCrop.bottom - layer.sourceCrop.top;
-                        frameInfo.contentHeight = layer.sourceCrop.right - layer.sourceCrop.left;
-                    }
-
-                    frameInfo.bufferWidth = metadata.width;
-                    frameInfo.bufferHeight = metadata.height;
-                    frameInfo.lumaUStride = metadata.lumaStride;
-                    frameInfo.chromaUStride = metadata.chromaUStride;
-                    frameInfo.chromaVStride = metadata.chromaVStride;
-
-                    // TODO: Need to get framerate from HWC when available (for now indicate default with zero)
-                    frameInfo.contentFrameRateN = 0;
-                    frameInfo.contentFrameRateD = 1;
-
-                    if (frameInfo.bufferFormat != 0 &&
-                            frameInfo.bufferWidth >= frameInfo.contentWidth &&
-                            frameInfo.bufferHeight >= frameInfo.contentHeight &&
-                            frameInfo.contentWidth > 0 && frameInfo.contentHeight > 0 &&
-                            frameInfo.lumaUStride > 0 &&
-                            frameInfo.chromaUStride > 0 && frameInfo.chromaVStride > 0) {
-                        extActive = true;
-                    } else {
-                        ITRACE("Payload cleared or inconsistent info, aborting extended mode");
-                    }
-                } else {
-                    ETRACE("Failed to get metadata");
-                }
-            }
-        }
-
-        if (!extActive) {
-            memset(&frameInfo, 0, sizeof(frameInfo));
-            frameInfo.frameType = HWC_FRAMETYPE_NOTHING;
-        }
-
-        if (mCurrentConfig.forceNotify || memcmp(&frameInfo, &mLastFrameInfo, sizeof(frameInfo)) != 0) {
+        memset(&frameInfo, 0, sizeof(frameInfo));
+        frameInfo.frameType = HWC_FRAMETYPE_NOTHING;
+        VTRACE("Clone mode");
+        if (mCurrentConfig.forceNotify || memcmp(&frameInfo, &mLastInputFrameInfo, sizeof(frameInfo)) != 0) {
             // something changed, notify type change listener
             mCurrentConfig.typeChangeListener->frameTypeChanged(frameInfo);
             mCurrentConfig.typeChangeListener->bufferInfoChanged(frameInfo);
@@ -237,61 +257,21 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
             mExtLastTimestamp = 0;
             mExtLastKhandle = 0;
 
-            if (frameInfo.frameType == HWC_FRAMETYPE_NOTHING) {
-                ITRACE("Clone mode");
-                mDisplayBufferCache.clear();
-            } else {
-                ITRACE("Extended mode: %dx%d in %dx%d @ %d fps",
-                      frameInfo.contentWidth, frameInfo.contentHeight,
-                      frameInfo.bufferWidth, frameInfo.bufferHeight,
-                      frameInfo.contentFrameRateN);
-            }
-            mLastFrameInfo = frameInfo;
+            mMappedBufferCache.clear();
+            mLastInputFrameInfo = frameInfo;
+            mLastOutputFrameInfo = frameInfo;
         }
+        return true;
     }
 
-    if (extActive) {
-        // tell surfaceflinger to not render the layers if we're
-        // in extended video mode
-        for (size_t i = 0; i < display->numHwLayers-1; i++) {
-            hwc_layer_1_t& layer = display->hwLayers[i];
-            if (layer.compositionType != HWC_BACKGROUND) {
-                layer.compositionType = HWC_OVERLAY;
-                layer.flags |= HWC_HINT_DISABLE_ANIMATION;
-            }
-        }
-
-        if (mCurrentConfig.frameListener != NULL) {
-            sp<CachedBuffer> cachedBuffer = getDisplayBuffer(videoFrame);
-            if (cachedBuffer == NULL) {
-                ETRACE("Failed to map display buffer");
-                return true;
-            }
-
-            IVideoPayloadManager::MetaData metadata;
-            if (mPayloadManager->getMetaData(cachedBuffer->mapper, &metadata)) {
-
-                if (metadata.timestamp == mExtLastTimestamp && metadata.kHandle == mExtLastKhandle)
-                    return true;
-
-                mExtLastTimestamp = metadata.timestamp;
-                mExtLastKhandle = metadata.kHandle;
-
-                status_t status = mCurrentConfig.frameListener->onFrameReady(
-                        metadata.kHandle, HWC_HANDLE_TYPE_KBUF, systemTime(), metadata.timestamp);
-                if (status == OK) {
-                    if (!mPayloadManager->setRenderStatus(cachedBuffer->mapper, true)) {
-                        ETRACE("Failed to set render status");
-                    }
-                    Mutex::Autolock _l(mHeldBuffersLock);
-                    mHeldBuffers.add(metadata.kHandle, cachedBuffer);
-                }
-            } else {
-                ETRACE("Failed to get metadata");
-            }
-        }
+    // if we're streaming one layer (extended mode or background mode), no need to composite
+    for (size_t i = 0; i < display->numHwLayers-1; i++) {
+        hwc_layer_1_t& layer = display->hwLayers[i];
+        layer.compositionType = HWC_OVERLAY;
+        layer.flags |= HWC_HINT_DISABLE_ANIMATION;
     }
 
+    sendToWidi(streamingLayer);
     return true;
 }
 
@@ -299,6 +279,183 @@ bool VirtualDevice::commit(hwc_display_contents_1_t *display, IDisplayContext *c
 {
     RETURN_FALSE_IF_NOT_INIT();
     return true;
+}
+
+void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer)
+{
+    uint32_t handle = (uint32_t)layer.handle;
+    if (handle == 0) {
+        ETRACE("layer has no handle set");
+        return;
+    }
+    HWCBufferHandleType handleType = HWC_HANDLE_TYPE_GRALLOC;
+    int64_t mediaTimestamp = -1;
+
+    sp<RefBase> heldBuffer;
+
+    FrameInfo inputFrameInfo;
+    memset(&inputFrameInfo, 0, sizeof(inputFrameInfo));
+    inputFrameInfo.frameType = HWC_FRAMETYPE_FRAME_BUFFER;
+    inputFrameInfo.contentWidth = layer.sourceCrop.right - layer.sourceCrop.left;
+    inputFrameInfo.contentHeight = layer.sourceCrop.bottom - layer.sourceCrop.top;
+    inputFrameInfo.contentFrameRateN = 60;
+    inputFrameInfo.contentFrameRateD = 1;
+
+    FrameInfo outputFrameInfo;
+    outputFrameInfo = inputFrameInfo;
+
+    if (mHwc.getDisplayAnalyzer()->isVideoLayer((hwc_layer_1_t&)layer)) {
+        sp<CachedBuffer> cachedBuffer;
+        if ((cachedBuffer = getMappedBuffer(handle)) == NULL) {
+            ETRACE("Failed to map display buffer");
+            return;
+        }
+
+        IVideoPayloadManager::MetaData metadata;
+        if (mPayloadManager->getMetaData(cachedBuffer->mapper, &metadata)) {
+            heldBuffer = new HeldDecoderBuffer(this, cachedBuffer);
+            mediaTimestamp = metadata.timestamp;
+
+            // TODO: Need to get framerate from HWC when available (for now indicate default with zero)
+            inputFrameInfo.contentFrameRateN = 0;
+            inputFrameInfo.contentFrameRateD = 1;
+
+            if (metadata.transform & HAL_TRANSFORM_ROT_90) {
+                inputFrameInfo.contentWidth = layer.sourceCrop.bottom - layer.sourceCrop.top;
+                inputFrameInfo.contentHeight = layer.sourceCrop.right - layer.sourceCrop.left;
+            }
+
+            outputFrameInfo = inputFrameInfo;
+            outputFrameInfo.bufferFormat = metadata.format;
+
+            handleType = HWC_HANDLE_TYPE_KBUF;
+            if (metadata.kHandle != 0) {
+                handle = metadata.kHandle;
+                outputFrameInfo.bufferWidth = metadata.width;
+                outputFrameInfo.bufferHeight = metadata.height;
+                outputFrameInfo.lumaUStride = metadata.lumaStride;
+                outputFrameInfo.chromaUStride = metadata.chromaUStride;
+                outputFrameInfo.chromaVStride = metadata.chromaVStride;
+            } else {
+                ETRACE("Couldn't get any khandle");
+                return;
+            }
+
+            if (outputFrameInfo.bufferFormat == 0 ||
+                outputFrameInfo.bufferWidth < outputFrameInfo.contentWidth ||
+                outputFrameInfo.bufferHeight < outputFrameInfo.contentHeight ||
+                outputFrameInfo.contentWidth <= 0 || outputFrameInfo.contentHeight <= 0 ||
+                outputFrameInfo.lumaUStride <= 0 ||
+                outputFrameInfo.chromaUStride <= 0 || outputFrameInfo.chromaVStride <= 0) {
+                ITRACE("Payload cleared or inconsistent info, not sending frame");
+                return;
+            }
+        } else {
+            ETRACE("Failed to get metadata");
+            return;
+        }
+    } else {
+        BufferManager* mgr = mHwc.getBufferManager();
+        uint32_t grallocHandle = 0;
+        {
+            Mutex::Autolock _l(mCscLock);
+            if (mCscWidth != mCurrentConfig.policy.scaledWidth || mCscHeight != mCurrentConfig.policy.scaledHeight) {
+                ITRACE("CSC buffers changing from %dx%d to %dx%d",
+                      mCscWidth, mCscHeight, mCurrentConfig.policy.scaledWidth, mCurrentConfig.policy.scaledHeight);
+                // iterate the list and call freeGraphicBuffer
+                for (List<uint32_t>::iterator i = mAvailableCscBuffers.begin(); i != mAvailableCscBuffers.end(); ++i) {
+                    VTRACE("Deleting the gralloc buffer associated with handle (%d)", (*i));
+                    mgr->freeGrallocBuffer(*i);
+                }
+                mAvailableCscBuffers.clear();
+                mCscWidth = mCurrentConfig.policy.scaledWidth;
+                mCscHeight = mCurrentConfig.policy.scaledHeight;
+                mCscBuffersToCreate = NUM_CSC_BUFFERS;
+            }
+
+            if (mAvailableCscBuffers.empty()) {
+                if (mCscBuffersToCreate <= 0) {
+                    WTRACE("Out of CSC buffers, dropping frame");
+                    return;
+                }
+                uint32_t bufHandle;
+                bufHandle = mgr->allocGrallocBuffer(mCurrentConfig.policy.scaledWidth,
+                                                    mCurrentConfig.policy.scaledHeight,
+                                                    DisplayQuery::queryNV12Format(),
+                                                    GRALLOC_USAGE_HW_VIDEO_ENCODER |
+                                                    GRALLOC_USAGE_HW_RENDER);
+                if (bufHandle == 0){
+                    ETRACE("failed to get gralloc buffer handle");
+                    return;
+                }
+                mCscBuffersToCreate--;
+                mAvailableCscBuffers.push_back(bufHandle);
+            }
+            grallocHandle = *mAvailableCscBuffers.begin();
+            mAvailableCscBuffers.erase(mAvailableCscBuffers.begin());
+        }
+        heldBuffer = new HeldCscBuffer(this, grallocHandle);
+        crop_t cropInfo;
+        cropInfo.w = mCurrentConfig.policy.scaledWidth;
+        cropInfo.h = mCurrentConfig.policy.scaledHeight;
+        cropInfo.x = 0;
+        cropInfo.y = 0;
+        if (!(mgr->convertRGBToNV12(handle, grallocHandle, cropInfo, 0))) {
+            ETRACE("color space conversion from RGB to NV12 failed");
+            return;
+        }
+        handle = grallocHandle;
+        outputFrameInfo.contentWidth = mCurrentConfig.policy.scaledWidth;
+        outputFrameInfo.contentHeight = mCurrentConfig.policy.scaledHeight;
+
+        DataBuffer* dataBuf = mgr->lockDataBuffer(handle);
+        outputFrameInfo.bufferWidth = dataBuf->getWidth();
+        outputFrameInfo.bufferHeight = dataBuf->getHeight();
+        outputFrameInfo.lumaUStride = dataBuf->getWidth();
+        outputFrameInfo.chromaUStride = dataBuf->getWidth();
+        outputFrameInfo.chromaVStride = dataBuf->getWidth();
+        mgr->unlockDataBuffer(dataBuf);
+    }
+
+    if (mCurrentConfig.forceNotify ||
+        memcmp(&inputFrameInfo, &mLastInputFrameInfo, sizeof(inputFrameInfo)) != 0) {
+        // something changed, notify type change listener
+        mCurrentConfig.typeChangeListener->frameTypeChanged(inputFrameInfo);
+        mLastInputFrameInfo = inputFrameInfo;
+    }
+
+    if (mCurrentConfig.policy.scaledWidth == 0 || mCurrentConfig.policy.scaledHeight == 0)
+        return;
+
+    if (mCurrentConfig.forceNotify ||
+        memcmp(&outputFrameInfo, &mLastOutputFrameInfo, sizeof(outputFrameInfo)) != 0) {
+        mCurrentConfig.typeChangeListener->bufferInfoChanged(outputFrameInfo);
+        mLastOutputFrameInfo = outputFrameInfo;
+
+        if (handleType == HWC_HANDLE_TYPE_GRALLOC)
+            mMappedBufferCache.clear();
+    }
+
+    if (handleType == HWC_HANDLE_TYPE_KBUF &&
+        handle == mExtLastKhandle && mediaTimestamp == mExtLastTimestamp) {
+        return;
+    }
+
+    {
+        Mutex::Autolock _l(mHeldBuffersLock);
+        //Add the heldbuffer to the vector before calling onFrameReady, so that the buffer will be removed
+        //from the vector properly even if the notifyBufferReturned call acquires mHeldBuffersLock first.
+        mHeldBuffers.add(handle, heldBuffer);
+    }
+    status_t result = mCurrentConfig.frameListener->onFrameReady((int32_t)handle, handleType, mRenderTimestamp, mediaTimestamp);
+    if (result != OK) {
+        Mutex::Autolock _l(mHeldBuffersLock);
+        mHeldBuffers.removeItem(handle);
+    }
+    if (handleType == HWC_HANDLE_TYPE_KBUF) {
+        mExtLastKhandle = handle;
+        mExtLastTimestamp = mediaTimestamp;
+    }
 }
 
 bool VirtualDevice::vsyncControl(bool enabled)
@@ -399,8 +556,14 @@ bool VirtualDevice::initialize()
     mNextConfig.extendedModeEnabled = false;
     mNextConfig.forceNotify = false;
     mCurrentConfig = mNextConfig;
+    mLayerToSend = 0;
 
-    memset(&mLastFrameInfo, 0, sizeof(mLastFrameInfo));
+    mCscBuffersToCreate = NUM_CSC_BUFFERS;
+    mCscWidth = 0;
+    mCscHeight = 0;
+
+    memset(&mLastInputFrameInfo, 0, sizeof(mLastInputFrameInfo));
+    memset(&mLastOutputFrameInfo, 0, sizeof(mLastOutputFrameInfo));
 
     mPayloadManager = createVideoPayloadManager();
     if (!mPayloadManager) {

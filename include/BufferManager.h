@@ -69,18 +69,23 @@ public:
     virtual uint32_t allocFrameBuffer(int width, int height, int *stride);
     virtual void freeFrameBuffer(uint32_t kHandle);
 
+    uint32_t allocGrallocBuffer(uint32_t width, uint32_t height, uint32_t format, uint32_t usage);
+    void freeGrallocBuffer(uint32_t handle);
+    virtual bool convertRGBToNV12(uint32_t rgbHandle, uint32_t yuvHandle,
+                                  crop_t& srcCrop, uint32_t async) = 0;
 protected:
     virtual DataBuffer* createDataBuffer(gralloc_module_t *module,
                                              uint32_t handle) = 0;
     virtual BufferMapper* createBufferMapper(gralloc_module_t *module,
                                                  DataBuffer& buffer) = 0;
+
+    gralloc_module_t *mGrallocModule;
 private:
     enum {
         // make the buffer pool large enough
         DEFAULT_BUFFER_POOL_SIZE = 128,
     };
 
-    gralloc_module_t *mGrallocModule;
     alloc_device_t *mAllocDev;
     KeyedVector<uint32_t, BufferMapper*> mFrameBuffers;
     BufferCache *mBufferPool;

@@ -70,5 +70,20 @@ BufferMapper* PlatfBufferManager::createBufferMapper(gralloc_module_t *module,
                                         buffer);
 }
 
+bool PlatfBufferManager::convertRGBToNV12(uint32_t rgbHandle, uint32_t yuvHandle,
+                                  crop_t& srcCrop, uint32_t async)
+
+{
+    IMG_gralloc_module_public_t *imgGrallocModule = (IMG_gralloc_module_public_t *) mGrallocModule;
+    if (imgGrallocModule->Blit(imgGrallocModule, (buffer_handle_t)rgbHandle,
+                                (buffer_handle_t)yuvHandle,
+                                srcCrop.w, srcCrop.h, srcCrop.x,
+                                srcCrop.y, async)) {
+        ETRACE("Blit failed");
+        return false;
+    }
+    return true;
+}
+
 } // namespace intel
 } // namespace android

@@ -54,6 +54,7 @@ public:
     void postHotplugEvent(bool connected);
     void postVideoEvent(int instances, int instanceID, bool preparing, bool playing);
     void postBlankEvent(bool blank);
+    bool isPresentationLayer(hwc_layer_1_t &layer);
 
 private:
     enum DisplayEventType {

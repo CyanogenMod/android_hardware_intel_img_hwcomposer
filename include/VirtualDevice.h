@@ -28,7 +28,6 @@
 #ifndef VIRTUAL_DEVICE_H
 #define VIRTUAL_DEVICE_H
 
-
 #include <IDisplayDevice.h>
 #include "IFrameServer.h"
 
@@ -42,10 +41,22 @@ class IVideoPayloadManager;
 class VirtualDevice : public IDisplayDevice, public BnFrameServer {
 protected:
     struct CachedBuffer : public android::RefBase {
-        CachedBuffer(BufferManager *mgr, buffer_handle_t handle);
+        CachedBuffer(BufferManager *mgr, uint32_t handle);
         ~CachedBuffer();
         BufferManager *manager;
         BufferMapper *mapper;
+    };
+    struct HeldCscBuffer : public android::RefBase {
+        HeldCscBuffer(const android::sp<VirtualDevice>& vd, uint32_t handle);
+        virtual ~HeldCscBuffer();
+        android::sp<VirtualDevice> vd;
+        uint32_t handle;
+    };
+    struct HeldDecoderBuffer : public android::RefBase {
+        HeldDecoderBuffer(const sp<VirtualDevice>& vd, const android::sp<CachedBuffer>& cachedBuffer);
+        virtual ~HeldDecoderBuffer();
+        android::sp<VirtualDevice> vd;
+        android::sp<CachedBuffer> cachedBuffer;
     };
     struct Configuration {
         sp<IFrameTypeChangeListener> typeChangeListener;
@@ -57,19 +68,30 @@ protected:
     Mutex mConfigLock;
     Configuration mCurrentConfig;
     Configuration mNextConfig;
+    size_t mLayerToSend;
 
     uint32_t mExtLastKhandle;
     int64_t mExtLastTimestamp;
 
-    Mutex mListenerLock;
-    FrameInfo mLastFrameInfo;
+    int64_t mRenderTimestamp;
 
-    android::KeyedVector<buffer_handle_t, android::sp<CachedBuffer> > mDisplayBufferCache;
+    // colorspace conversion
+    Mutex mCscLock;
+    android::List<uint32_t> mAvailableCscBuffers;
+    int mCscBuffersToCreate;
+    uint32_t mCscWidth;
+    uint32_t mCscHeight;
+
+    FrameInfo mLastInputFrameInfo;
+    FrameInfo mLastOutputFrameInfo;
+
+    android::KeyedVector<uint32_t, android::sp<CachedBuffer> > mMappedBufferCache;
     android::Mutex mHeldBuffersLock;
-    android::KeyedVector<uint32_t, android::sp<CachedBuffer> > mHeldBuffers;
+    android::KeyedVector<uint32_t, android::sp<android::RefBase> > mHeldBuffers;
 
 private:
-    android::sp<CachedBuffer> getDisplayBuffer(buffer_handle_t handle);
+    android::sp<CachedBuffer> getMappedBuffer(uint32_t handle);
+    void sendToWidi(const hwc_layer_1_t& layer);
 
 public:
     VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm);

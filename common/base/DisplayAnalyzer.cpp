@@ -115,9 +115,6 @@ void DisplayAnalyzer::analyzeContents(
             detectTrickMode(mCachedDisplays[IDisplayDevice::DEVICE_PRIMARY]);
         }
     }
-
-    mCachedNumDisplays = 0;
-    mCachedDisplays = 0;
 }
 
 void DisplayAnalyzer::detectTrickMode(hwc_display_contents_1_t *list)
@@ -491,6 +488,25 @@ void DisplayAnalyzer::blankSecondaryDevice()
             }
         }
     }
+}
+
+bool DisplayAnalyzer::isPresentationLayer(hwc_layer_1_t &layer)
+{
+    if (mCachedDisplays == NULL) {
+        return false;
+    }
+    // check if the given layer exists in the primary device
+    hwc_display_contents_1_t *content = mCachedDisplays[0];
+    if (content == NULL) {
+        return false;
+    }
+    for (size_t i = 0; i < content->numHwLayers - 1; i++) {
+        if ((uint32_t)content->hwLayers[i].handle == (uint32_t)layer.handle) {
+            VTRACE("Layer exists for Primary device");
+            return false;
+        }
+    }
+    return true;
 }
 
 } // namespace intel
