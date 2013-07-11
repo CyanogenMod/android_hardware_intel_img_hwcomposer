@@ -21,9 +21,9 @@ LOCAL_SHARED_LIBRARIES := \
 
 LOCAL_C_INCLUDES := \
     bionic \
-    bionic/libstdc++/include \
-    external/gtest/include \
-    external/stlport/stlport \
+    $(call include-path-for, libstdc++) \
+    $(call include-path-for, gtest) \
+    $(call include-path-for, stlport)
 
 # Build the binary to $(TARGET_OUT_DATA_NATIVE_TESTS)/$(LOCAL_MODULE)
 # to integrate with auto-test framework.
