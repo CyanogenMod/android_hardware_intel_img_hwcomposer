@@ -86,14 +86,16 @@ status_t MultiDisplayCallback::setScalingType(
         MDS_DISPLAY_ID dpyId, MDS_SCALING_TYPE type)
 {
     ITRACE("id: %d state: %d", dpyId, type);
-    return NO_ERROR;
+    // Merrifield doesn't implement this API
+    return INVALID_OPERATION;
 }
 
 status_t MultiDisplayCallback::setOverscan(
         MDS_DISPLAY_ID dpyId, int hValue, int vValue)
 {
     ITRACE("id: %d h: %d v: %d", dpyId, hValue, vValue);
-    return NO_ERROR;
+    // Merrifield doesn't implement this API
+    return INVALID_OPERATION;
 }
 
 MultiDisplayObserver::MultiDisplayObserver()
