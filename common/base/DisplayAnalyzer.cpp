@@ -33,6 +33,7 @@
 #include <DisplayPlaneManager.h>
 #include <Hwcomposer.h>
 #include <DisplayAnalyzer.h>
+#include <cutils/properties.h>
 
 
 namespace android {
@@ -40,6 +41,7 @@ namespace intel {
 
 DisplayAnalyzer::DisplayAnalyzer()
     : mInitialized(false),
+      mEnableVideoExtendedMode(true),
       mVideoExtendedMode(false),
       mForceCloneMode(false),
       mBlankDevice(false),
@@ -59,6 +61,11 @@ DisplayAnalyzer::~DisplayAnalyzer()
 
 bool DisplayAnalyzer::initialize()
 {
+    // by default video extended mode is enabled
+    char prop[PROPERTY_VALUE_MAX];
+    if (property_get("hwc.video.extmode.enable", prop, "1") > 0) {
+        mEnableVideoExtendedMode = atoi(prop) ? true : false;
+    }
     mVideoExtendedMode = false;
     mForceCloneMode = false;
     mBlankDevice = false;
@@ -91,9 +98,11 @@ void DisplayAnalyzer::analyzeContents(
         blankSecondaryDevice();
     }
 
-    detectVideoExtendedMode();
-    if (mVideoExtendedMode) {
-        detectTrickMode(mCachedDisplays[IDisplayDevice::DEVICE_PRIMARY]);
+    if (mEnableVideoExtendedMode) {
+        detectVideoExtendedMode();
+        if (mVideoExtendedMode) {
+            detectTrickMode(mCachedDisplays[IDisplayDevice::DEVICE_PRIMARY]);
+        }
     }
 
     mCachedNumDisplays = 0;
@@ -205,6 +214,20 @@ void DisplayAnalyzer::detectVideoExtendedMode()
 bool DisplayAnalyzer::checkVideoExtendedMode()
 {
     return mVideoExtendedMode && !mForceCloneMode;
+}
+
+bool DisplayAnalyzer::isVideoExtendedModeEnabled()
+{
+#if 1
+    // enable it for run-time debugging purpose.
+    char prop[PROPERTY_VALUE_MAX];
+    if (property_get("hwc.video.extmode.enable", prop, "1") > 0) {
+        mEnableVideoExtendedMode = atoi(prop) ? true : false;
+    }
+    ITRACE("video extended mode enabled: %d", mEnableVideoExtendedMode);
+#endif
+
+    return mEnableVideoExtendedMode;
 }
 
 bool DisplayAnalyzer::isVideoLayer(hwc_layer_1_t &layer)

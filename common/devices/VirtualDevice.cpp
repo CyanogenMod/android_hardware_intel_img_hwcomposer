@@ -88,7 +88,8 @@ status_t VirtualDevice::start(sp<IFrameTypeChangeListener> typeChangeListener, b
     mNextConfig.policy.xdpi = 96;
     mNextConfig.policy.ydpi = 96;
     mNextConfig.policy.refresh = 60;
-    mNextConfig.extendedModeEnabled = !disableExtVideoMode;
+    mNextConfig.extendedModeEnabled =
+        Hwcomposer::getInstance().getDisplayAnalyzer()->isVideoExtendedModeEnabled();
     mNextConfig.forceNotify = true;
     return NO_ERROR;
 }
