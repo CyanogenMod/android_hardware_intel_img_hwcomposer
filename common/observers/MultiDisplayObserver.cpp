@@ -64,7 +64,7 @@ status_t MultiDisplayCallback::setVideoState(int sessionNum, int sessionId, MDS_
 {
     mVideoState = state;
     // TODO: check why setVideoState is called multiple times during startup
-    VTRACE("state: %d", state);
+    ITRACE("state: %d", state);
     mDispObserver->setVideoState(state);
     return NO_ERROR;
 }
@@ -295,7 +295,7 @@ status_t MultiDisplayObserver::setPhoneState(MDS_PHONE_STATE state)
 
 status_t MultiDisplayObserver::setVideoState(MDS_VIDEO_STATE state)
 {
-    bool preparing = (state == MDS_VIDEO_PREPARING);
+    bool preparing = (state == MDS_VIDEO_PREPARING || state == MDS_VIDEO_UNPREPARING);
     bool playing = (state != MDS_VIDEO_UNPREPARED);
     ITRACE("video state: preparing %d, playing %d", preparing, playing);
     Hwcomposer::getInstance().getDisplayAnalyzer()->postVideoEvent(preparing, playing);
