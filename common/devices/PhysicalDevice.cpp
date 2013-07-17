@@ -264,7 +264,12 @@ bool PhysicalDevice::getDisplayAttributes(uint32_t configs,
     while (attributes[i] != HWC_DISPLAY_NO_ATTRIBUTE) {
         switch (attributes[i]) {
         case HWC_DISPLAY_VSYNC_PERIOD:
-            values[i] = 1e9 / config->getRefreshRate();
+            if (config->getRefreshRate()) {
+                values[i] = 1e9 / config->getRefreshRate();
+            } else {
+                ETRACE("refresh rate is 0!!!");
+                values[i] = 0;
+            }
             break;
         case HWC_DISPLAY_WIDTH:
             values[i] = config->getWidth();
@@ -355,8 +360,15 @@ bool PhysicalDevice::updateDisplayConfigs()
     float physHeightInch = (float)mmHeight * 0.039370f;
 
     // use current drm mode, likely it's preferred mode
-    int dpiX = mode.hdisplay / physWidthInch;
-    int dpiY = mode.vdisplay / physHeightInch;
+    int dpiX = 0;
+    int dpiY = 0;
+    if (physWidthInch && physHeightInch) {
+        dpiX = mode.hdisplay / physWidthInch;
+        dpiY = mode.vdisplay / physHeightInch;
+    } else {
+        ETRACE("invalid physical size, EDID read error?");
+        // don't bail out as it is not a fatal error
+    }
     // use active fb dimension as config width/height
     DisplayConfig *config = new DisplayConfig(mode.vrefresh,
                                               mode.hdisplay,
