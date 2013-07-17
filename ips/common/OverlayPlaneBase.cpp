@@ -398,7 +398,16 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
             ret = mapper->map();
             if (!ret) {
                 ETRACE("failed to map");
-                break;
+                invalidateBufferCache();
+                ret = mapper->map();
+                if (!ret) {
+                    ETRACE("failed to remap");
+                    break;
+                }
+            }
+
+            if (mTTMBuffers.size() >= OVERLAY_DATA_BUFFER_COUNT) {
+                invalidateBufferCache();
             }
 
             // add mapper
