@@ -35,6 +35,17 @@
 namespace android {
 namespace intel {
 
+class ZOrderConfig : public SortedVector<DisplayPlane*> {
+public:
+    int do_compare(const void* lhs, const void* rhs) const {
+        const DisplayPlane *l = *(DisplayPlane**)lhs;
+        const DisplayPlane *r = *(DisplayPlane**)rhs;
+
+        // sorted from z order 0 to n
+        return l->getZOrder() - r->getZOrder();
+    }
+};
+
 class DisplayPlaneManager {
     enum {
         PLANE_ON_RECLAIMED_LIST = 1,
@@ -64,6 +75,9 @@ public:
     void disableReclaimedPlanes();
     void disableOverlayPlanes();
 
+    // z order config
+    bool setZOrderConfig(ZOrderConfig& zorderConfig);
+
     // dump interface
     void dump(Dump& d);
 
@@ -80,7 +94,7 @@ protected:
                           int& overlayCount,
                           int& primaryCount) = 0;
     virtual DisplayPlane* allocPlane(int index, int type) = 0;
-
+    virtual bool isValidZOrderConfig(ZOrderConfig& zorderConfig) = 0;
 private:
     int mPlaneCount[DisplayPlane::PLANE_MAX];
     int mTotalPlaneCount;

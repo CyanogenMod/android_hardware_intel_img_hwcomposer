@@ -155,9 +155,34 @@ bool OverlayPlaneBase::assignToDevice(int disp)
     return true;
 }
 
-void OverlayPlaneBase::setZOrderConfig(ZOrderConfig& config)
+void OverlayPlaneBase::setZOrderConfig(ZOrderConfig& zorderConfig)
 {
     CTRACE();
+
+    OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
+    if (!backBuffer)
+        return;
+
+    // setup overlay z order
+    int ovaZOrder = -1;
+    int ovcZOrder = -1;
+    for (size_t i = 0; i < zorderConfig.size(); i++) {
+        DisplayPlane *plane = zorderConfig.itemAt(i);
+        if (plane->getType() == DisplayPlane::PLANE_OVERLAY) {
+            if (plane->getIndex() == 0) {
+                ovaZOrder = i;
+            } else if (plane->getIndex() == 1) {
+                ovcZOrder = i;
+            }
+        }
+    }
+
+    // force overlay c above overlay a
+    if (ovaZOrder < ovcZOrder) {
+        backBuffer->OCONFIG |= (1 << 15);
+    } else {
+        backBuffer->OCONFIG &= ~(1 << 15);
+    }
 }
 
 bool OverlayPlaneBase::reset()

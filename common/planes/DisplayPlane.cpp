@@ -36,6 +36,7 @@ namespace intel {
 DisplayPlane::DisplayPlane(int index, int type, int disp)
     : mIndex(index),
       mType(type),
+      mZOrder(-1),
       mDevice(disp),
       mInitialized(false),
       mDataBuffers(),
@@ -373,6 +374,16 @@ bool DisplayPlane::reset()
     }
 
     return true;
+}
+
+void DisplayPlane::setZOrder(int zorder)
+{
+    mZOrder = zorder;
+}
+
+int DisplayPlane::getZOrder() const
+{
+    return mZOrder;
 }
 
 } // namespace intel

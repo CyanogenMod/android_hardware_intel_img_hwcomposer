@@ -41,8 +41,17 @@ namespace intel {
 class HwcLayer {
 public:
     enum {
+        // LAYER_FB layers are marked as HWC_FRAMEBUFFER.
+        // And a LAYER_FB can become HWC_OVERLAY layers during
+        // revisiting layer list.
         LAYER_FB = 0,
+        // LAYER_FORCE_FB layers are marked as HWC_FRAMEBUFFER.
+        // And a LAYER_FORCE_FB can never become HWC_OVERLAY layers during
+        // revisiting layer list.
+        LAYER_FORCE_FB,
+        // LAYER_OVERLAY layers are marked as HWC_OVERLAY
         LAYER_OVERLAY,
+        // LAYER_FRAMEBUFFER_TARGET layers are marked as HWC_FRAMEBUFFER_TARGET
         LAYER_FRAMEBUFFER_TARGET,
     };
 public:
@@ -86,11 +95,7 @@ public:
                   int disp);
     virtual ~HwcLayerList();
 
-    class HwcLayerVector : public SortedVector<HwcLayer*> {
-    public:
-        HwcLayerVector();
-        virtual int do_compare(const void* lhs, const void* rhs) const;
-    };
+    virtual void deinitialize();
 
     virtual bool update(hwc_display_contents_1_t *list);
     virtual DisplayPlane* getPlane(uint32_t index) const;
@@ -101,10 +106,26 @@ public:
     // dump interface
     virtual void dump(Dump& d);
 protected:
-    virtual void setZOrder();
+    class HwcLayerVector : public SortedVector<HwcLayer*> {
+    public:
+        HwcLayerVector();
+        virtual int do_compare(const void* lhs, const void* rhs) const;
+    };
+
+    virtual bool initialize();
     virtual void revisit();
     virtual bool checkSupported(int planeType, HwcLayer *hwcLayer);
     virtual void analyze();
+private:
+    void preProccess();
+    void detachPrimary();
+    bool attachPrimary();
+    bool calculatePrimaryZOrder(int& zorder);
+    bool mergeFBLayersToLayer(HwcLayer *target, int idx);
+    bool mergeToLayer(HwcLayer* target, HwcLayer* layer);
+    bool hasIntersection(HwcLayer *la, HwcLayer *lb);
+    bool setupZOrderConfig();
+    void fallbackOverlayLayer();
 private:
     hwc_display_contents_1_t *mList;
     uint32_t mLayerCount;
@@ -114,7 +135,6 @@ private:
     ZOrderConfig mZOrderConfig;
     // need a display plane manager to get display plane info;
     DisplayPlaneManager& mDisplayPlaneManager;
-    HwcLayer *mFramebufferTarget;
     int mDisplayIndex;
 };
 

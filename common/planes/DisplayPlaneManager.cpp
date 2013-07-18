@@ -338,6 +338,27 @@ void DisplayPlaneManager::disableOverlayPlanes()
     }
 }
 
+bool DisplayPlaneManager::setZOrderConfig(ZOrderConfig& zorderConfig)
+{
+    if (!zorderConfig.size()) {
+        WTRACE("No zorder config, should NOT happen");
+        return false;
+    }
+
+    if (!isValidZOrderConfig(zorderConfig)) {
+        DTRACE("Invalid z order config");
+        return false;
+    }
+
+    // setup plane's z order
+    for (size_t i = 0; i < zorderConfig.size(); i++) {
+        DisplayPlane *plane = zorderConfig.itemAt(i);
+        plane->setZOrderConfig(zorderConfig);
+    }
+
+    return true;
+}
+
 void DisplayPlaneManager::dump(Dump& d)
 {
     d.append("Display Plane Manager state:\n");
