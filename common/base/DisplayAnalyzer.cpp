@@ -203,9 +203,7 @@ void DisplayAnalyzer::detectVideoExtendedMode()
         for (int j = 0; j < (int)content->numHwLayers - 1; j++) {
             if ((uint32_t)content->hwLayers[j].handle == videoHandle) {
                 ITRACE("video layer exists in device %d", i);
-                if (!isVideoEmbedded(content->hwLayers[j])) {
-                    mVideoExtendedMode = true;
-                }
+                mVideoExtendedMode = isVideoFullScreen(i, content->hwLayers[j]);
                 return;
             }
         }
@@ -248,33 +246,40 @@ bool DisplayAnalyzer::isVideoLayer(hwc_layer_1_t &layer)
     return ret;
 }
 
-bool DisplayAnalyzer::isVideoEmbedded(hwc_layer_1_t &layer)
+bool DisplayAnalyzer::isVideoFullScreen(int device, hwc_layer_1_t &layer)
 {
-    Drm *drm = Hwcomposer::getInstance().getDrm();
-    drmModeModeInfo modeInfo;
-    if (!drm->getModeInfo(IDisplayDevice::DEVICE_EXTERNAL, modeInfo)) {
-        ETRACE("failed to get mode info");
+    IDisplayDevice *displayDevice = Hwcomposer::getInstance().getDisplayDevice(device);
+    if (!displayDevice) {
         return false;
     }
-    drmModeModeInfoPtr mode = &modeInfo;
+    int width = 0, height = 0;
+    if (!displayDevice->getDisplaySize(&width, &height)) {
+        return false;
+    }
+
+    ITRACE("video left %d, right %d, top %d, bottom %d, device width %d, height %d",
+        layer.displayFrame.left, layer.displayFrame.right,
+        layer.displayFrame.top, layer.displayFrame.bottom,
+        width, height);
 
     int dstW = layer.displayFrame.right - layer.displayFrame.left;
     int dstH = layer.displayFrame.bottom - layer.displayFrame.top;
-
-    VTRACE("Src[w]:%d[h]:%d Dest[w]:%d[h]:%d Mode[w]:%d[h]:%d Trans:%d",
-            layer.sourceCrop.right - layer.sourceCrop.left,
-            layer.sourceCrop.bottom - layer.sourceCrop.top,
-            dstW, dstH,
-            mode->hdisplay, mode->vdisplay,
-            layer.transform);
-
-    bool embedded = false;
-    if (dstW < mode->hdisplay - 1 &&
-        dstH < mode->vdisplay - 1) {
-        embedded = true;
+    if (dstW < width - 1 &&
+        dstH < height - 1) {
+        ITRACE("video is not full-screen");
+        return false;
     }
-
-    return embedded;
+    int offset = layer.displayFrame.left + layer.displayFrame.right - width;
+    if (offset > 1 || offset < -1) {
+        ITRACE("video is not centralized in horizontal direction");
+        return false;
+    }
+    offset = layer.displayFrame.top + layer.displayFrame.bottom - height;
+    if (offset > 1 || offset < -1) {
+        ITRACE("video is not centralized in vertical direction");
+        return false;
+    }
+    return true;
 }
 
 bool DisplayAnalyzer::isVideoPlaying()
