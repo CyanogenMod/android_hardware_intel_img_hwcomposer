@@ -78,7 +78,7 @@ private:
      bool initMDSClientAsync();
      void deinitMDSClient();
     status_t setPhoneState(MDS_PHONE_STATE state);
-    status_t setVideoState(MDS_VIDEO_STATE state);
+    status_t setVideoState(int sessionNum, int sessionId, MDS_VIDEO_STATE state);
     status_t setDisplayTiming(MDS_DISPLAY_ID dpyId, MDSDisplayTiming *timing);
     friend class MultiDisplayCallback;
 
