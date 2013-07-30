@@ -38,6 +38,7 @@ PlatfDisplayPlaneManager::PlatfDisplayPlaneManager()
     : DisplayPlaneManager()
 {
     CTRACE();
+    memset(&mZorder, 0, sizeof(mZorder));
 }
 
 PlatfDisplayPlaneManager::~PlatfDisplayPlaneManager()
@@ -119,10 +120,15 @@ bool PlatfDisplayPlaneManager::isValidZOrderConfig(ZOrderConfig& config)
     if ((lastRGB < firstOverlay) || (firstRGB > lastOverlay)) {
         return true;
     } else {
-        ITRACE("invalid z order config. rgb (%d, %d) yuv (%d, %d)",
+        VTRACE("invalid z order config. rgb (%d, %d) yuv (%d, %d)",
                firstRGB, lastRGB, firstOverlay, lastOverlay);
         return false;
     }
+}
+
+void* PlatfDisplayPlaneManager::getNativeZOrderConfig()
+{
+    return &mZorder;
 }
 
 } // namespace intel

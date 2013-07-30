@@ -26,8 +26,6 @@
  *
  */
 #include <HwcTrace.h>
-#include <Hwcomposer.h>
-#include <BufferManager.h>
 #include <common/SpritePlaneBase.h>
 #include <common/PixelFormat.h>
 
@@ -61,46 +59,6 @@ bool SpritePlaneBase::enable()
 bool SpritePlaneBase::disable()
 {
     return enablePlane(false);
-}
-
-void SpritePlaneBase::setZOrderConfig(ZOrderConfig& zorderConfig)
-{
-    mForceBottom = true;
-    mAbovePrimary = true;
-
-    if (mType == PLANE_PRIMARY) {
-        bool hasOverlayPlane = false;
-        // only consider force bottom when overlay is active
-        for (size_t i = 0; i < zorderConfig.size(); i++) {
-            DisplayPlane *plane = zorderConfig.itemAt(i);
-            if (plane->getType() == DisplayPlane::PLANE_PRIMARY)
-                break;
-            if (plane->getType() == DisplayPlane::PLANE_OVERLAY) {
-                hasOverlayPlane = true;
-            }
-        }
-
-        // if has overlay plane which is below primary plane
-        if (hasOverlayPlane) {
-            mForceBottom = false;
-        }
-    } else if (mType == DisplayPlane::PLANE_SPRITE) {
-        bool hasPrimaryPlane = false;
-        for (size_t i = 0; i < zorderConfig.size(); i++) {
-            DisplayPlane *plane = zorderConfig.itemAt(i);
-            if (plane->getType() == DisplayPlane::PLANE_SPRITE)
-                break;
-            if (plane->getType() == DisplayPlane::PLANE_PRIMARY) {
-                hasPrimaryPlane = true;
-            }
-        }
-
-        if (!hasPrimaryPlane) {
-            mAbovePrimary = false;
-        }
-    } else {
-        WTRACE("Invalid sprite plane type %d", mType);
-    }
 }
 
 } // namespace intel

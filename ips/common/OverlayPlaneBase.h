@@ -54,7 +54,7 @@ public:
 
     virtual bool assignToDevice(int disp);
 
-    virtual void setZOrderConfig(ZOrderConfig& config);
+    virtual void setZOrderConfig(ZOrderConfig& config, void *nativeConfig);
 
     // plane operations
     virtual bool flip(void *ctx) = 0;

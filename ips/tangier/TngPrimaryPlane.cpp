@@ -76,8 +76,6 @@ void TngPrimaryPlane::setFramebufferTarget(uint32_t handle)
 
     mContext.ctx.prim_ctx.cntr = PixelFormat::PLANE_PIXEL_FORMAT_BGRA8888;
     mContext.ctx.prim_ctx.cntr |= 0x80000000;
-    if (mForceBottom)
-        mContext.ctx.prim_ctx.cntr |= 0x00000004;
 
     mCurrentDataBuffer = handle;
 }
@@ -110,6 +108,38 @@ bool TngPrimaryPlane::setDataBuffer(uint32_t handle)
 
     mContext.type = DC_PRIMARY_PLANE;
     return true;
+}
+
+void TngPrimaryPlane::setZOrderConfig(ZOrderConfig& zorderConfig,
+                                           void *nativeConfig)
+{
+    if (!nativeConfig) {
+        ETRACE("Invalid parameter, no native config");
+        return;
+    }
+
+    mForceBottom = false;
+
+    int primaryIndex = -1;
+    int overlayIndex = -1;
+    // only consider force bottom when overlay is active
+    for (size_t i = 0; i < zorderConfig.size(); i++) {
+        DisplayPlane *plane = zorderConfig.itemAt(i);
+        if (plane->getType() == DisplayPlane::PLANE_PRIMARY)
+            primaryIndex = i;
+        if (plane->getType() == DisplayPlane::PLANE_OVERLAY) {
+            overlayIndex = i;
+        }
+    }
+
+    // if has overlay plane which is below primary plane
+    if (overlayIndex > primaryIndex) {
+        mForceBottom = true;
+    }
+
+    struct intel_dc_plane_zorder *zorder =
+        (struct intel_dc_plane_zorder *)nativeConfig;
+    zorder->forceBottom[mIndex] = mForceBottom ? 1 : 0;
 }
 
 bool TngPrimaryPlane::assignToDevice(int disp)

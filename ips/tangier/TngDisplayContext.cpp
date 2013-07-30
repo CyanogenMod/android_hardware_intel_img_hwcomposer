@@ -26,10 +26,13 @@
  *
  */
 #include <HwcTrace.h>
+#include <Hwcomposer.h>
 #include <DisplayPlane.h>
 #include <IDisplayDevice.h>
 #include <HwcLayerList.h>
 #include <tangier/TngDisplayContext.h>
+
+#include <displayclass_interface.h>
 
 namespace android {
 namespace intel {
@@ -81,6 +84,7 @@ bool TngDisplayContext::commitBegin(size_t numDisplays, hwc_display_contents_1_t
 bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLayerList *layerList)
 {
     bool ret;
+
     RETURN_FALSE_IF_NOT_INIT();
 
     if (!display || !layerList) {
@@ -114,6 +118,12 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
         // update IMG layer
         imgLayer->psLayer = &display->hwLayers[i];
         imgLayer->custom = (uint32_t)plane->getContext();
+        struct intel_dc_plane_ctx *ctx =
+            (struct intel_dc_plane_ctx *)imgLayer->custom;
+        // update z order
+        Hwcomposer& hwc = Hwcomposer::getInstance();
+        DisplayPlaneManager *pm = hwc.getPlaneManager();
+        memcpy(&ctx->zorder, pm->getZOrderConfig(), sizeof(ctx->zorder));
 
         VTRACE("count %d, handle %#x, trans %#x, blending %#x"
               " sourceCrop %d,%d - %dx%d, dst %d,%d - %dx%d, custom %#x",

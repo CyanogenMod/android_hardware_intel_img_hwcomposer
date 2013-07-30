@@ -118,7 +118,9 @@ public:
     virtual bool disable() = 0;
 
     // set z order config
-    virtual void setZOrderConfig(ZOrderConfig& config) = 0;
+    virtual void setZOrderConfig(ZOrderConfig& config,
+                                     void *nativeConfig) = 0;
+
     virtual void setZOrder(int zorder);
     virtual int getZOrder() const;
 

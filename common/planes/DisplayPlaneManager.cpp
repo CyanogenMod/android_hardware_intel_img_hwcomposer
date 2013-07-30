@@ -34,6 +34,7 @@ namespace intel {
 
 DisplayPlaneManager::DisplayPlaneManager()
     : mTotalPlaneCount(0),
+      mNativeZOrderConfig(0),
       mInitialized(false)
 {
     int i;
@@ -65,6 +66,8 @@ void DisplayPlaneManager::deinitialize()
         }
         mPlanes[i].clear();
     }
+
+    mNativeZOrderConfig = 0;
 }
 
 bool DisplayPlaneManager::initialize()
@@ -114,6 +117,13 @@ bool DisplayPlaneManager::initialize()
                 mPlanes[i].push_back(plane);
             }
         }
+    }
+
+    // get native z order config
+    mNativeZOrderConfig = getNativeZOrderConfig();
+    if (!mNativeZOrderConfig) {
+        ETRACE("failed to get native z order config");
+        DEINIT_AND_RETURN_FALSE();
     }
 
     mInitialized = true;
@@ -342,23 +352,32 @@ void DisplayPlaneManager::disableOverlayPlanes()
 
 bool DisplayPlaneManager::setZOrderConfig(ZOrderConfig& zorderConfig)
 {
+    RETURN_FALSE_IF_NOT_INIT();
+
     if (!zorderConfig.size()) {
         WTRACE("No zorder config, should NOT happen");
         return false;
     }
 
     if (!isValidZOrderConfig(zorderConfig)) {
-        DTRACE("Invalid z order config");
+        VTRACE("Invalid z order config");
         return false;
     }
 
     // setup plane's z order
     for (size_t i = 0; i < zorderConfig.size(); i++) {
         DisplayPlane *plane = zorderConfig.itemAt(i);
-        plane->setZOrderConfig(zorderConfig);
+        plane->setZOrderConfig(zorderConfig, mNativeZOrderConfig);
     }
 
     return true;
+}
+
+void* DisplayPlaneManager::getZOrderConfig() const
+{
+    RETURN_NULL_IF_NOT_INIT();
+
+    return mNativeZOrderConfig;
 }
 
 void DisplayPlaneManager::dump(Dump& d)

@@ -51,8 +51,15 @@ public:
         LAYER_FORCE_FB,
         // LAYER_OVERLAY layers are marked as HWC_OVERLAY
         LAYER_OVERLAY,
+        // LAYER_SKIPPED layers are marked as HWC_OVERLAY with no plane attached
+        LAYER_SKIPPED,
         // LAYER_FRAMEBUFFER_TARGET layers are marked as HWC_FRAMEBUFFER_TARGET
         LAYER_FRAMEBUFFER_TARGET,
+    };
+
+    enum {
+        LAYER_PRIORITY_PROTECTED = 0x80000000UL,
+        LAYER_PRIORITY_SIZE_OFFSET = 4,
     };
 public:
     HwcLayer(int index, hwc_layer_1_t *layer);
@@ -73,6 +80,9 @@ public:
     hwc_layer_1_t* getLayer() const;
     DisplayPlane* getPlane() const;
 
+    void setPriority(uint32_t priority);
+    uint32_t getPriority() const;
+
     bool update(hwc_layer_1_t *layer, int disp);
 
 private:
@@ -87,6 +97,7 @@ private:
     uint32_t mHandle;
     bool mIsProtected;
     uint32_t mType;
+    uint32_t mPriority;
 };
 
 class HwcLayerList {
@@ -112,30 +123,46 @@ protected:
         virtual int do_compare(const void* lhs, const void* rhs) const;
     };
 
+    class PriorityVector : public SortedVector<HwcLayer*> {
+    public:
+        PriorityVector();
+        virtual int do_compare(const void* lhs, const void* rhs) const;
+    };
+
     virtual bool initialize();
     virtual void revisit();
     virtual bool checkSupported(int planeType, HwcLayer *hwcLayer);
     virtual void analyze();
 private:
+    void assignPlanes();
+    void adjustAssignment();
     void preProccess();
     void detachPrimary();
-    bool attachPrimary();
+    bool usePrimaryAsSprite(DisplayPlane *primaryPlane);
+    void usePrimaryAsFramebufferTarget(DisplayPlane *primaryPlane);
+    bool updateZOrderConfig();
+    void updatePossiblePrimaryLayers();
     bool calculatePrimaryZOrder(int& zorder);
     bool mergeFBLayersToLayer(HwcLayer *target, int idx);
     bool mergeToLayer(HwcLayer* target, HwcLayer* layer);
     bool hasIntersection(HwcLayer *la, HwcLayer *lb);
     bool setupZOrderConfig();
-    void fallbackOverlayLayer();
 private:
     hwc_display_contents_1_t *mList;
     uint32_t mLayerCount;
     HwcLayerVector mLayers;
     HwcLayerVector mOverlayLayers;
+    HwcLayerVector mSkippedLayers;
     HwcLayerVector mFBLayers;
     ZOrderConfig mZOrderConfig;
     // need a display plane manager to get display plane info;
     DisplayPlaneManager& mDisplayPlaneManager;
     int mDisplayIndex;
+
+    PriorityVector mCandidates;
+    PriorityVector mSpriteCandidates;
+    PriorityVector mOverlayCandidates;
+    PriorityVector mPossiblePrimaryLayers;
 };
 
 } // namespace intel

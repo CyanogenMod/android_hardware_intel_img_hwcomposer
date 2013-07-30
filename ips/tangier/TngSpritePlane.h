@@ -30,6 +30,7 @@
 
 #include <utils/KeyedVector.h>
 #include <hal_public.h>
+#include <Hwcomposer.h>
 #include <BufferCache.h>
 #include <DisplayPlane.h>
 
@@ -45,6 +46,7 @@ public:
     virtual ~TngSpritePlane();
 public:
     virtual void* getContext() const;
+    virtual void setZOrderConfig(ZOrderConfig& config, void *nativeConfig);
 protected:
     virtual bool setDataBuffer(BufferMapper& mapper);
     virtual bool enablePlane(bool enabled);

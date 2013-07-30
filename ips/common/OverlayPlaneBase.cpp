@@ -155,7 +155,8 @@ bool OverlayPlaneBase::assignToDevice(int disp)
     return true;
 }
 
-void OverlayPlaneBase::setZOrderConfig(ZOrderConfig& zorderConfig)
+void OverlayPlaneBase::setZOrderConfig(ZOrderConfig& zorderConfig,
+                                            void *nativeConfig)
 {
     CTRACE();
 
@@ -178,7 +179,7 @@ void OverlayPlaneBase::setZOrderConfig(ZOrderConfig& zorderConfig)
     }
 
     // force overlay c above overlay a
-    if (ovaZOrder < ovcZOrder) {
+    if ((ovaZOrder >= 0) && (ovaZOrder < ovcZOrder)) {
         backBuffer->OCONFIG |= (1 << 15);
     } else {
         backBuffer->OCONFIG &= ~(1 << 15);
