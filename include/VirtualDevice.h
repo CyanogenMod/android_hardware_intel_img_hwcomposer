@@ -120,7 +120,7 @@ public:
     virtual void dump(Dump& d);
 
     // IFrameServer methods
-    virtual android::status_t start(sp<IFrameTypeChangeListener> frameTypeChangeListener, bool disableExtVideoMode);
+    virtual android::status_t start(sp<IFrameTypeChangeListener> frameTypeChangeListener);
     virtual android::status_t stop(bool isConnected);
     virtual android::status_t notifyBufferReturned(int index);
     virtual android::status_t setResolution(const FrameProcessingPolicy& policy, android::sp<IFrameListener> listener);
