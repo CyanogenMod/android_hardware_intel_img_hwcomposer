@@ -300,16 +300,11 @@ bool HwcLayerList::checkSupported(int planeType, HwcLayer *hwcLayer)
     }
 
     // check buffer format
-    valid = PlaneCapabilities::isFormatSupported(planeType, hwcLayer->getFormat());
+    valid = PlaneCapabilities::isFormatSupported(planeType,
+                                                 hwcLayer->getFormat(),
+                                                 layer.transform);
     if (!valid) {
         VTRACE("plane type %d: (bad buffer format)", planeType);
-        return false;
-    }
-
-    valid = PlaneCapabilities::isTransformSupported(planeType,
-                                                    layer.transform);
-    if (!valid) {
-        VTRACE("plane type %d: (bad transform)", planeType);
         return false;
     }
 

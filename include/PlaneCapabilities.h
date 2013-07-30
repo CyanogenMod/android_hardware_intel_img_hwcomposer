@@ -33,7 +33,7 @@ namespace intel {
 class PlaneCapabilities
 {
 public:
-    static bool isFormatSupported(int planeType, uint32_t format);
+    static bool isFormatSupported(int planeType, uint32_t format, uint32_t trans);
     static bool isBlendingSupported(int planeType, uint32_t blending);
     static bool isScalingSupported(int planeType,
                                        hwc_rect_t& src,
