@@ -389,6 +389,7 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
             stride.yuv.uvStride = uvStride;
             break;
         case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:
+        case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled:
             yStride = align_to(align_to(w, 32), 64);
             uvStride = yStride;
             stride.yuv.yStride = yStride;
@@ -531,7 +532,8 @@ bool OverlayPlaneBase::rotatedBufferReady(BufferMapper& mapper)
 
     // only NV12_VED has rotated buffer
     format = mapper.getFormat();
-    if (format != OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar)
+    if (format != OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar &&
+        format != OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled)
         return false;
 
     payload = (struct VideoPayloadBuffer *)mapper.getCpuAddress(SUB_BUFFER1);
@@ -597,6 +599,7 @@ bool OverlayPlaneBase::bufferOffsetSetup(BufferMapper& mapper)
 
     // clear original format setting
     backBuffer->OCMD &= ~(0xf << 10);
+    backBuffer->OCMD &= ~OVERLAY_MEMORY_LAYOUT_TILED;
 
     // Y/U/V plane must be 4k bytes aligned.
     backBuffer->OSTART_0Y = gttOffsetInBytes;
@@ -634,6 +637,23 @@ bool OverlayPlaneBase::bufferOffsetSetup(BufferMapper& mapper)
         backBuffer->OBUF_0U = yStride * align_to(h, 32);
         backBuffer->OBUF_0V = 0;
         backBuffer->OCMD |= OVERLAY_FORMAT_PLANAR_NV12_2;
+        break;
+    case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled:  //NV12_tiled
+        backBuffer->OBUF_0Y = 0;
+        backBuffer->OBUF_0U = yStride * align_to(h, 32);
+        backBuffer->OBUF_0V = 0;
+        backBuffer->OSTART_0U += yStride * align_to(h, 32);
+        backBuffer->OSTART_0V += yStride * align_to(h, 32);
+        backBuffer->OSTART_1U = backBuffer->OSTART_0U;
+        backBuffer->OSTART_1V = backBuffer->OSTART_0V;
+        backBuffer->OTILEOFF_0Y = srcX + (srcY << 16);
+        backBuffer->OTILEOFF_1Y = backBuffer->OTILEOFF_0Y;
+        backBuffer->OTILEOFF_0U = srcX + ((srcY / 2) << 16);
+        backBuffer->OTILEOFF_1U = backBuffer->OTILEOFF_0U;
+        backBuffer->OTILEOFF_0V = backBuffer->OTILEOFF_0U;
+        backBuffer->OTILEOFF_1V = backBuffer->OTILEOFF_0U;
+        backBuffer->OCMD |= OVERLAY_FORMAT_PLANAR_NV12_2;
+        backBuffer->OCMD |= OVERLAY_MEMORY_LAYOUT_TILED;
         break;
     case HAL_PIXEL_FORMAT_YUY2:    // YUY2
         backBuffer->OBUF_0Y = 0;
@@ -704,6 +724,7 @@ bool OverlayPlaneBase::coordinateSetup(BufferMapper& mapper)
     case HAL_PIXEL_FORMAT_YV12:              // YV12
     case HAL_PIXEL_FORMAT_I420:              // I420
     case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:          // NV12
+    case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled:    // NV12_tiled
         break;
     case HAL_PIXEL_FORMAT_YUY2:              // YUY2
     case HAL_PIXEL_FORMAT_UYVY:              // UYVY
