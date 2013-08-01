@@ -67,7 +67,7 @@ public:
     virtual uint32_t getGttOffsetInPage(int subIndex) const = 0;
     virtual void* getCpuAddress(int subIndex) const = 0;
     virtual uint32_t getSize(int subIndex) const = 0;
-    virtual uint32_t getKHandle(int subIndex) const = 0;
+    virtual uint32_t getKHandle(int subIndex) = 0;
 
 private:
     int mRefCount;

@@ -44,6 +44,7 @@ public:
 public:
     bool map();
     bool unmap();
+    uint32_t getKHandle(int subIndex);
 private:
     bool gttMap(void *vaddr, uint32_t size, uint32_t gttAlign, int *offset);
     bool gttUnmap(void *vaddr);

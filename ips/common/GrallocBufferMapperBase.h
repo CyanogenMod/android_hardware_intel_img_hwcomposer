@@ -46,7 +46,7 @@ public:
     uint32_t getGttOffsetInPage(int subIndex) const;
     void* getCpuAddress(int subIndex) const;
     uint32_t getSize(int subIndex) const;
-    uint32_t getKHandle(int subIndex) const;
+    virtual uint32_t getKHandle(int subIndex);
 
 protected:
     // mapped info

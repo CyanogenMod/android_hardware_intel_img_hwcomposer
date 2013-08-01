@@ -52,7 +52,7 @@ public:
     uint32_t getSize(int subIndex) const {
         return mSize;
     }
-    uint32_t getKHandle(int subIndex) const {
+    uint32_t getKHandle(int subIndex) {
         return 0;
     }
 
