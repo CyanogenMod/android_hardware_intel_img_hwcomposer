@@ -421,15 +421,6 @@ void HwcLayerList::preProccess()
             continue;
         }
 
-        // FIXME: whether this could happen or not
-        if (layer->handle == NULL) {
-            // possible skipped layer, client never draws to this layer
-            VTRACE("invalid handle of layer %d, count %d, flags %#x",
-                   i, mLayerCount, layer->flags);
-            // don't add this layer to mFBLayers as it will never be rendered
-            continue;
-        }
-
         // go through the layer list from top to bottom
         // assign a display planes to layers which can be blended by DC
         // TODO: need further optimization.
