@@ -316,8 +316,18 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer)
             heldBuffer = new HeldDecoderBuffer(this, cachedBuffer);
             mediaTimestamp = metadata.timestamp;
 
-            // TODO: Need to get framerate from HWC when available (for now indicate default with zero)
-            inputFrameInfo.contentFrameRateN = 0;
+            int sessionID = -1;
+            if (layer.flags & HWC_HAS_VIDEO_SESSION_ID)
+                sessionID = ((layer.flags & GRALLOC_USAGE_MDS_SESSION_ID_MASK) >> 24);
+            VTRACE("Session id = %d", sessionID);
+            MDSVideoSourceInfo videoInfo;
+            memset(&videoInfo, 0, sizeof(videoInfo));
+            mHwc.getMultiDisplayObserver()->getVideoSourceInfo(sessionID, &videoInfo);
+            VTRACE("width = %d, height = %d, fps = %d", videoInfo.displayW, videoInfo.displayH,
+                   videoInfo.frameRate);
+            if (videoInfo.frameRate > 0) {
+                inputFrameInfo.contentFrameRateN = videoInfo.frameRate;
+            }
             inputFrameInfo.contentFrameRateD = 1;
 
             if (metadata.transform & HAL_TRANSFORM_ROT_90) {
