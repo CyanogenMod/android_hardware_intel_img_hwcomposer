@@ -223,8 +223,10 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
             return false;
         }
     } else {
-        VTRACE("got mapper in saved data buffers");
+        VTRACE("got mapper in saved data buffers and update source Crop");
         mapper = mDataBuffers.valueAt(index);
+        mapper->setCrop(mSrcCrop.x, mSrcCrop.y, mSrcCrop.w, mSrcCrop.h);
+
     }
 
     // unlock buffer after getting mapper
