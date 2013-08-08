@@ -429,9 +429,21 @@ void DisplayAnalyzer::handleVideoEvent(
     int instances, int instanceID, bool preparing, bool playing)
 {
     if (preparing != mVideoPreparing) {
+        hwc_display_contents_1_t *content = NULL;
+        hwc_layer_1 *layer = NULL;
         for (int i = 0; i < (int)mCachedNumDisplays; i++) {
-            if (mCachedDisplays[i]) {
-                mCachedDisplays[i]->flags = HWC_GEOMETRY_CHANGED;
+            content = mCachedDisplays[i];
+            if (content == NULL) {
+                continue;
+            }
+            content->flags |= HWC_GEOMETRY_CHANGED;
+            // if video state is change, reset layers composition type to HWC_FRAMEBUFFER
+            for (int j = 0; j < (int)content->numHwLayers - 1; j++) {
+                layer = &content->hwLayers[j];
+                if (!layer) {
+                    continue;
+                }
+                layer->compositionType = HWC_FRAMEBUFFER;
             }
         }
         mVideoPreparing = preparing;
