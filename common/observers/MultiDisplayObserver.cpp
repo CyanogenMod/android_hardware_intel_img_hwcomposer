@@ -254,8 +254,10 @@ status_t MultiDisplayObserver::notifyHotPlug(int disp, bool connected)
         return NO_INIT;
     }
 
-    if (connected == mDeviceConnected)
+    if (connected == mDeviceConnected) {
+        WTRACE("hotplug event ignored");
         return NO_ERROR;
+    }
 
     mDeviceConnected = connected;
     return mMDSClient->notifyHotPlug((MDS_DISPLAY_ID)disp, connected);
@@ -316,12 +318,17 @@ status_t MultiDisplayObserver::getVideoSourceInfo(int sessionID, MDSVideoSourceI
     if (!mMDSClient) {
         return NO_INIT;
     }
-    if (info == NULL)
+
+    if (info == NULL) {
+        ETRACE("invalid parameter");
         return UNKNOWN_ERROR;
+    }
+
     status_t ret = mMDSClient->getVideoSourceInfo(sessionID, info);
-    if (ret == NO_ERROR)
-        ITRACE("Video Session[%d] source info: %dx%d@%d", sessionID,
+    if (ret == NO_ERROR) {
+        VTRACE("Video Session[%d] source info: %dx%d@%d", sessionID,
                 info->displayW, info->displayH, info->frameRate);
+    }
     return ret;
 }
 
