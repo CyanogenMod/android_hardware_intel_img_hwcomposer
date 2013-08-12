@@ -232,6 +232,20 @@ bool Drm::detect(int device)
     return ret;
 }
 
+bool Drm::isSameDrmMode(drmModeModeInfoPtr value,
+        drmModeModeInfoPtr base) const
+{
+    if (base->hdisplay == value->hdisplay &&
+        base->vdisplay == value->vdisplay &&
+        base->vrefresh == value->vrefresh &&
+        (base->flags & value->flags) == value->flags) {
+        ITRACE("Drm mode is not changed");
+        return true;
+    }
+
+    return false;
+}
+
 bool Drm::setDrmMode(int device, drmModeModeInfo& value)
 {
     RETURN_FALSE_IF_NOT_INIT();
@@ -266,10 +280,7 @@ bool Drm::setDrmMode(int device, drmModeModeInfo& value)
         if (mode->type & DRM_MODE_TYPE_PREFERRED) {
             index = i;
         }
-        if (mode->hdisplay == value.hdisplay &&
-            mode->vdisplay == value.vdisplay &&
-            mode->vrefresh == (uint32_t)value.vrefresh &&
-            (mode->flags & value.flags) == value.flags) {
+        if (isSameDrmMode(&value, mode)) {
             index = i;
             break;
         }
@@ -535,6 +546,11 @@ bool Drm::setDrmMode(int index, drmModeModeInfoPtr mode)
 {
     DrmOutput *output = &mOutputs[index];
 
+    drmModeModeInfo currentMode;
+    memcpy(&currentMode, &output->mode, sizeof(drmModeModeInfo));
+    if (isSameDrmMode(mode, &currentMode))
+        return true;
+
     if (output->fbId) {
         drmModeRmFB(mDrmFd, output->fbId);
         output->fbId = 0;
@@ -581,7 +597,6 @@ bool Drm::setDrmMode(int index, drmModeModeInfoPtr mode)
     }
 
     return ret == 0;
-
 }
 
 int Drm::getOutputIndex(int device)
