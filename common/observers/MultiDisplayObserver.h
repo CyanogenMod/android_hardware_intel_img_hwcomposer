@@ -41,6 +41,12 @@
 namespace android {
 namespace intel {
 
+struct VideoSourceInfo {
+    int width;
+    int height;
+    int frameRate;
+};
+
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
 
 class MultiDisplayObserver;
@@ -72,7 +78,7 @@ public:
     bool initialize();
     void deinitialize();
     status_t notifyHotPlug(int disp, bool connected);
-    status_t getVideoSourceInfo(int sessionID, MDSVideoSourceInfo* info);
+    status_t getVideoSourceInfo(int sessionID, VideoSourceInfo* info);
 
 private:
      bool isMDSRunning();
@@ -114,6 +120,7 @@ public:
     bool initialize() { return true; }
     void deinitialize() {}
     status_t notifyHotPlug(int disp, bool connected) { return NO_ERROR; }
+    status_t getVideoSourceInfo(int sessionID, VideoSourceInfo* info) { return INVALID_OPERATION; }
 };
 
 #endif //TARGET_HAS_MULTIPLE_DISPLAY

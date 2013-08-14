@@ -312,7 +312,7 @@ status_t MultiDisplayObserver::setVideoState(int sessionNum, int sessionId, MDS_
     return 0;
 }
 
-status_t MultiDisplayObserver::getVideoSourceInfo(int sessionID, MDSVideoSourceInfo* info)
+status_t MultiDisplayObserver::getVideoSourceInfo(int sessionID, VideoSourceInfo* info)
 {
     Mutex::Autolock _l(mLock);
     if (!mMDSClient) {
@@ -324,10 +324,15 @@ status_t MultiDisplayObserver::getVideoSourceInfo(int sessionID, MDSVideoSourceI
         return UNKNOWN_ERROR;
     }
 
-    status_t ret = mMDSClient->getVideoSourceInfo(sessionID, info);
+    MDSVideoSourceInfo videoInfo;
+    memset(&videoInfo, 0, sizeof(MDSVideoSourceInfo));
+    status_t ret = mMDSClient->getVideoSourceInfo(sessionID, &videoInfo);
     if (ret == NO_ERROR) {
+        info->width     = videoInfo.displayW;
+        info->height    = videoInfo.displayH;
+        info->frameRate = videoInfo.frameRate;
         VTRACE("Video Session[%d] source info: %dx%d@%d", sessionID,
-                info->displayW, info->displayH, info->frameRate);
+                info->width, info->height, info->frameRate);
     }
     return ret;
 }
