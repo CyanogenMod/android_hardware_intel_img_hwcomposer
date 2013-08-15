@@ -36,7 +36,8 @@ namespace android {
 namespace intel {
 
 TngOverlayPlane::TngOverlayPlane(int index, int disp)
-    : OverlayPlaneBase(index, disp)
+    : OverlayPlaneBase(index, disp),
+      mRotationBufProvider(NULL)
 {
     CTRACE();
 
@@ -88,6 +89,77 @@ bool TngOverlayPlane::setDataBuffer(BufferMapper& mapper)
         mBackBuffer->buf->OSTART_0Y |= 0x1;
         mBackBuffer->buf->OSTART_1Y |= 0x1;
     }
+    return true;
+}
+
+bool TngOverlayPlane::initialize(uint32_t bufferCount)
+{
+    if (!OverlayPlaneBase::initialize(bufferCount)) {
+        ETRACE("failed to initialize OverlayPlaneBase");
+        return false;
+    }
+
+    // setup rotation buffer
+    if (!mRotationBufProvider) {
+        mRotationBufProvider = new RotationBufferProvider(mWsbm);
+        if (mRotationBufProvider == NULL)
+            return false;
+        if (!mRotationBufProvider->initialize()) {
+            ETRACE("failed to initialize RotationBufferProvider");
+            return false;
+        }
+    }
+    return true;
+}
+
+void TngOverlayPlane::deinitialize()
+{
+    DEINIT_AND_DELETE_OBJ(mRotationBufProvider);
+    OverlayPlaneBase::deinitialize();
+}
+
+bool TngOverlayPlane::rotatedBufferReady(BufferMapper& mapper)
+{
+    struct VideoPayloadBuffer *payload;
+    uint32_t format;
+    // only NV12_VED has rotated buffer
+    format = mapper.getFormat();
+    if (format != OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar &&
+        format != OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled)
+        return false;
+
+    payload = (struct VideoPayloadBuffer *)mapper.getCpuAddress(SUB_BUFFER1);
+    // check payload
+    if (!payload) {
+        ETRACE("no payload found");
+        return false;
+    }
+
+    if (payload->force_output_method == FORCE_OUTPUT_GPU)
+        return false;
+
+    if (payload->client_transform != mTransform) {
+        if (payload->surface_protected) {
+            payload->hwc_timestamp = systemTime();
+            payload->layer_transform = mTransform;
+        }
+
+        if (payload->force_output_method == FORCE_OUTPUT_OVERLAY ||
+            payload->surface_protected) {
+            bool ret;
+            ret = mRotationBufProvider->setupRotationBuffer(payload, mTransform);
+            if (ret == false) {
+                ETRACE("failed to setup rotation buffer");
+                return false;
+            } else {
+                return true;
+            }
+        } else {
+            WTRACE("client is not ready");
+            return false;
+        }
+    }
+
     return true;
 }
 
