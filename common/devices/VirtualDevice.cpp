@@ -343,6 +343,33 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer)
                 inputFrameInfo.contentHeight = layer.sourceCrop.right - layer.sourceCrop.left;
             }
 
+            inputFrameInfo.cropLeft = 0;
+            // skip pading bytes in rotate buffer
+            switch (metadata.transform) {
+                case HAL_TRANSFORM_ROT_90: {
+                    VTRACE("HAL_TRANSFORM_ROT_90");
+                    int contentWidth = inputFrameInfo.contentWidth;
+                    inputFrameInfo.contentWidth = (contentWidth + 0xf) & ~0xf;
+                    inputFrameInfo.cropLeft = inputFrameInfo.contentWidth - contentWidth;
+                } break;
+                case HAL_TRANSFORM_ROT_180: {
+                    VTRACE("HAL_TRANSFORM_ROT_180");
+                    int contentWidth = inputFrameInfo.contentWidth;
+                    int contentHeight = inputFrameInfo.contentHeight;
+                    inputFrameInfo.contentWidth = (contentWidth + 0xf) & ~0xf;
+                    inputFrameInfo.contentHeight = (contentHeight + 0xf) & ~0xf;
+                    inputFrameInfo.cropLeft = inputFrameInfo.contentWidth - contentWidth;
+                    inputFrameInfo.cropTop = inputFrameInfo.contentHeight - contentHeight;
+                } break;
+                case HAL_TRANSFORM_ROT_270: {
+                    VTRACE("HAL_TRANSFORM_ROT_270");
+                    int contentHeight = inputFrameInfo.contentHeight;
+                    inputFrameInfo.contentHeight = (contentHeight + 0xf) & ~0xf;
+                    inputFrameInfo.cropTop = inputFrameInfo.contentHeight - contentHeight;
+                } break;
+                default:
+                  break;
+            }
             outputFrameInfo = inputFrameInfo;
             outputFrameInfo.bufferFormat = metadata.format;
 
@@ -366,6 +393,14 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer)
                 outputFrameInfo.lumaUStride <= 0 ||
                 outputFrameInfo.chromaUStride <= 0 || outputFrameInfo.chromaVStride <= 0) {
                 ITRACE("Payload cleared or inconsistent info, not sending frame");
+                ITRACE("outputFrameInfo.bufferFormat  = %d ", outputFrameInfo.bufferFormat);
+                ITRACE("outputFrameInfo.bufferWidth   = %d ", outputFrameInfo.bufferWidth);
+                ITRACE("outputFrameInfo.contentWidth  = %d ", outputFrameInfo.contentWidth);
+                ITRACE("outputFrameInfo.bufferHeight  = %d ", outputFrameInfo.bufferHeight);
+                ITRACE("outputFrameInfo.contentHeight = %d ", outputFrameInfo.contentHeight);
+                ITRACE("outputFrameInfo.lumaUStride   = %d ", outputFrameInfo.lumaUStride);
+                ITRACE("outputFrameInfo.chromaUStride = %d ", outputFrameInfo.chromaUStride);
+                ITRACE("outputFrameInfo.chromaVStride = %d ", outputFrameInfo.chromaVStride);
                 return;
             }
         } else {
@@ -439,6 +474,10 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer)
         memcmp(&inputFrameInfo, &mLastInputFrameInfo, sizeof(inputFrameInfo)) != 0) {
         // something changed, notify type change listener
         mCurrentConfig.typeChangeListener->frameTypeChanged(inputFrameInfo);
+        ITRACE("Notify frameTypeChanged: %dx%d in %dx%d @ %d fps",
+            inputFrameInfo.contentWidth, inputFrameInfo.contentHeight,
+            inputFrameInfo.bufferWidth, inputFrameInfo.bufferHeight,
+            inputFrameInfo.contentFrameRateN);
         mLastInputFrameInfo = inputFrameInfo;
     }
 
@@ -448,6 +487,10 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer)
     if (mCurrentConfig.forceNotify ||
         memcmp(&outputFrameInfo, &mLastOutputFrameInfo, sizeof(outputFrameInfo)) != 0) {
         mCurrentConfig.typeChangeListener->bufferInfoChanged(outputFrameInfo);
+        ITRACE("Notify bufferInfoChanged: %dx%d in %dx%d @ %d fps",
+            outputFrameInfo.contentWidth, outputFrameInfo.contentHeight,
+            outputFrameInfo.bufferWidth, outputFrameInfo.bufferHeight,
+            outputFrameInfo.contentFrameRateN);
         mLastOutputFrameInfo = outputFrameInfo;
 
         if (handleType == HWC_HANDLE_TYPE_GRALLOC)
