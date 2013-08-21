@@ -346,7 +346,7 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer)
             if (metadata.kHandle != 0) {
                 handle = metadata.kHandle;
                 outputFrameInfo.bufferWidth = metadata.width;
-                outputFrameInfo.bufferHeight = metadata.height;
+                outputFrameInfo.bufferHeight = ((metadata.height + 0x1f) & (~0x1f));
                 outputFrameInfo.lumaUStride = metadata.lumaStride;
                 outputFrameInfo.chromaUStride = metadata.chromaUStride;
                 outputFrameInfo.chromaVStride = metadata.chromaVStride;
