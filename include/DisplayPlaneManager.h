@@ -63,7 +63,7 @@ public:
 
     // plane allocation & free
     DisplayPlane* getSpritePlane();
-    DisplayPlane* getOverlayPlane();
+    DisplayPlane* getOverlayPlane(int dsp);
     DisplayPlane* getPrimaryPlane(int dsp);
     void putPlane(DisplayPlane& plane);
 

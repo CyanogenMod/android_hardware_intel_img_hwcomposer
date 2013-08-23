@@ -182,7 +182,8 @@ DisplayPlane* DisplayPlaneManager::getPlane(int type, int dsp)
     }
 
     // try to get free plane from reclaimed planes
-    if (type == DisplayPlane::PLANE_PRIMARY)
+    if (type == DisplayPlane::PLANE_PRIMARY ||
+            type == DisplayPlane::PLANE_OVERLAY)
         // primary planes are attached to specific displays
         freePlaneIndex = getPlane(mReclaimedPlanes[type], dsp);
     else
@@ -193,7 +194,8 @@ DisplayPlane* DisplayPlaneManager::getPlane(int type, int dsp)
         return mPlanes[type].itemAt(freePlaneIndex);
 
     // failed to get a free plane from reclaimed planes, try it on free planes
-    if (type == DisplayPlane::PLANE_PRIMARY)
+    if (type == DisplayPlane::PLANE_PRIMARY ||
+            type == DisplayPlane::PLANE_OVERLAY)
         freePlaneIndex = getPlane(mFreePlanes[type], dsp);
     else
         freePlaneIndex = getPlane(mFreePlanes[type]);
@@ -254,9 +256,9 @@ DisplayPlane* DisplayPlaneManager::getSpritePlane()
     return getPlane((int)DisplayPlane::PLANE_SPRITE);
 }
 
-DisplayPlane* DisplayPlaneManager::getOverlayPlane()
+DisplayPlane* DisplayPlaneManager::getOverlayPlane(int dsp)
 {
-    return getPlane((int)DisplayPlane::PLANE_OVERLAY);
+    return getPlane((int)DisplayPlane::PLANE_OVERLAY, dsp);
 }
 
 DisplayPlane* DisplayPlaneManager::getPrimaryPlane(int dsp)
