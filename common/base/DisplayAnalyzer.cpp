@@ -415,6 +415,11 @@ void DisplayAnalyzer::handleModeSwitch()
     if (!hwc->getDrm()->isConnected(IDisplayDevice::DEVICE_EXTERNAL))
         return;
 
+    if (hwc->getMultiDisplayObserver()->isExternalDeviceTimingFixed()) {
+        VTRACE("The timing of external device is fixed.");
+        return;
+    }
+
     int hz = 0;
     if (mVideoInstances == 1) {
         VideoSourceInfo info;
