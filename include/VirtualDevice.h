@@ -63,7 +63,8 @@ protected:
         sp<IFrameListener> frameListener;
         FrameProcessingPolicy policy;
         bool extendedModeEnabled;
-        bool forceNotify;
+        bool forceNotifyFrameType;
+        bool forceNotifyBufferInfo;
     };
     Mutex mConfigLock;
     Configuration mCurrentConfig;
