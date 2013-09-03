@@ -213,7 +213,7 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
                 mAvailableCscBuffers.clear();
             }
         }
-        return false;
+        return true;
     }
 
     // by default send the FRAMEBUFFER_TARGET layer (composited image)
