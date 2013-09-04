@@ -89,6 +89,7 @@ private:
     void detectVideoExtendedMode();
     void detectTrickMode(hwc_display_contents_1_t *list);
     void handleModeSwitch();
+    inline void resetCompositionType(hwc_display_contents_1_t *content);
 
 private:
     bool mInitialized;

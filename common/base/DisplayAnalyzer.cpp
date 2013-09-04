@@ -127,8 +127,6 @@ void DisplayAnalyzer::detectTrickMode(hwc_display_contents_1_t *list)
         hwc_layer_1_t *layer = &list->hwLayers[i];
         if (layer && (layer->flags & HWC_TRICK_MODE)) {
             detected = true;
-            // reset the type
-            layer->compositionType = HWC_FRAMEBUFFER;
             break;
         }
     }
@@ -136,6 +134,7 @@ void DisplayAnalyzer::detectTrickMode(hwc_display_contents_1_t *list)
     if (detected != mForceCloneMode) {
         list->flags |= HWC_GEOMETRY_CHANGED;
         mForceCloneMode = detected;
+        resetCompositionType(list);
     }
 }
 
@@ -440,21 +439,13 @@ void DisplayAnalyzer::handleVideoEvent(
 {
     if (preparing != mVideoPreparing) {
         hwc_display_contents_1_t *content = NULL;
-        hwc_layer_1 *layer = NULL;
         for (int i = 0; i < (int)mCachedNumDisplays; i++) {
             content = mCachedDisplays[i];
             if (content == NULL) {
                 continue;
             }
             content->flags |= HWC_GEOMETRY_CHANGED;
-            // if video state is change, reset layers composition type to HWC_FRAMEBUFFER
-            for (int j = 0; j < (int)content->numHwLayers - 1; j++) {
-                layer = &content->hwLayers[j];
-                if (!layer) {
-                    continue;
-                }
-                layer->compositionType = HWC_FRAMEBUFFER;
-            }
+            resetCompositionType(content);
         }
         mVideoPreparing = preparing;
         // if video is in preparing stage, overlay use is temporarily not allowed to avoid
@@ -523,6 +514,18 @@ bool DisplayAnalyzer::isPresentationLayer(hwc_layer_1_t &layer)
         }
     }
     return true;
+}
+
+// reset the composition type of all layers to default
+void DisplayAnalyzer::resetCompositionType(hwc_display_contents_1_t *display)
+{
+    if (display == NULL)
+        return;
+
+    for (size_t i = 0; i < display->numHwLayers - 1; i++) {
+        hwc_layer_1_t *layer = &display->hwLayers[i];
+        if (layer) layer->compositionType = HWC_FRAMEBUFFER;
+    }
 }
 
 } // namespace intel
