@@ -59,6 +59,10 @@ private:
     bool mEnabled;
     int  mVsyncSource;
     Mutex mLock;
+
+private:
+    // toggle this constant to use primary vsync only or enable dynamic vsync.
+    static const bool scUsePrimaryVsyncOnly = false;
 };
 
 } // namespace intel

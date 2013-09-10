@@ -57,6 +57,7 @@ bool VsyncManager::initialize()
 {
     mEnabled = false;
     mVsyncSource = IDisplayDevice::DEVICE_COUNT;
+    mEnableDynamicVsync = !scUsePrimaryVsyncOnly;
     mInitialized = true;
     return true;
 }
@@ -69,6 +70,7 @@ void VsyncManager::deinitialize()
 
     mVsyncSource = IDisplayDevice::DEVICE_COUNT;
     mEnabled = false;
+    mEnableDynamicVsync = !scUsePrimaryVsyncOnly;
     mInitialized = false;
 }
 
@@ -153,10 +155,15 @@ int VsyncManager::getVsyncSource()
 void VsyncManager::enableDynamicVsync(bool enable)
 {
     Mutex::Autolock l(mLock);
+    if (scUsePrimaryVsyncOnly) {
+        WTRACE("dynamic vsync is not supported");
+        return;
+    }
+
     mEnableDynamicVsync = enable;
 
     if (!mEnabled) {
-        ITRACE("has been disabled");
+        ITRACE("Vsync has been disabled");
         mVsyncSource = IDisplayDevice::DEVICE_COUNT;
         return;
     }
