@@ -337,11 +337,8 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer)
                     inputFrameInfo.contentFrameRateD = 1;
                 }
             }
-
-            if (metadata.transform & HAL_TRANSFORM_ROT_90) {
-                inputFrameInfo.contentWidth = layer.sourceCrop.bottom - layer.sourceCrop.top;
-                inputFrameInfo.contentHeight = layer.sourceCrop.right - layer.sourceCrop.left;
-            }
+            inputFrameInfo.contentWidth = metadata.width;
+            inputFrameInfo.contentHeight = metadata.height;
 
             inputFrameInfo.cropLeft = 0;
             // skip pading bytes in rotate buffer
