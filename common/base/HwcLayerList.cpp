@@ -60,7 +60,7 @@ HwcLayer::~HwcLayer()
     mPlane = NULL;
 }
 
-bool HwcLayer::attachPlane(DisplayPlane* plane)
+bool HwcLayer::attachPlane(DisplayPlane* plane, int device)
 {
     if (mPlane) {
         ETRACE("failed to attach plane, plane exists");
@@ -76,6 +76,7 @@ bool HwcLayer::attachPlane(DisplayPlane* plane)
     // z order = layer's index + 1
     // reserve z order 0 for frame buffer target layer
     plane->setZOrder(mIndex + 1);
+    plane->assignToDevice(device);
     mPlane = plane;
     return true;
 }
@@ -165,7 +166,7 @@ uint32_t HwcLayer::getPriority() const
     return mPriority;
 }
 
-bool HwcLayer::update(hwc_layer_1_t *layer, int disp)
+bool HwcLayer::update(hwc_layer_1_t *layer)
 {
     // update layer
     mLayer = layer;
@@ -173,7 +174,6 @@ bool HwcLayer::update(hwc_layer_1_t *layer, int disp)
 
     // if not a FB layer & a plane was attached update plane's data buffer
     if (mPlane) {
-        mPlane->assignToDevice(disp);
         mPlane->setPosition(layer->displayFrame.left,
                             layer->displayFrame.top,
                             layer->displayFrame.right - layer->displayFrame.left,
@@ -527,7 +527,7 @@ void HwcLayerList::assignPlanes()
         // attach plane
         HwcLayer *hwcLayer = mOverlayCandidates.itemAt(idx);
         DisplayPlane *plane = mDisplayPlaneManager.getOverlayPlane(mDisplayIndex);
-        if (!hwcLayer->attachPlane(plane)) {
+        if (!hwcLayer->attachPlane(plane, mDisplayIndex)) {
             WTRACE("failed to attach plane");
             mDisplayPlaneManager.reclaimPlane(*plane);
             continue;
@@ -554,7 +554,7 @@ void HwcLayerList::assignPlanes()
         }
 
         // attach plane to hwc layer
-        if (!hwcLayer->attachPlane(plane)) {
+        if (!hwcLayer->attachPlane(plane, mDisplayIndex)) {
             WTRACE("failed to attach plane");
             mDisplayPlaneManager.reclaimPlane(*plane);
             continue;
@@ -624,7 +624,7 @@ void HwcLayerList::adjustAssignment()
             }
             break;
         }
-    } while(next && !next->attachPlane(plane));
+    } while(next && !next->attachPlane(plane, mDisplayIndex));
 
     // if failed to get next candidate, reclaim this plane
     if (!next) {
@@ -741,7 +741,7 @@ bool HwcLayerList::usePrimaryAsSprite(DisplayPlane *primaryPlane)
         if (checkSupported(DisplayPlane::PLANE_PRIMARY, layer)) {
             VTRACE("primary check passed for primary layer");
             // attach primary to layer
-            if (!layer->attachPlane(primaryPlane)) {
+            if (!layer->attachPlane(primaryPlane, mDisplayIndex)) {
                 WTRACE("failed to attach plane");
                 mDisplayPlaneManager.reclaimPlane(*primaryPlane);
                 return false;
@@ -823,7 +823,7 @@ void HwcLayerList::usePrimaryAsFramebufferTarget(DisplayPlane *primaryPlane)
     // other overlay layers
     layer->setType(HwcLayer::LAYER_FRAMEBUFFER_TARGET);
     // attach primary plane, it has to be successful
-    layer->attachPlane(primaryPlane);
+    layer->attachPlane(primaryPlane, mDisplayIndex);
 }
 
 bool HwcLayerList::calculatePrimaryZOrder(int& zorder)
@@ -984,7 +984,7 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
                 continue;
             }
 
-            ret = hwcLayer->update(&list->hwLayers[i], mDisplayIndex);
+            ret = hwcLayer->update(&list->hwLayers[i]);
             if (ret == false) {
                 // layer update failed, fall back to ST and revisit all plane
                 // assignment

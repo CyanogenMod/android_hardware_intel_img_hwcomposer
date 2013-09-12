@@ -56,6 +56,7 @@ public:
 protected:
     virtual bool setDataBuffer(BufferMapper& mapper);
     virtual bool flush(uint32_t flags);
+    virtual bool isFlushed();
 
 protected:
     struct intel_dc_plane_ctx mContext;

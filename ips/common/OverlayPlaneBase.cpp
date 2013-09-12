@@ -49,7 +49,10 @@ OverlayPlaneBase::OverlayPlaneBase(int index, int disp)
       mActiveTTMBuffers(),
       mBackBuffer(0),
       mWsbm(0),
-      mPipeConfig(0)
+      mPipeConfig(0),
+      mDisablePending(false),
+      mDisablePendingDevice(0),
+      mDisablePendingCount(0)
 {
     CTRACE();
 }
@@ -94,6 +97,11 @@ bool OverlayPlaneBase::initialize(uint32_t bufferCount)
 
     // disable overlay when created
     flush(PLANE_DISABLE);
+
+    // overlay by default is in "disabled" status
+    mDisablePending = false;
+    mDisablePendingDevice = 0;
+    mDisablePendingCount = 0;
     return true;
 }
 
@@ -110,6 +118,25 @@ void OverlayPlaneBase::deinitialize()
     }
 
     DEINIT_AND_DELETE_OBJ(mWsbm);
+}
+
+bool OverlayPlaneBase::setDataBuffer(uint32_t handle)
+{
+    if (mDisablePending) {
+        if (isFlushed() || mDisablePendingCount >= OVERLAY_DISABLING_COUNT_MAX) {
+            mDisablePending = false;
+            mDisablePendingDevice = 0;
+            mDisablePendingCount = 0;
+            enable();
+        } else {
+            mDisablePendingCount++;
+            WTRACE("overlay %d disabling on device %d is still pending, count: %d",
+                mIndex, mDisablePendingDevice, mDisablePendingCount);
+            return false;
+        }
+    }
+
+    return DisplayPlane::setDataBuffer(handle);
 }
 
 void OverlayPlaneBase::invalidateBufferCache()
@@ -133,7 +160,7 @@ bool OverlayPlaneBase::assignToDevice(int disp)
     uint32_t pipeConfig = 0;
 
     RETURN_FALSE_IF_NOT_INIT();
-    ATRACE("disp = %d", disp);
+    DTRACE("overlay %d assigned to disp %d", mIndex, disp);
 
     switch (disp) {
     case IDisplayDevice::DEVICE_EXTERNAL:
@@ -146,11 +173,17 @@ bool OverlayPlaneBase::assignToDevice(int disp)
     }
 
     // if pipe switching happened, then disable overlay first
-    if (mPipeConfig != pipeConfig)
+    if (mPipeConfig != pipeConfig) {
+        DTRACE("overlay %d switched from %d to %d", mIndex, mDevice, disp);
         disable();
+    }
 
     mPipeConfig = pipeConfig;
     mDevice = disp;
+
+    if (!mDisablePending) {
+        enable();
+    }
 
     return true;
 }
@@ -190,6 +223,19 @@ bool OverlayPlaneBase::reset()
 {
     RETURN_FALSE_IF_NOT_INIT();
 
+    if (mDisablePending) {
+        if (isFlushed() || mDisablePendingCount >= OVERLAY_DISABLING_COUNT_MAX) {
+            mDisablePending = false;
+            mDisablePendingDevice = 0;
+            mDisablePendingCount = 0;
+        } else {
+            mDisablePendingCount++;
+            WTRACE("overlay %d disabling is still pending on device %d, count %d",
+                 mIndex, mDisablePendingDevice, mDisablePendingCount);
+            return false;
+        }
+    }
+
     DisplayPlane::reset();
 
     // invalidate active TTM buffers
@@ -200,8 +246,6 @@ bool OverlayPlaneBase::reset()
     // reset back buffer
     resetBackBuffer();
 
-    // flush
-    flush(PLANE_DISABLE);
     return true;
 }
 
@@ -232,10 +276,21 @@ bool OverlayPlaneBase::disable()
     if (!(backBuffer->OCMD & 0x1))
         return true;
 
+    if (mDisablePending) {
+        WTRACE("overlay %d disabling is still pending on device %d, skip disabling",
+             mIndex, mDisablePendingDevice);
+        return true;
+    }
+
     backBuffer->OCMD &= ~0x1;
 
     // flush
     flush(PLANE_DISABLE);
+
+    // "disable" is asynchronous and needs at least one vsync to complete
+    mDisablePending = true;
+    mDisablePendingDevice = mDevice;
+    mDisablePendingCount = 0;
     return true;
 }
 

@@ -185,6 +185,10 @@ bool TngOverlayPlane::flush(uint32_t flags)
     // pipe select
     arg.plane.ctx |= mPipeConfig;
 
+    if (flags & PLANE_DISABLE) {
+        DTRACE("disabling overlay %d on device %d", mIndex, mDevice);
+    }
+
     // issue ioctl
     Drm *drm = Hwcomposer::getInstance().getDrm();
     bool ret = drm->writeReadIoctl(DRM_PSB_REGISTER_RW, &arg, sizeof(arg));
@@ -194,6 +198,30 @@ bool TngOverlayPlane::flush(uint32_t flags)
     }
 
     return true;
+}
+
+bool TngOverlayPlane::isFlushed()
+{
+    RETURN_FALSE_IF_NOT_INIT();
+
+    struct drm_psb_register_rw_arg arg;
+    memset(&arg, 0, sizeof(struct drm_psb_register_rw_arg));
+
+    arg.overlay_read_mask = OVSTATUS_REGRBIT_OVR_UPDT;
+    arg.plane.type = DC_OVERLAY_PLANE;
+    arg.plane.index = mIndex;
+    arg.plane.ctx = 0;
+
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+    bool ret = drm->writeReadIoctl(DRM_PSB_REGISTER_RW, &arg, sizeof(arg));
+    if (ret == false) {
+        WTRACE("overlay read failed with error code %d", ret);
+        return false;
+    }
+
+    DTRACE("overlay %d flush status %s on device %d, current device %d",
+        mIndex, arg.plane.ctx ? "DONE" : "PENDING", mDisablePendingDevice, mDevice);
+    return arg.plane.ctx == 1;
 }
 
 } // namespace intel
