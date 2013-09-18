@@ -330,11 +330,10 @@ void DisplayAnalyzer::postHotplugEvent(bool connected)
     }
 }
 
-void DisplayAnalyzer::postVideoEvent(int instances, int instanceID, bool preparing, bool playing)
+void DisplayAnalyzer::postVideoEvent(int instanceID, bool preparing, bool playing)
 {
     Event e;
     e.type = VIDEO_EVENT;
-    e.videoEvent.instances = instances;
     e.videoEvent.instanceID = instanceID;
     e.videoEvent.preparing = preparing;
     e.videoEvent.playing = playing;
@@ -386,8 +385,7 @@ void DisplayAnalyzer::handlePendingEvents()
             handleBlankEvent(e.blank);
             break;
         case VIDEO_EVENT:
-            handleVideoEvent(e.videoEvent.instances,
-                            e.videoEvent.instanceID,
+            handleVideoEvent(e.videoEvent.instanceID,
                             e.videoEvent.preparing,
                             e.videoEvent.playing);
             break;
@@ -448,7 +446,7 @@ void DisplayAnalyzer::handleModeSwitch()
 }
 
 void DisplayAnalyzer::handleVideoEvent(
-    int instances, int instanceID, bool preparing, bool playing)
+    int instanceID, bool preparing, bool playing)
 {
     if (preparing != mVideoPreparing) {
         hwc_display_contents_1_t *content = NULL;
@@ -466,13 +464,13 @@ void DisplayAnalyzer::handleVideoEvent(
         mOverlayAllowed = !preparing;
     }
     mVideoPlaying = playing;
-    mVideoInstances = instances;
     mVideoInstanceId = instanceID;
 
     Hwcomposer *hwc = &Hwcomposer::getInstance();
     if ((playing && !preparing) || (!playing && !preparing)) {
         mVideoStateChanged = true;
     }
+    mVideoInstances = hwc->getMultiDisplayObserver()->getVideoSessionNumber();
 
     if (preparing) {
         Hwcomposer::getInstance().getPlaneManager()->disableOverlayPlanes();

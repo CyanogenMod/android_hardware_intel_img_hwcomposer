@@ -29,10 +29,7 @@
 #define __MULTIDISPLAY_OBSERVER_H
 
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
-#include <display/IMultiDisplayCallback.h>
-#include <display/IMultiDisplayListener.h>
-#include <display/MultiDisplayType.h>
-#include <display/MultiDisplayClient.h>
+#include <display/MultiDisplayService.h>
 #include <SimpleThread.h>
 #else
 #include <utils/Errors.h>
@@ -47,6 +44,7 @@ struct VideoSourceInfo {
     int frameRate;
 };
 
+
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
 
 class MultiDisplayObserver;
@@ -56,16 +54,15 @@ public:
     MultiDisplayCallback(MultiDisplayObserver *observer);
     virtual ~MultiDisplayCallback();
 
-    status_t setPhoneState(MDS_PHONE_STATE state);
-    status_t setVideoState(int sessionNum, int sessionId, MDS_VIDEO_STATE state);
-    status_t setDisplayTiming(MDS_DISPLAY_ID dpyId, MDSDisplayTiming *timing);
-    status_t setDisplayState(MDS_DISPLAY_ID dpyId, MDS_DISPLAY_STATE state);
-    status_t setScalingType(MDS_DISPLAY_ID dpyId, MDS_SCALING_TYPE type);
-    status_t setOverscan(MDS_DISPLAY_ID dpyId, int hValue, int vValue);
+    status_t blankSecondaryDisplay(bool blank);
+    status_t updateVideoState(int sessionId, MDS_VIDEO_STATE state);
+    status_t setHdmiTiming(const MDSHdmiTiming& timing);
+    status_t setHdmiScalingType(MDS_SCALING_TYPE type);
+    status_t setHdmiOverscan(int hValue, int vValue);
+    status_t updateInputState(bool state);
 
 private:
     MultiDisplayObserver *mDispObserver;
-    MDS_PHONE_STATE mPhoneState;
     MDS_VIDEO_STATE mVideoState;
 };
 
@@ -79,16 +76,18 @@ public:
     void deinitialize();
     status_t notifyHotPlug(int disp, bool connected);
     status_t getVideoSourceInfo(int sessionID, VideoSourceInfo* info);
+    int  getVideoSessionNumber();
     bool isExternalDeviceTimingFixed() const;
 
 private:
-     bool isMDSRunning();
-     bool initMDSClient();
-     bool initMDSClientAsync();
-     void deinitMDSClient();
-    status_t setPhoneState(MDS_PHONE_STATE state);
-    status_t setVideoState(int sessionNum, int sessionId, MDS_VIDEO_STATE state);
-    status_t setDisplayTiming(MDS_DISPLAY_ID dpyId, MDSDisplayTiming *timing);
+    bool isMDSRunning();
+    bool initMDSClient();
+    bool initMDSClientAsync();
+    void deinitMDSClient();
+    status_t blankSecondaryDisplay(bool blank);
+    status_t updateVideoState(int sessionId, MDS_VIDEO_STATE state);
+    status_t setHdmiTiming(const MDSHdmiTiming& timing);
+    status_t setInputState(bool state);
     friend class MultiDisplayCallback;
 
 private:
@@ -98,14 +97,16 @@ private:
     };
 
 private:
-    MultiDisplayClient *mMDSClient;
+    sp<IMultiDisplayCallbackRegistrar> mMDSCbRegistrar;
+    sp<IMultiDisplayInfoProvider> mMDSInfoProvider;
+    sp<IMultiDisplayConnectionObserver> mMDSConnObserver;
     sp<MultiDisplayCallback> mMDSCallback;
     mutable Mutex mLock;
     Condition mCondition;
     int mThreadLoopCount;
     bool mDeviceConnected;
     // indicate external devices's timing is set
-    bool mExternalDisplayTiming;
+    bool mExternalHdmiTiming;
     bool mInitialized;
 
 private:
@@ -124,6 +125,7 @@ public:
     void deinitialize() {}
     status_t notifyHotPlug(int disp, bool connected) { return NO_ERROR; }
     status_t getVideoSourceInfo(int sessionID, VideoSourceInfo* info) { return INVALID_OPERATION; }
+    int  getVideoSessionNumber() { return 0; }
     bool isExternalDeviceTimingFixed() const { return false; }
 };
 
