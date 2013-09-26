@@ -444,6 +444,12 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
             stride.yuv.yStride = yStride;
             stride.yuv.uvStride = uvStride;
             break;
+        case HAL_PIXEL_FORMAT_NV12:
+            yStride = align_to(align_to(w, 32), 64);
+            uvStride = yStride;
+            stride.yuv.yStride = yStride;
+            stride.yuv.uvStride = uvStride;
+            break;
         case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:
         case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled:
             yStride = align_to(align_to(w, 32), 64);
@@ -686,6 +692,12 @@ bool OverlayPlaneBase::bufferOffsetSetup(BufferMapper& mapper)
         backBuffer->OBUF_0V = backBuffer->OBUF_0U + (uvStride * (h / 2));
         backBuffer->OCMD |= OVERLAY_FORMAT_PLANAR_YUV420;
         break;
+    case HAL_PIXEL_FORMAT_NV12:    // NV12
+        backBuffer->OBUF_0Y = 0;
+        backBuffer->OBUF_0U = yStride * align_to(h, 32);
+        backBuffer->OBUF_0V = 0;
+        backBuffer->OCMD |= OVERLAY_FORMAT_PLANAR_NV12_2;
+        break;
     // NOTE: this is the decoded video format, align the height to 32B
     //as it's defined by video driver
     case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:    // NV12
@@ -779,6 +791,7 @@ bool OverlayPlaneBase::coordinateSetup(BufferMapper& mapper)
     switch (format) {
     case HAL_PIXEL_FORMAT_YV12:              // YV12
     case HAL_PIXEL_FORMAT_I420:              // I420
+    case HAL_PIXEL_FORMAT_NV12:              // NV12
     case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:          // NV12
     case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled:    // NV12_tiled
         break;
