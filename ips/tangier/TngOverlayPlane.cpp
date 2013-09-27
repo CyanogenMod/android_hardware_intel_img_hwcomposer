@@ -210,7 +210,10 @@ bool TngOverlayPlane::isFlushed()
     arg.overlay_read_mask = OVSTATUS_REGRBIT_OVR_UPDT;
     arg.plane.type = DC_OVERLAY_PLANE;
     arg.plane.index = mIndex;
-    arg.plane.ctx = 0;
+    // pass the pipe index to check its enabled status
+    // now we can pass the device id directly since
+    // their values are just equal
+    arg.plane.ctx = mDisablePendingDevice;
 
     Drm *drm = Hwcomposer::getInstance().getDrm();
     bool ret = drm->writeReadIoctl(DRM_PSB_REGISTER_RW, &arg, sizeof(arg));
