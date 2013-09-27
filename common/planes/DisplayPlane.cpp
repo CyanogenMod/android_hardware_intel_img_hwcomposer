@@ -187,7 +187,7 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
     ATRACE("handle = %#x", handle);
 
     if (!handle) {
-        ETRACE("invalid buffer handle");
+        WTRACE("invalid buffer handle");
         return false;
     }
 

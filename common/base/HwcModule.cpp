@@ -149,7 +149,7 @@ static int hwc_getDisplayConfigs(hwc_composer_device_1_t *dev,
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->getDisplayConfigs(disp, configs, numConfigs);
     if (ret == false) {
-        ETRACE("failed to get configs of disp %d", disp);
+        WTRACE("failed to get configs of disp %d", disp);
         return -EINVAL;
     }
 
@@ -165,7 +165,7 @@ static int hwc_getDisplayAttributes(hwc_composer_device_1_t *dev,
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->getDisplayAttributes(disp, config, attributes, values);
     if (ret == false) {
-        ETRACE("failed to get attributes of disp %d", disp);
+        WTRACE("failed to get attributes of disp %d", disp);
         return -EINVAL;
     }
 

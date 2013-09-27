@@ -208,7 +208,7 @@ bool TngGrallocBufferMapper::mapKhandle()
 
     ret = psbWsbmCreateFromUB(wsbmBufferObject, mWidth * mHeight, mCpuAddress[0]);
     if (ret != 0) {
-        ETRACE("Creat from UB failed!");
+        ETRACE("Create from UB failed!");
         return false;
     }
 

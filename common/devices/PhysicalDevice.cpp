@@ -254,7 +254,7 @@ bool PhysicalDevice::getDisplayAttributes(uint32_t configs,
 
     DisplayConfig *config = mDisplayConfigs.itemAt(mActiveDisplayConfig);
     if  (!config) {
-        ETRACE("failed to get display config");
+        WTRACE("failed to get display config");
         return false;
     }
 

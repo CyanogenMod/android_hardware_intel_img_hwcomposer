@@ -107,7 +107,7 @@ bool Drm::detect(int device)
 
     // find connector for the given device
     for (int i = 0; i < resources->count_connectors; i++) {
-        if(!resources->connectors[i]) {
+        if (!resources->connectors[i]) {
             ETRACE("fail to get drm resources connectors, error: %s", strerror(errno));
             continue;
         }
@@ -146,7 +146,7 @@ bool Drm::detect(int device)
             ITRACE("getting encoder for device %d", device);
             drmModeEncoderPtr encoder;
             for (int j = 0; j < resources->count_encoders; j++) {
-                if(!resources->encoders[j]) {
+                if (!resources->encoders[j]) {
                     ETRACE("fail to get drm resources encoders, error: %s", strerror(errno));
                     continue;
                 }
@@ -182,7 +182,7 @@ bool Drm::detect(int device)
             ITRACE("getting crtc for device %d", device);
             drmModeCrtcPtr crtc;
             for (int j = 0; j < resources->count_crtcs; j++) {
-                if(!resources->crtcs[j]) {
+                if (!resources->crtcs[j]) {
                     ETRACE("fail to get drm resources crtcs, error: %s", strerror(errno));
                     continue;
                 }
@@ -353,7 +353,7 @@ bool Drm::writeReadIoctl(unsigned long cmd, void *data,
 
     err = drmCommandWriteRead(mDrmFd, cmd, data, size);
     if (err) {
-        ETRACE("failed to call %ld ioctl with failure %d", cmd, err);
+        WTRACE("failed to call %ld ioctl with failure %d", cmd, err);
         return false;
     }
 
@@ -377,7 +377,7 @@ bool Drm::writeIoctl(unsigned long cmd, void *data,
 
     err = drmCommandWrite(mDrmFd, cmd, data, size);
     if (err) {
-        ETRACE("failed to call %ld ioctl with failure %d", cmd, err);
+        WTRACE("failed to call %ld ioctl with failure %d", cmd, err);
         return false;
     }
 
