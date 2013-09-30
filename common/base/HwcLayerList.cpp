@@ -56,6 +56,7 @@ HwcLayer::~HwcLayer()
     if (mPlane) {
         WTRACE("HwcLayer is not cleaned up");
     }
+
     mLayer = NULL;
     mPlane = NULL;
 }
