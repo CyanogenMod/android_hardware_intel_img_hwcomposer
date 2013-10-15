@@ -118,38 +118,28 @@ void DisplayPlane::setPosition(int x, int y, int w, int h)
 {
     ATRACE("Position = %d, %d - %dx%d", x, y, w, h);
 
-    // if position is unchanged, skip it
-    if (mPosition.x == x && mPosition.y == y &&
-        mPosition.w == w && mPosition.h == h) {
-        mUpdateMasks &= ~PLANE_POSITION_CHANGED;
-        return;
+    if (mPosition.x != x || mPosition.y != y ||
+        mPosition.w != w || mPosition.h != h) {
+        mUpdateMasks |= PLANE_POSITION_CHANGED;
+        mPosition.x = x;
+        mPosition.y = y;
+        mPosition.w = w;
+        mPosition.h = h;
     }
-
-    mPosition.x = x;
-    mPosition.y = y;
-    mPosition.w = w;
-    mPosition.h = h;
-
-    mUpdateMasks |= PLANE_POSITION_CHANGED;
 }
 
 void DisplayPlane::setSourceCrop(int x, int y, int w, int h)
 {
     ATRACE("Source crop = %d, %d - %dx%d", x, y, w, h);
 
-    // if source crop is unchanged, skip it
-    if (mSrcCrop.x == x && mSrcCrop.y == y &&
-        mSrcCrop.w == w && mSrcCrop.h == h) {
-        mUpdateMasks &= ~PLANE_SOURCE_CROP_CHANGED;
-        return;
+    if (mSrcCrop.x != x || mSrcCrop.y != y ||
+        mSrcCrop.w != w || mSrcCrop.h != h) {
+        mUpdateMasks |= PLANE_SOURCE_CROP_CHANGED;
+        mSrcCrop.x = x;
+        mSrcCrop.y = y;
+        mSrcCrop.w = w;
+        mSrcCrop.h = h;
     }
-
-    mSrcCrop.x = x;
-    mSrcCrop.y = y;
-    mSrcCrop.w = w;
-    mSrcCrop.h = h;
-
-    mUpdateMasks |= PLANE_SOURCE_CROP_CHANGED;
 }
 
 void DisplayPlane::setTransform(int trans)
@@ -157,7 +147,6 @@ void DisplayPlane::setTransform(int trans)
     ATRACE("transform = %d", trans);
 
     if (mTransform == trans) {
-        mUpdateMasks &= ~PLANE_TRANSFORM_CHANGED;
         return;
     }
 
@@ -194,11 +183,8 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
     // do not need to update the buffer handle
     if (mCurrentDataBuffer != handle)
         mUpdateMasks |= PLANE_BUFFER_CHANGED;
-    else
-        mUpdateMasks &= ~PLANE_BUFFER_CHANGED;
 
     // if no update then do Not need set data buffer
-    // TODO: this design assumes position/transform/sourcecrop are all set
     if (!mUpdateMasks)
         return true;
 
@@ -353,6 +339,11 @@ bool DisplayPlane::flip(void *ctx)
         return false;
     else
         return true;
+}
+
+void DisplayPlane::postFlip()
+{
+    mUpdateMasks = 0;
 }
 
 bool DisplayPlane::reset()

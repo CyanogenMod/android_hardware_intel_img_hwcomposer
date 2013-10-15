@@ -37,6 +37,19 @@
 namespace android {
 namespace intel {
 
+inline bool operator==(const hwc_rect_t& x, const hwc_rect_t& y)
+{
+    return (x.top == y.top &&
+            x.bottom == y.bottom &&
+            x.left == y.left &&
+            x.right == y.right);
+}
+
+inline bool operator !=(const hwc_rect_t& x, const hwc_rect_t& y)
+{
+    return !operator==(x, y);
+}
+
 HwcLayer::HwcLayer(int index, hwc_layer_1_t *layer)
     : mIndex(index),
       mLayer(layer),
@@ -46,8 +59,13 @@ HwcLayer::HwcLayer(int index, hwc_layer_1_t *layer)
       mHandle(0),
       mIsProtected(false),
       mType(LAYER_FB),
-      mPriority(0)
+      mPriority(0),
+      mTransform(0),
+      mUpdated(false)
 {
+    memset(&mSourceCrop, 0, sizeof(mSourceCrop));
+    memset(&mDisplayFrame, 0, sizeof(mDisplayFrame));
+
     setupAttributes();
 }
 
@@ -120,6 +138,16 @@ void HwcLayer::setType(uint32_t type)
 uint32_t HwcLayer::getType() const
 {
     return mType;
+}
+
+void HwcLayer::setCompositionType(int32_t type)
+{
+    mLayer->compositionType = type;
+}
+
+int32_t HwcLayer::getCompositionType() const
+{
+    return mLayer->compositionType;
 }
 
 int HwcLayer::getIndex() const
@@ -201,13 +229,45 @@ bool HwcLayer::update(hwc_layer_1_t *layer)
         }
     }
 
+    if (mType == LAYER_FRAMEBUFFER_TARGET ||
+        mType == LAYER_FB ||
+        mType == LAYER_FORCE_FB) {
+        // reset composition type after possible smart composition
+        mLayer->compositionType = HWC_FRAMEBUFFER;
+    }
+
     return true;
+}
+
+bool HwcLayer::isUpdated()
+{
+    return mUpdated;
+}
+
+void HwcLayer::postFlip()
+{
+    mUpdated = false;
+    if (mPlane) {
+        mPlane->postFlip();
+    }
 }
 
 void HwcLayer::setupAttributes()
 {
+    if ((mLayer->flags & HWC_SKIP_LAYER) ||
+        mTransform != mLayer->transform ||
+        mSourceCrop != mLayer->sourceCrop ||
+        mDisplayFrame != mLayer->displayFrame ||
+        mHandle != (uint32_t)mLayer->handle) {
+        // TODO: same handle does not mean there is always no update
+        mUpdated = true;
+    }
+
     // update handle always as it can become "NULL"
     // if the given layer is not ready
+    mTransform = mLayer->transform;
+    mSourceCrop = mLayer->sourceCrop;
+    mDisplayFrame = mLayer->displayFrame;
     mHandle = (uint32_t)mLayer->handle;
 
     if (mFormat != DataBuffer::FORMAT_INVALID) {
@@ -958,6 +1018,34 @@ bool HwcLayerList::setupZOrderConfig()
     return mDisplayPlaneManager.setZOrderConfig(zorderConfig);
 }
 
+void HwcLayerList::setupSmartComposition()
+{
+    bool smartComposition = true;
+    int frameBufferLayers = 0;
+    HwcLayer *hwcLayer = NULL;
+
+    for (size_t i = 0; i < mLayerCount - 1; i++) {
+        hwcLayer = mLayers.itemAt(i);
+        if (hwcLayer->getCompositionType() == HWC_FRAMEBUFFER) {
+            frameBufferLayers++;
+            if (hwcLayer->isUpdated()) {
+                smartComposition = false;
+                break;
+            }
+        }
+    }
+
+    if (!smartComposition || !frameBufferLayers) {
+        return;
+    }
+
+    ITRACE("entering smart composition");
+    for (size_t i = 0; i < mLayerCount - 1; i++) {
+        hwcLayer = mLayers.itemAt(i);
+        hwcLayer->setCompositionType(HWC_OVERLAY);
+    }
+}
+
 bool HwcLayerList::update(hwc_display_contents_1_t *list)
 {
     bool ret;
@@ -1025,6 +1113,7 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
         }
     } while (again && mOverlayLayers.size());
 
+    setupSmartComposition();
     return true;
 }
 
@@ -1086,6 +1175,14 @@ bool HwcLayerList::hasVisibleLayer()
     }
     ITRACE("number of visible layers %d", count);
     return count != 0;
+}
+
+void HwcLayerList::postFlip()
+{
+    for (size_t i = 0; i < mLayers.size(); i++) {
+        HwcLayer *hwcLayer = mLayers.itemAt(i);
+        hwcLayer->postFlip();
+    }
 }
 
 void HwcLayerList::dump(Dump& d)
