@@ -43,6 +43,7 @@ PhysicalDevice::PhysicalDevice(uint32_t type, Hwcomposer& hwc, DisplayPlaneManag
       mVsyncObserver(NULL),
       mLayerList(NULL),
       mConnected(false),
+      mBlank(false),
       mDisplayState(DEVICE_DISPLAY_ON),
       mInitialized(false)
 {
@@ -179,6 +180,7 @@ bool PhysicalDevice::blank(bool blank)
     if (!mConnected)
         return false;
 
+    mBlank = blank;
     bool ret = mBlankControl->blank(mType, blank);
     if (ret == false) {
         ETRACE("failed to blank device");

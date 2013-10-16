@@ -240,6 +240,40 @@ void ExternalDevice::onHotplug()
     }
 }
 
+void ExternalDevice::setRefreshRate(int hz)
+{
+    RETURN_VOID_IF_NOT_INIT();
+
+    ITRACE("setting refresh rate to %d", hz);
+
+    if (mBlank) {
+        WTRACE("external device is blank");
+        return;
+    }
+
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+    drmModeModeInfo mode;
+    if (!drm->getModeInfo(IDisplayDevice::DEVICE_EXTERNAL, mode))
+        return;
+
+    if (hz == 0 && (mode.type & DRM_MODE_TYPE_PREFERRED))
+        return;
+
+    if (hz == mode.vrefresh)
+        return;
+
+    ITRACE("changing refresh rate from %d to %d", mode.vrefresh, hz);
+
+    Hwcomposer::getInstance().getVsyncManager()->enableDynamicVsync(false);
+
+    mHdcpControl->stopHdcp();
+
+    drm->setRefreshRate(IDisplayDevice::DEVICE_EXTERNAL, hz);
+
+    mHotplugEventPending = false;
+    mHdcpControl->startHdcpAsync(HdcpLinkStatusListener, this);
+    Hwcomposer::getInstance().getVsyncManager()->enableDynamicVsync(true);
+}
 
 } // namespace intel
 } // namespace android

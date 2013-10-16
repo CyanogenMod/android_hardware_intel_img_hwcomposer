@@ -35,6 +35,7 @@
 #include <DisplayAnalyzer.h>
 #include <cutils/properties.h>
 #include <GraphicBuffer.h>
+#include <ExternalDevice.h>
 
 namespace android {
 namespace intel {
@@ -420,7 +421,8 @@ void DisplayAnalyzer::handleModeSwitch()
     // if video is in playing state or reset refresh rate to default preferred one if video is not
     // at playing state
     Hwcomposer *hwc = &Hwcomposer::getInstance();
-    if (!hwc->getDrm()->isConnected(IDisplayDevice::DEVICE_EXTERNAL))
+    Drm *drm = hwc->getDrm();
+    if (!drm->isConnected(IDisplayDevice::DEVICE_EXTERNAL))
         return;
 
     if (hwc->getMultiDisplayObserver()->isExternalDeviceTimingFixed()) {
@@ -434,13 +436,15 @@ void DisplayAnalyzer::handleModeSwitch()
         status_t err = hwc->getMultiDisplayObserver()->getVideoSourceInfo(
                 mVideoInstanceId, &info);
         if (err == NO_ERROR) {
-            ITRACE("setting refresh rate to %d", info.frameRate);
             hz = info.frameRate;
         }
     }
-    hwc->getVsyncManager()->enableDynamicVsync(false);
-    hwc->getDrm()->setRefreshRate(IDisplayDevice::DEVICE_EXTERNAL, hz);
-    hwc->getVsyncManager()->enableDynamicVsync(true);
+
+    ExternalDevice *dev =
+        (ExternalDevice *)hwc->getDisplayDevice(IDisplayDevice::DEVICE_EXTERNAL);
+    if (dev) {
+        dev->setRefreshRate(hz);
+    }
 }
 
 void DisplayAnalyzer::handleVideoEvent(

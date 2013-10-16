@@ -239,7 +239,7 @@ bool Drm::isSameDrmMode(drmModeModeInfoPtr value,
         base->vdisplay == value->vdisplay &&
         base->vrefresh == value->vrefresh &&
         (base->flags & value->flags) == value->flags) {
-        ITRACE("Drm mode is not changed");
+        VTRACE("Drm mode is not changed");
         return true;
     }
 

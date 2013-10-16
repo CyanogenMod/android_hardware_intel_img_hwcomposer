@@ -107,6 +107,7 @@ protected:
     // layer list
     HwcLayerList *mLayerList;
     bool mConnected;
+    bool mBlank;
 
     // lock
     Mutex mLock;
