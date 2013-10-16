@@ -374,6 +374,9 @@ bool Hwcomposer::initialize()
 
 void Hwcomposer::deinitialize()
 {
+    DEINIT_AND_DELETE_OBJ(mMultiDisplayObserver);
+    DEINIT_AND_DELETE_OBJ(mDisplayAnalyzer);
+
     // delete mVsyncManager first as it holds reference to display devices.
     DEINIT_AND_DELETE_OBJ(mVsyncManager);
 
@@ -384,11 +387,9 @@ void Hwcomposer::deinitialize()
     }
     mDisplayDevices.clear();
 
-    DEINIT_AND_DELETE_OBJ(mPlaneManager);
     DEINIT_AND_DELETE_OBJ(mDisplayContext);
-    DEINIT_AND_DELETE_OBJ(mDisplayAnalyzer);
-    DEINIT_AND_DELETE_OBJ(mMultiDisplayObserver);
     DEINIT_AND_DELETE_OBJ(mBufferManager);
+    DEINIT_AND_DELETE_OBJ(mPlaneManager);
     DEINIT_AND_DELETE_OBJ(mDrm);
     mInitialized = false;
 }

@@ -73,6 +73,10 @@ bool OverlayPlaneBase::initialize(uint32_t bufferCount)
              bufferCount, OVERLAY_DATA_BUFFER_COUNT);
         bufferCount = OVERLAY_DATA_BUFFER_COUNT;
     }
+    if (!DisplayPlane::initialize(bufferCount)) {
+        DEINIT_AND_RETURN_FALSE("failed to initialize display plane");
+    }
+
     mTTMBuffers.setCapacity(bufferCount);
     mActiveTTMBuffers.setCapacity(MIN_DATA_BUFFER_COUNT);
 
@@ -91,9 +95,6 @@ bool OverlayPlaneBase::initialize(uint32_t bufferCount)
     // reset back buffer
     resetBackBuffer();
 
-    if (!DisplayPlane::initialize(bufferCount)) {
-        DEINIT_AND_RETURN_FALSE("failed to initialize display plane");
-    }
 
     // disable overlay when created
     flush(PLANE_DISABLE);
@@ -107,17 +108,21 @@ bool OverlayPlaneBase::initialize(uint32_t bufferCount)
 
 void OverlayPlaneBase::deinitialize()
 {
-    DisplayPlane::deinitialize();
+    if (mTTMBuffers.size()) {
+        invalidateBufferCache();
+    }
 
-    // delete back buffer
-    deleteBackBuffer();
-
-    // invalidate TTM active buffers
     if (mActiveTTMBuffers.size() > 0) {
         invalidateActiveTTMBuffers();
     }
 
+    if (mBackBuffer) {
+        deleteBackBuffer();
+    }
+
     DEINIT_AND_DELETE_OBJ(mWsbm);
+
+    DisplayPlane::deinitialize();
 }
 
 bool OverlayPlaneBase::setDataBuffer(uint32_t handle)

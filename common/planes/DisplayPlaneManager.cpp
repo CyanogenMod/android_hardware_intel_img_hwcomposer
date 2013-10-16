@@ -68,6 +68,7 @@ void DisplayPlaneManager::deinitialize()
     }
 
     mNativeZOrderConfig = 0;
+    mInitialized = false;
 }
 
 bool DisplayPlaneManager::initialize()
