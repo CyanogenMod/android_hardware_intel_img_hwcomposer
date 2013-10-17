@@ -58,7 +58,7 @@ public:
     };
 
     enum {
-        LAYER_PRIORITY_PROTECTED = 0x80000000UL,
+        LAYER_PRIORITY_PROTECTED = 0x70000000UL,
         LAYER_PRIORITY_SIZE_OFFSET = 4,
     };
 public:
