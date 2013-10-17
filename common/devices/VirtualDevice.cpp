@@ -220,11 +220,13 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
     mLayerToSend = display->numHwLayers-1;
 
     DisplayAnalyzer *analyzer = mHwc.getDisplayAnalyzer();
-    if ((display->numHwLayers-1) == 1) {
-        hwc_layer_1_t& layer = display->hwLayers[0];
-        if (analyzer->isPresentationLayer(layer) && layer.transform == 0 && layer.blending == HWC_BLENDING_NONE) {
-            mLayerToSend = 0;
-            VTRACE("Layer (%d) is Presentation layer", mLayerToSend);
+    if (mCurrentConfig.extendedModeEnabled) {
+        if ((display->numHwLayers-1) == 1) {
+            hwc_layer_1_t& layer = display->hwLayers[0];
+            if (analyzer->isPresentationLayer(layer) && layer.transform == 0 && layer.blending == HWC_BLENDING_NONE) {
+                mLayerToSend = 0;
+                VTRACE("Layer (%d) is Presentation layer", mLayerToSend);
+            }
         }
     }
 
@@ -335,6 +337,7 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer)
                         inputFrameInfo.contentFrameRateN = videoInfo.frameRate;
                     }
                     inputFrameInfo.contentFrameRateD = 1;
+                    inputFrameInfo.frameType = HWC_FRAMETYPE_VIDEO;
                 }
             }
             inputFrameInfo.contentWidth = metadata.width;
