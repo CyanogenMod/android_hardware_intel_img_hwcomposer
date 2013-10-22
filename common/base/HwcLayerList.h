@@ -150,7 +150,7 @@ private:
     void preProccess();
     void detachPrimary();
     bool usePrimaryAsSprite(DisplayPlane *primaryPlane);
-    void usePrimaryAsFramebufferTarget(DisplayPlane *primaryPlane);
+    bool usePrimaryAsFramebufferTarget(DisplayPlane *primaryPlane);
     bool updateZOrderConfig();
     void updatePossiblePrimaryLayers();
     bool calculatePrimaryZOrder(int& zorder);

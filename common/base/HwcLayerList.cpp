@@ -760,14 +760,23 @@ bool HwcLayerList::updateZOrderConfig()
         return false;
     }
 
+    if (!primaryPlane->enable()) {
+        ETRACE("failed to enable primary plane");
+        return false;
+    }
+
     // primary can be used as sprite, setup Z order directly
     if (usePrimaryAsSprite(primaryPlane)) {
-        VTRACE("primary was used as sprite");
+        VTRACE("primary is used as sprite");
         return setupZOrderConfig();
     }
 
     // attach primary to frame buffer target
-    usePrimaryAsFramebufferTarget(primaryPlane);
+    if (!usePrimaryAsFramebufferTarget(primaryPlane)) {
+        VTRACE("primary is unused");
+        mDisplayPlaneManager.reclaimPlane(*primaryPlane);
+        return setupZOrderConfig();
+    }
 
     int primaryZOrder = 0;
     // if no possible primary layers, place it at bottom
@@ -877,8 +886,19 @@ void HwcLayerList::updatePossiblePrimaryLayers()
     }
 }
 
-void HwcLayerList::usePrimaryAsFramebufferTarget(DisplayPlane *primaryPlane)
+bool HwcLayerList::usePrimaryAsFramebufferTarget(DisplayPlane *primaryPlane)
 {
+    // don't attach primary if
+    // 0) no fb layers
+    // 1) all overlay layers have been handled
+    // NOTE: still need attach primary plane if no fb layers and some layers
+    // were skipped, or primary plane would be shut down and we will have no
+    // chance to fetch FB data at this point and screen will FREEZE on the last
+    // frame.
+    if (!mFBLayers.size() && mOverlayLayers.size()) {
+        return false;
+    }
+
     // attach primary to frame buffer target
     HwcLayer *layer = mLayers.itemAt(mLayers.size() - 1);
 
@@ -889,6 +909,8 @@ void HwcLayerList::usePrimaryAsFramebufferTarget(DisplayPlane *primaryPlane)
     layer->setType(HwcLayer::LAYER_FRAMEBUFFER_TARGET);
     // attach primary plane, it has to be successful
     layer->attachPlane(primaryPlane, mDisplayIndex);
+
+    return true;
 }
 
 bool HwcLayerList::calculatePrimaryZOrder(int& zorder)

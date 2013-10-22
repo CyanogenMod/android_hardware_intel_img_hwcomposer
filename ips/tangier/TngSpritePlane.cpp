@@ -145,27 +145,27 @@ void TngSpritePlane::setZOrderConfig(ZOrderConfig& zorderConfig,
                                           void *nativeConfig)
 {
     if (!nativeConfig) {
-        ETRACE("invalid parameter, no native config");
+        ETRACE("Invalid parameter, no native config");
         return;
     }
 
-    mAbovePrimary = true;
+    mAbovePrimary = false;
 
-    bool hasPrimaryPlane = false;
+    int primaryIndex = -1;
+    int spriteIndex = -1;
+    // only consider force bottom when overlay is active
     for (size_t i = 0; i < zorderConfig.size(); i++) {
         DisplayPlane *plane = zorderConfig.itemAt(i);
-        // found sprite first, sprite is below primary
-        if (plane->getType() == DisplayPlane::PLANE_SPRITE)
-            break;
-        // found primary first, primary is below sprite
-        if (plane->getType() == DisplayPlane::PLANE_PRIMARY) {
-            hasPrimaryPlane = true;
-            break;
+        if (plane->getType() == DisplayPlane::PLANE_PRIMARY)
+            primaryIndex = i;
+        if (plane->getType() == DisplayPlane::PLANE_SPRITE) {
+            spriteIndex = i;
         }
     }
 
-    if (!hasPrimaryPlane) {
-        mAbovePrimary = false;
+    // if has overlay plane which is below primary plane
+    if (spriteIndex > primaryIndex) {
+        mAbovePrimary = true;
     }
 
     struct intel_dc_plane_zorder *zorder =
