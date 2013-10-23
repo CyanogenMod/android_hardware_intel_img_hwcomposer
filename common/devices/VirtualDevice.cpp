@@ -133,6 +133,7 @@ status_t VirtualDevice::start(sp<IFrameTypeChangeListener> typeChangeListener)
     mNextConfig.extendedModeEnabled =
         Hwcomposer::getInstance().getDisplayAnalyzer()->isVideoExtendedModeEnabled();
     mNextConfig.forceNotify = true;
+    mVideoFramerate = 0;
     return NO_ERROR;
 }
 
@@ -267,6 +268,9 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
             mLastInputFrameInfo = frameInfo;
             mLastOutputFrameInfo = frameInfo;
         }
+
+        // reset video framerate. re-inititialize when extended mode enabled
+        mVideoFramerate = 0;
         return true;
     }
 
@@ -304,7 +308,7 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer)
     inputFrameInfo.frameType = HWC_FRAMETYPE_FRAME_BUFFER;
     inputFrameInfo.contentWidth = layer.sourceCrop.right - layer.sourceCrop.left;
     inputFrameInfo.contentHeight = layer.sourceCrop.bottom - layer.sourceCrop.top;
-    inputFrameInfo.contentFrameRateN = 60;
+    inputFrameInfo.contentFrameRateN = 30;
     inputFrameInfo.contentFrameRateD = 1;
 
     FrameInfo outputFrameInfo;
@@ -322,24 +326,31 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer)
             heldBuffer = new HeldDecoderBuffer(this, cachedBuffer);
             mediaTimestamp = metadata.timestamp;
 
-            int sessionID = -1;
-            if (layer.flags & HWC_HAS_VIDEO_SESSION_ID)
-                sessionID = ((layer.flags & GRALLOC_USAGE_MDS_SESSION_ID_MASK) >> 24);
-            if (sessionID >= 0) {
-                VTRACE("Session id = %d", sessionID);
-                VideoSourceInfo videoInfo;
-                memset(&videoInfo, 0, sizeof(videoInfo));
-                status_t ret = mHwc.getMultiDisplayObserver()->getVideoSourceInfo(sessionID, &videoInfo);
-                if (ret == NO_ERROR) {
-                    VTRACE("width = %d, height = %d, fps = %d", videoInfo.width, videoInfo.height,
-                            videoInfo.frameRate);
-                    if (videoInfo.frameRate > 0) {
-                        inputFrameInfo.contentFrameRateN = videoInfo.frameRate;
+            // Only get video source info if frame rate has not been initialized.
+            // getVideoSourceInfo() is a fairly expensive operation. This optimization
+            // will save us a few milliseconds per frame
+            if (mVideoFramerate == 0) {
+                mVideoFramerate = inputFrameInfo.contentFrameRateN;
+                int sessionID = -1;
+                if (layer.flags & HWC_HAS_VIDEO_SESSION_ID)
+                    sessionID = ((layer.flags & GRALLOC_USAGE_MDS_SESSION_ID_MASK) >> 24);
+                if (sessionID >= 0) {
+                    VTRACE("Session id = %d", sessionID);
+                    VideoSourceInfo videoInfo;
+                    memset(&videoInfo, 0, sizeof(videoInfo));
+                    status_t ret = mHwc.getMultiDisplayObserver()->getVideoSourceInfo(sessionID, &videoInfo);
+                    if (ret == NO_ERROR) {
+                        VTRACE("width = %d, height = %d, fps = %d", videoInfo.width, videoInfo.height,
+                                videoInfo.frameRate);
+                        if (videoInfo.frameRate > 0) {
+                            mVideoFramerate = videoInfo.frameRate;
+                        }
                     }
-                    inputFrameInfo.contentFrameRateD = 1;
-                    inputFrameInfo.frameType = HWC_FRAMETYPE_VIDEO;
                 }
             }
+            inputFrameInfo.frameType = HWC_FRAMETYPE_VIDEO;
+            inputFrameInfo.contentFrameRateN = mVideoFramerate;
+            inputFrameInfo.contentFrameRateD = 1;
             inputFrameInfo.contentWidth = metadata.width;
             inputFrameInfo.contentHeight = metadata.height;
 
