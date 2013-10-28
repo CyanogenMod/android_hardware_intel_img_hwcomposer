@@ -325,16 +325,16 @@ bool Hwcomposer::initialize()
         DEINIT_AND_RETURN_FALSE("failed to create DRM");
     }
 
-    // create display plane manager
-    mPlaneManager = createDisplayPlaneManager();
-    if (!mPlaneManager || !mPlaneManager->initialize()) {
-        DEINIT_AND_RETURN_FALSE("failed to create display plane manager");
-    }
-
     // create buffer manager
     mBufferManager = createBufferManager();
     if (!mBufferManager || !mBufferManager->initialize()) {
         DEINIT_AND_RETURN_FALSE("failed to create buffer manager");
+    }
+
+    // create display plane manager
+    mPlaneManager = createDisplayPlaneManager();
+    if (!mPlaneManager || !mPlaneManager->initialize()) {
+        DEINIT_AND_RETURN_FALSE("failed to create display plane manager");
     }
 
     mDisplayContext = createDisplayContext();
@@ -388,8 +388,8 @@ void Hwcomposer::deinitialize()
     mDisplayDevices.clear();
 
     DEINIT_AND_DELETE_OBJ(mDisplayContext);
-    DEINIT_AND_DELETE_OBJ(mBufferManager);
     DEINIT_AND_DELETE_OBJ(mPlaneManager);
+    DEINIT_AND_DELETE_OBJ(mBufferManager);
     DEINIT_AND_DELETE_OBJ(mDrm);
     mInitialized = false;
 }
