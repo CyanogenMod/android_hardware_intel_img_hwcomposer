@@ -282,9 +282,9 @@ bool HdcpControl::runHdcp()
         }
 
         if (!enableAuthentication()) {
-            ETRACE("HDCP authentication failed");
+            ETRACE("HDCP authentication failed. Retry");
             mAuthenticated = false;
-            ret = false;
+            ret = true;
         } else {
             ITRACE("HDCP is authenticated");
             mAuthenticated = true;

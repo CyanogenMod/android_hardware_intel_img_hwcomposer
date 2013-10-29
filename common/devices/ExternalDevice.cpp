@@ -151,6 +151,7 @@ void ExternalDevice::setDrmMode()
         status_t err = mAbortModeSettingCond.waitRelative(mLock, milliseconds(20));
         if (err != -ETIMEDOUT) {
             ITRACE("Mode settings is interrupted");
+            mHwc.hotplug(mType, true);
             return;
         }
     }
@@ -159,17 +160,23 @@ void ExternalDevice::setDrmMode()
     mHdcpControl->stopHdcp();
     if (!drm->setDrmMode(mType, mPendingDrmMode)) {
         ETRACE("failed to set Drm mode");
+        mHwc.hotplug(mType, true);
         return;
     }
 
     if (!PhysicalDevice::updateDisplayConfigs()) {
         ETRACE("failed to update display configs");
+        mHwc.hotplug(mType, true);
         return;
     }
     mConnected = true;
     mHotplugEventPending = true;
     // delay sending hotplug event until HDCP is authenticated
-    mHdcpControl->startHdcpAsync(HdcpLinkStatusListener, this);
+    if (mHdcpControl->startHdcpAsync(HdcpLinkStatusListener, this) == false) {
+        ETRACE("startHdcpAsync() failed; HDCP is not enabled");
+        mHotplugEventPending = false;
+        mHwc.hotplug(mType, true);
+    }
 }
 
 
