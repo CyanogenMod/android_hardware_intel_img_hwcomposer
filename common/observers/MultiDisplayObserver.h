@@ -74,7 +74,7 @@ public:
 public:
     bool initialize();
     void deinitialize();
-    status_t notifyHotPlug(int disp, bool connected);
+    status_t notifyHotPlug(bool connected);
     status_t getVideoSourceInfo(int sessionID, VideoSourceInfo* info);
     int  getVideoSessionNumber();
     bool isExternalDeviceTimingFixed() const;
@@ -123,7 +123,7 @@ public:
 
     bool initialize() { return true; }
     void deinitialize() {}
-    status_t notifyHotPlug(int disp, bool connected) { return NO_ERROR; }
+    status_t notifyHotPlug(bool connected) { return NO_ERROR; }
     status_t getVideoSourceInfo(int sessionID, VideoSourceInfo* info) { return INVALID_OPERATION; }
     int  getVideoSessionNumber() { return 0; }
     bool isExternalDeviceTimingFixed() const { return false; }

@@ -46,12 +46,7 @@ DisplayAnalyzer::DisplayAnalyzer()
       mVideoExtendedMode(false),
       mForceCloneMode(false),
       mBlankDevice(false),
-      mVideoPlaying(false),
-      mVideoPreparing(false),
-      mVideoStateChanged(false),
       mOverlayAllowed(true),
-      mVideoInstances(0),
-      mVideoInstanceId(-1),
       mCachedNumDisplays(0),
       mCachedDisplays(0),
       mPendingEvents(),
@@ -74,13 +69,11 @@ bool DisplayAnalyzer::initialize()
     mVideoExtendedMode = false;
     mForceCloneMode = false;
     mBlankDevice = false;
-    mVideoPlaying = false;
-    mVideoPreparing = false;
-    mVideoStateChanged = false;
     mOverlayAllowed = true;
     mCachedNumDisplays = 0;
     mCachedDisplays = 0;
     mPendingEvents.clear();
+    mVideoStateMap.clear();
     mInitialized = true;
 
     return true;
@@ -89,6 +82,7 @@ bool DisplayAnalyzer::initialize()
 void DisplayAnalyzer::deinitialize()
 {
     mPendingEvents.clear();
+    mVideoStateMap.clear();
     mInitialized = false;
 }
 
@@ -101,20 +95,17 @@ void DisplayAnalyzer::analyzeContents(
 
     handlePendingEvents();
 
-    if (mBlankDevice) {
-        blankSecondaryDevice();
-    }
-
-    if (mVideoStateChanged) {
-        handleModeSwitch();
-        mVideoStateChanged = false;
-    }
-
     if (mEnableVideoExtendedMode) {
         detectVideoExtendedMode();
         if (mVideoExtendedMode) {
             detectTrickMode(mCachedDisplays[IDisplayDevice::DEVICE_PRIMARY]);
         }
+    }
+
+    if (mBlankDevice) {
+        // this will make sure device is blanked after geometry changes.
+        // blank event is only processed once
+        blankSecondaryDevice();
     }
 }
 
@@ -141,7 +132,7 @@ void DisplayAnalyzer::detectTrickMode(hwc_display_contents_1_t *list)
 
 void DisplayAnalyzer::detectVideoExtendedMode()
 {
-    if (!mVideoPlaying || mVideoInstances != 1) {
+    if (mVideoStateMap.size() != 1) {
         mVideoExtendedMode = false;
         mForceCloneMode = false;
         return;
@@ -281,26 +272,7 @@ bool DisplayAnalyzer::isVideoFullScreen(int device, hwc_layer_1_t &layer)
         VTRACE("video is not full-screen");
         return false;
     }
-    //TODO: The following check is not aligned with the definition of
-    //current video extended mode UC.
-#if 0
-    int offset = layer.displayFrame.left + layer.displayFrame.right - width;
-    if (offset > 1 || offset < -1) {
-        ITRACE("video is not centralized in horizontal direction");
-        return false;
-    }
-    offset = layer.displayFrame.top + layer.displayFrame.bottom - height;
-    if (offset > 1 || offset < -1) {
-        ITRACE("video is not centralized in vertical direction");
-        return false;
-    }
-#endif
     return true;
-}
-
-bool DisplayAnalyzer::isVideoPlaying()
-{
-    return mVideoPlaying;
 }
 
 bool DisplayAnalyzer::isOverlayAllowed()
@@ -310,7 +282,7 @@ bool DisplayAnalyzer::isOverlayAllowed()
 
 int DisplayAnalyzer::getVideoInstances()
 {
-    return mVideoInstances;
+    return (int)mVideoStateMap.size();
 }
 
 void DisplayAnalyzer::postHotplugEvent(bool connected)
@@ -324,27 +296,28 @@ void DisplayAnalyzer::postHotplugEvent(bool connected)
         // handle hotplug event (vsync switch) asynchronously
         Event e;
         e.type = HOTPLUG_EVENT;
-        e.connected = connected;
+        e.bValue = connected;
         postEvent(e);
         Hwcomposer::getInstance().invalidate();
     }
 }
 
-void DisplayAnalyzer::postVideoEvent(int instanceID, bool preparing, bool playing)
+void DisplayAnalyzer::postVideoEvent(int instanceID, int state)
 {
     Event e;
     e.type = VIDEO_EVENT;
     e.videoEvent.instanceID = instanceID;
-    e.videoEvent.preparing = preparing;
-    e.videoEvent.playing = playing;
+    e.videoEvent.state = state;
     postEvent(e);
-    if (preparing) {
+
+    if ((state == VIDEO_PLAYBACK_STARTING) ||
+        (state == VIDEO_PLAYBACK_STOPPING && hasProtectedLayer())) {
         Hwcomposer::getInstance().invalidate();
         Mutex::Autolock lock(mEventMutex);
         // ideally overlay should be disabled in the surface flinger thread, if it is not processed
-        // in close to one vsync cycle (20ms)  it will be safely disabled in this thread context
+        // in close to one vsync cycle (50ms)  it will be safely disabled in this thread context
         // there is no threading issue
-        status_t err = mEventHandledCondition.waitRelative(mEventMutex, milliseconds(20));
+        status_t err = mEventHandledCondition.waitRelative(mEventMutex, milliseconds(50));
         if (err == -ETIMEDOUT) {
             WTRACE("timeout waiting for event handling");
             Hwcomposer::getInstance().getPlaneManager()->disableOverlayPlanes();
@@ -356,7 +329,7 @@ void DisplayAnalyzer::postBlankEvent(bool blank)
 {
     Event e;
     e.type = BLANK_EVENT;
-    e.blank = blank;
+    e.bValue = blank;
     postEvent(e);
     Hwcomposer::getInstance().invalidate();
 }
@@ -367,29 +340,39 @@ void DisplayAnalyzer::postEvent(Event& e)
     mPendingEvents.add(e);
 }
 
-void DisplayAnalyzer::handlePendingEvents()
+bool DisplayAnalyzer::getEvent(Event& e)
 {
     Mutex::Autolock lock(mEventMutex);
     if (mPendingEvents.size() == 0) {
+        return false;
+    }
+    e = mPendingEvents[0];
+    mPendingEvents.removeAt(0);
+    return true;
+}
+
+void DisplayAnalyzer::handlePendingEvents()
+{
+    // handle one event per analysis to avoid blocking surface flinger
+    // some event may take lengthy time to process
+    Event e;
+    if (!getEvent(e)) {
         return;
     }
 
-    while (mPendingEvents.size() != 0) {
-        Event e = mPendingEvents[0];
-        mPendingEvents.removeAt(0);
-        switch (e.type) {
-        case HOTPLUG_EVENT:
-            handleHotplugEvent(e.connected);
-            break;
-        case BLANK_EVENT:
-            handleBlankEvent(e.blank);
-            break;
-        case VIDEO_EVENT:
-            handleVideoEvent(e.videoEvent.instanceID,
-                            e.videoEvent.preparing,
-                            e.videoEvent.playing);
-            break;
-        }
+    switch (e.type) {
+    case HOTPLUG_EVENT:
+        handleHotplugEvent(e.bValue);
+        break;
+    case BLANK_EVENT:
+        handleBlankEvent(e.bValue);
+        break;
+    case VIDEO_EVENT:
+        handleVideoEvent(e.videoEvent.instanceID, e.videoEvent.state);
+        break;
+    case TIMING_EVENT:
+        handleTimingEvent();
+        break;
     }
 }
 
@@ -413,42 +396,62 @@ void DisplayAnalyzer::handleBlankEvent(bool blank)
     blankSecondaryDevice();
 }
 
-void DisplayAnalyzer::handleModeSwitch()
+void DisplayAnalyzer::handleTimingEvent()
 {
     // check whether external device is connected, reset refresh rate to match video frame rate
     // if video is in playing state or reset refresh rate to default preferred one if video is not
     // at playing state
     Hwcomposer *hwc = &Hwcomposer::getInstance();
-    Drm *drm = hwc->getDrm();
-    if (!drm->isConnected(IDisplayDevice::DEVICE_EXTERNAL))
+    ExternalDevice *dev = NULL;
+    dev = (ExternalDevice *)hwc->getDisplayDevice(IDisplayDevice::DEVICE_EXTERNAL);
+    if (!dev) {
         return;
+    }
+
+    if (!dev->isConnected()) {
+        return;
+    }
 
     if (hwc->getMultiDisplayObserver()->isExternalDeviceTimingFixed()) {
-        VTRACE("The timing of external device is fixed.");
+        VTRACE("Timing of external device is fixed.");
         return;
     }
 
     int hz = 0;
-    if (mVideoInstances == 1) {
+    if (mVideoStateMap.size() == 1) {
         VideoSourceInfo info;
+        int instanceID = mVideoStateMap.keyAt(0);
         status_t err = hwc->getMultiDisplayObserver()->getVideoSourceInfo(
-                mVideoInstanceId, &info);
+                instanceID, &info);
         if (err == NO_ERROR) {
             hz = info.frameRate;
         }
     }
 
-    ExternalDevice *dev =
-        (ExternalDevice *)hwc->getDisplayDevice(IDisplayDevice::DEVICE_EXTERNAL);
-    if (dev) {
-        dev->setRefreshRate(hz);
-    }
+    dev->setRefreshRate(hz);
 }
 
-void DisplayAnalyzer::handleVideoEvent(
-    int instanceID, bool preparing, bool playing)
+void DisplayAnalyzer::handleVideoEvent(int instanceID, int state)
 {
-    if (preparing != mVideoPreparing) {
+    mVideoStateMap.removeItem(instanceID);
+    if (state != VIDEO_PLAYBACK_STOPPED) {
+        mVideoStateMap.add(instanceID, state);
+    }
+
+    Hwcomposer *hwc = &Hwcomposer::getInstance();
+
+    // sanity check
+    if (hwc->getMultiDisplayObserver()->getVideoSessionNumber() !=
+        (int)mVideoStateMap.size()) {
+        WTRACE("session number does not match!!");
+        mVideoStateMap.clear();
+        if (state != VIDEO_PLAYBACK_STOPPED) {
+            mVideoStateMap.add(instanceID, state);
+        }
+    }
+
+    if ((state == VIDEO_PLAYBACK_STARTING) ||
+        (state == VIDEO_PLAYBACK_STOPPING && hasProtectedLayer())) {
         hwc_display_contents_1_t *content = NULL;
         for (int i = 0; i < (int)mCachedNumDisplays; i++) {
             content = mCachedDisplays[i];
@@ -458,23 +461,23 @@ void DisplayAnalyzer::handleVideoEvent(
             content->flags |= HWC_GEOMETRY_CHANGED;
             resetCompositionType(content);
         }
-        mVideoPreparing = preparing;
-        // if video is in preparing stage, overlay use is temporarily not allowed to avoid
-        // scrambed RGB overlay if video is protected.
-        mOverlayAllowed = !preparing;
-    }
-    mVideoPlaying = playing;
-    mVideoInstanceId = instanceID;
+        // if video is in starting or stopping stage, overlay use is temporarily not allowed to
+        // avoid scrambed RGB overlay if video is protected.
+        mOverlayAllowed = false;
 
-    Hwcomposer *hwc = &Hwcomposer::getInstance();
-    if ((playing && !preparing) || (!playing && !preparing)) {
-        mVideoStateChanged = true;
-    }
-    mVideoInstances = hwc->getMultiDisplayObserver()->getVideoSessionNumber();
-
-    if (preparing) {
-        Hwcomposer::getInstance().getPlaneManager()->disableOverlayPlanes();
+        // disable overlay plane and acknolwdge the waiting thread
+        hwc->getPlaneManager()->disableOverlayPlanes();
         mEventHandledCondition.signal();
+    } else {
+        mOverlayAllowed = true;
+    }
+
+    // delay changing timing as it is a lengthy operation
+    if (state == VIDEO_PLAYBACK_STARTED ||
+        state == VIDEO_PLAYBACK_STOPPED) {
+        Event e;
+        e.type = TIMING_EVENT;
+        postEvent(e);
     }
 }
 
@@ -525,6 +528,40 @@ bool DisplayAnalyzer::isPresentationLayer(hwc_layer_1_t &layer)
         }
     }
     return true;
+}
+
+bool DisplayAnalyzer::hasProtectedLayer()
+{
+    bool isProtected = false;
+    DataBuffer * buffer = NULL;
+    hwc_display_contents_1_t *content = NULL;
+    BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
+
+    if (bm == NULL){
+        return false;
+    }
+
+    if (mCachedDisplays == NULL) {
+        return false;
+    }
+    // check if the given layer exists in the primary device
+    for (int index = 0; index < (int)mCachedNumDisplays; index++) {
+        content = mCachedDisplays[index];
+        if (content == NULL) {
+            continue;
+        }
+
+        for (size_t i = 0; i < content->numHwLayers - 1; i++) {
+            buffer = bm->lockDataBuffer((uint32_t)content->hwLayers[i].handle);
+            isProtected = ((GraphicBuffer*)buffer)->isProtectedBuffer((GraphicBuffer*)buffer);
+            bm->unlockDataBuffer(buffer);
+            if (isProtected){
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 // reset the composition type of all layers to default

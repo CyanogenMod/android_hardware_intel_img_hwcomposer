@@ -49,11 +49,10 @@ public:
     bool isVideoExtendedModeEnabled();
     bool isVideoLayer(hwc_layer_1_t &layer);
     bool isVideoFullScreen(int device, hwc_layer_1_t &layer);
-    bool isVideoPlaying();
     bool isOverlayAllowed();
     int  getVideoInstances();
     void postHotplugEvent(bool connected);
-    void postVideoEvent(int instanceID, bool preparing, bool playing);
+    void postVideoEvent(int instanceID, int state);
     void postBlankEvent(bool blank);
     bool isPresentationLayer(hwc_layer_1_t &layer);
     bool isProtectedLayer(hwc_layer_1_t &layer);
@@ -63,6 +62,7 @@ private:
         HOTPLUG_EVENT,
         BLANK_EVENT,
         VIDEO_EVENT,
+        TIMING_EVENT,
     };
 
     struct Event {
@@ -70,27 +70,38 @@ private:
 
         struct VideoEvent {
             int instanceID;
-            bool preparing;
-            bool playing;
+            int state;
         };
 
         union {
-            bool connected;
-            bool blank;
+            bool bValue;
             VideoEvent videoEvent;
         };
     };
     inline void postEvent(Event& e);
+    inline bool getEvent(Event& e);
     void handlePendingEvents();
     void handleHotplugEvent(bool connected);
     void handleBlankEvent(bool blank);
-    void handleVideoEvent(int instanceID, bool preparing, bool playing);
+    void handleVideoEvent(int instanceID, int state);
+    void handleTimingEvent();
 
     void blankSecondaryDevice();
     void detectVideoExtendedMode();
     void detectTrickMode(hwc_display_contents_1_t *list);
-    void handleModeSwitch();
+    bool hasProtectedLayer();
     inline void resetCompositionType(hwc_display_contents_1_t *content);
+
+private:
+    // Video playback state, must match defintion in Multi Display Service
+    enum
+    {
+        VIDEO_PLAYBACK_IDLE,
+        VIDEO_PLAYBACK_STARTING,
+        VIDEO_PLAYBACK_STARTED,
+        VIDEO_PLAYBACK_STOPPING,
+        VIDEO_PLAYBACK_STOPPED,
+    };
 
 private:
     bool mInitialized;
@@ -98,12 +109,9 @@ private:
     bool mVideoExtendedMode;
     bool mForceCloneMode;
     bool mBlankDevice;
-    bool mVideoPlaying;
-    bool mVideoPreparing;
-    bool mVideoStateChanged;
+    // map video instance ID to video state
+    KeyedVector<int, int> mVideoStateMap;
     bool mOverlayAllowed;
-    int mVideoInstances;
-    int mVideoInstanceId;
     int mCachedNumDisplays;
     hwc_display_contents_1_t** mCachedDisplays;
     Vector<Event> mPendingEvents;

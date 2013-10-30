@@ -251,7 +251,7 @@ void Hwcomposer::hotplug(int disp, bool connected)
 
     // TODO: Two fake hotplug events are sent during mode setting. To avoid
     // unnecessary audio switch, real connection status should be sent to MDS
-    mMultiDisplayObserver->notifyHotPlug(disp, mDrm->isConnected(disp));
+    mMultiDisplayObserver->notifyHotPlug(mDrm->isConnected(disp));
 
     if (mProcs && mProcs->hotplug) {
         ITRACE("report hotplug on disp %d, connected %d", disp, connected);

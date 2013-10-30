@@ -266,7 +266,7 @@ void ExternalDevice::setRefreshRate(int hz)
     if (hz == 0 && (mode.type & DRM_MODE_TYPE_PREFERRED))
         return;
 
-    if (hz == mode.vrefresh)
+    if (hz == (int)mode.vrefresh)
         return;
 
     ITRACE("changing refresh rate from %d to %d", mode.vrefresh, hz);
