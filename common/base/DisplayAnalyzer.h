@@ -51,6 +51,7 @@ public:
     bool isVideoFullScreen(int device, hwc_layer_1_t &layer);
     bool isVideoPlaying();
     bool isOverlayAllowed();
+    int  getVideoInstances();
     void postHotplugEvent(bool connected);
     void postVideoEvent(int instances, int instanceID, bool preparing, bool playing);
     void postBlankEvent(bool blank);

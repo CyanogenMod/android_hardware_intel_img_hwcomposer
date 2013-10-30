@@ -221,6 +221,15 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
     mLayerToSend = display->numHwLayers-1;
 
     DisplayAnalyzer *analyzer = mHwc.getDisplayAnalyzer();
+
+    if (mCurrentConfig.extendedModeEnabled &&
+            !analyzer->isOverlayAllowed() && (analyzer->getVideoInstances() <= 1)) {
+        if (mCurrentConfig.typeChangeListener->shutdownVideo() != OK) {
+            ITRACE("Waiting for prior encoder session to shut down...");
+        }
+        return true;
+    }
+
     if (mCurrentConfig.extendedModeEnabled) {
         if ((display->numHwLayers-1) == 1) {
             hwc_layer_1_t& layer = display->hwLayers[0];
