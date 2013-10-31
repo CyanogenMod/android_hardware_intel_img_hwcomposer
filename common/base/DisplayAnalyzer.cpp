@@ -209,7 +209,7 @@ void DisplayAnalyzer::detectVideoExtendedMode()
         // exclude the frame buffer target layer
         for (int j = 0; j < (int)content->numHwLayers - 1; j++) {
             if ((uint32_t)content->hwLayers[j].handle == videoHandle) {
-                ITRACE("video layer exists in device %d", i);
+                VTRACE("video layer exists in device %d", i);
                 if (i == IDisplayDevice::DEVICE_VIRTUAL) {
                     // WiDi exception: always in video extended mode
                     mVideoExtendedMode = true;
@@ -269,7 +269,7 @@ bool DisplayAnalyzer::isVideoFullScreen(int device, hwc_layer_1_t &layer)
         return false;
     }
 
-    ITRACE("video left %d, right %d, top %d, bottom %d, device width %d, height %d",
+    VTRACE("video left %d, right %d, top %d, bottom %d, device width %d, height %d",
         layer.displayFrame.left, layer.displayFrame.right,
         layer.displayFrame.top, layer.displayFrame.bottom,
         width, height);
@@ -278,7 +278,7 @@ bool DisplayAnalyzer::isVideoFullScreen(int device, hwc_layer_1_t &layer)
     int dstH = layer.displayFrame.bottom - layer.displayFrame.top;
     if (dstW < width - 1 &&
         dstH < height - 1) {
-        ITRACE("video is not full-screen");
+        VTRACE("video is not full-screen");
         return false;
     }
     //TODO: The following check is not aligned with the definition of
