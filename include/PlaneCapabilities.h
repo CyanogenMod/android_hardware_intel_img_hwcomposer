@@ -27,6 +27,8 @@
 #ifndef PLANE_CAPABILITIES_H
 #define PLANE_CAPABILITIES_H
 
+#include <DataBuffer.h>
+
 namespace android {
 namespace intel {
 
@@ -34,6 +36,11 @@ class PlaneCapabilities
 {
 public:
     static bool isFormatSupported(int planeType, uint32_t format, uint32_t trans);
+    static bool isSizeSupported(int planeType,
+                                    uint32_t format,
+                                    uint32_t w,
+                                    uint32_t h,
+                                    const stride_t& stride);
     static bool isBlendingSupported(int planeType, uint32_t blending);
     static bool isScalingSupported(int planeType,
                                        hwc_rect_t& src,

@@ -76,6 +76,9 @@ public:
 
     int getIndex() const;
     uint32_t getFormat() const;
+    uint32_t getBufferWidth() const;
+    uint32_t getBufferHeight() const;
+    const stride_t& getBufferStride() const;
     uint32_t getUsage() const;
     uint32_t getHandle() const;
     bool isProtected() const;
@@ -97,6 +100,9 @@ private:
     hwc_layer_1_t *mLayer;
     DisplayPlane *mPlane;
     uint32_t mFormat;
+    uint32_t mWidth;
+    uint32_t mHeight;
+    stride_t mStride;
     uint32_t mUsage;
     uint32_t mHandle;
     bool mIsProtected;

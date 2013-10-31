@@ -32,6 +32,13 @@
 #include <PlaneCapabilities.h>
 #include "OverlayHardware.h"
 
+#define SPRITE_PLANE_MAX_STRIDE_TILED      16384
+//FIXME: need confirmation about this stride
+#define SPRITE_PLANE_MAX_STRIDE_LINEAR     8192
+
+#define OVERLAY_PLANE_MAX_STRIDE_PACKED    4096
+#define OVERLAY_PLANE_MAX_STRIDE_LINEAR    8192
+
 namespace android {
 namespace intel {
 
@@ -68,6 +75,64 @@ bool PlaneCapabilities::isFormatSupported(int planeType, uint32_t format, uint32
             VTRACE("unsupported format %#x", format);
             return false;
         }
+    } else {
+        ETRACE("invalid plane type %d", planeType);
+        return false;
+    }
+}
+
+bool PlaneCapabilities::isSizeSupported(int planeType,
+                                             uint32_t format,
+                                             uint32_t w, uint32_t h,
+                                             const stride_t& stride)
+{
+    bool isYUVPacked;
+    uint32_t maxStride;
+
+    if (planeType == DisplayPlane::PLANE_SPRITE || planeType == DisplayPlane::PLANE_PRIMARY) {
+        switch (format) {
+        case HAL_PIXEL_FORMAT_BGRA_8888:
+        case HAL_PIXEL_FORMAT_BGRX_8888:
+        case HAL_PIXEL_FORMAT_RGBA_8888:
+        case HAL_PIXEL_FORMAT_RGBX_8888:
+        case HAL_PIXEL_FORMAT_RGB_565:
+            if (stride.rgb.stride > SPRITE_PLANE_MAX_STRIDE_LINEAR) {
+                VTRACE("too large stride %d", stride.rgb.stride);
+                return false;
+            }
+            return true;
+        default:
+            VTRACE("unsupported format %#x", format);
+            return false;
+        }
+    } else if (planeType == DisplayPlane::PLANE_OVERLAY) {
+        switch (format) {
+        case HAL_PIXEL_FORMAT_YV12:
+        case HAL_PIXEL_FORMAT_I420:
+        case HAL_PIXEL_FORMAT_NV12:
+        case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:
+        case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled:
+            isYUVPacked = false;
+            break;
+        case HAL_PIXEL_FORMAT_YUY2:
+        case HAL_PIXEL_FORMAT_UYVY:
+            isYUVPacked = true;
+            break;
+        default:
+            VTRACE("unsupported format %#x", format);
+            return false;
+        }
+        // don't use overlay plane if stride is too big
+        maxStride = OVERLAY_PLANE_MAX_STRIDE_LINEAR;
+        if (isYUVPacked) {
+            maxStride = OVERLAY_PLANE_MAX_STRIDE_PACKED;
+        }
+
+        if (stride.yuv.yStride > maxStride) {
+            VTRACE("stride %d is too large", stride.yuv.yStride);
+            return false;
+        }
+        return true;
     } else {
         ETRACE("invalid plane type %d", planeType);
         return false;
