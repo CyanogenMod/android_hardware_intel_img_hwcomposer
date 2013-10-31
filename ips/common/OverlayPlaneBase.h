@@ -97,6 +97,7 @@ private:
     inline bool isActiveTTMBuffer(BufferMapper *mapper);
     void updateActiveTTMBuffers(BufferMapper *mapper);
     void invalidateActiveTTMBuffers();
+    void invalidateTTMBuffers();
 
 protected:
     // flush flags
