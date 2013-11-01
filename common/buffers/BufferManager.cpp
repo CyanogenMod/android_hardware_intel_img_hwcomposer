@@ -278,15 +278,15 @@ uint32_t BufferManager::allocFrameBuffer(int width, int height, int *stride)
             break;
         }
 
-        uint32_t kHandle = mapper->getKHandle(0);
-        if (!kHandle) {
+        uint32_t fbHandle = (uint32_t) mapper->getCpuAddress(0);
+        if (!fbHandle) {
             ETRACE("invalid kernel handle");
             break;
         }
 
-        mFrameBuffers.add(kHandle, mapper);
+        mFrameBuffers.add(fbHandle, mapper);
         unlockDataBuffer(buffer);
-        return kHandle;
+        return fbHandle;
     } while (0);
 
     // error handling, release all allocated resources
