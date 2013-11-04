@@ -97,7 +97,9 @@ VirtualDevice::HeldDecoderBuffer::~HeldDecoderBuffer()
 VirtualDevice::VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
     : mInitialized(false),
       mHwc(hwc),
-      mDisplayPlaneManager(dpm)
+      mDisplayPlaneManager(dpm),
+      mOrigContentWidth(0),
+      mOrigContentHeight(0)
 {
     CTRACE();
 }
@@ -240,11 +242,13 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
         }
     }
 
+    bool isProtected = false;
     if (mCurrentConfig.extendedModeEnabled) {
         for (size_t i = 0; i < display->numHwLayers-1; i++) {
             hwc_layer_1_t& layer = display->hwLayers[i];
             if (analyzer->isVideoLayer(layer)) {
-                if(!analyzer->isPresentationLayer(layer) || analyzer->isProtectedLayer(layer)) {
+                isProtected = analyzer->isProtectedLayer(layer);
+                if (!analyzer->isPresentationLayer(layer) || isProtected) {
                     VTRACE("Layer (%d) is extended video layer", mLayerToSend);
                     mLayerToSend = i;
                     break;
@@ -291,7 +295,7 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
         layer.flags |= HWC_HINT_DISABLE_ANIMATION;
     }
 
-    sendToWidi(streamingLayer);
+    sendToWidi(streamingLayer, ((display->flags & HWC_ROTATION_IN_PROGRESS) != 0), isProtected);
     return true;
 }
 
@@ -301,7 +305,7 @@ bool VirtualDevice::commit(hwc_display_contents_1_t *display, IDisplayContext *c
     return true;
 }
 
-void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer)
+void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool rotating, bool isProtected)
 {
     uint32_t handle = (uint32_t)layer.handle;
     if (handle == 0) {
@@ -320,6 +324,18 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer)
     inputFrameInfo.contentHeight = layer.sourceCrop.bottom - layer.sourceCrop.top;
     inputFrameInfo.contentFrameRateN = 30;
     inputFrameInfo.contentFrameRateD = 1;
+    inputFrameInfo.isProtected = isProtected;
+
+    // Do not use the crop size if we are rotating. Use the orig
+    // frame size we saved off previously instead.
+    if (rotating && (mOrigContentWidth != inputFrameInfo.contentWidth ||
+                mOrigContentHeight != inputFrameInfo.contentHeight)) {
+        inputFrameInfo.contentWidth = mOrigContentWidth;
+        inputFrameInfo.contentHeight = mOrigContentHeight;
+    } else {
+        mOrigContentWidth = inputFrameInfo.contentWidth;
+        mOrigContentHeight = inputFrameInfo.contentHeight;
+    }
 
     FrameInfo outputFrameInfo;
     outputFrameInfo = inputFrameInfo;
@@ -345,12 +361,12 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer)
                 if (layer.flags & HWC_HAS_VIDEO_SESSION_ID)
                     sessionID = ((layer.flags & GRALLOC_USAGE_MDS_SESSION_ID_MASK) >> 24);
                 if (sessionID >= 0) {
-                    VTRACE("Session id = %d", sessionID);
+                    ITRACE("Session id = %d", sessionID);
                     VideoSourceInfo videoInfo;
                     memset(&videoInfo, 0, sizeof(videoInfo));
                     status_t ret = mHwc.getMultiDisplayObserver()->getVideoSourceInfo(sessionID, &videoInfo);
                     if (ret == NO_ERROR) {
-                        VTRACE("width = %d, height = %d, fps = %d", videoInfo.width, videoInfo.height,
+                        ITRACE("width = %d, height = %d, fps = %d", videoInfo.width, videoInfo.height,
                                 videoInfo.frameRate);
                         if (videoInfo.frameRate > 0) {
                             mVideoFramerate = videoInfo.frameRate;
@@ -361,8 +377,11 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer)
             inputFrameInfo.frameType = HWC_FRAMETYPE_VIDEO;
             inputFrameInfo.contentFrameRateN = mVideoFramerate;
             inputFrameInfo.contentFrameRateD = 1;
-            inputFrameInfo.contentWidth = metadata.width;
-            inputFrameInfo.contentHeight = metadata.height;
+
+            if (metadata.transform & HAL_TRANSFORM_ROT_90) {
+                inputFrameInfo.contentWidth = layer.sourceCrop.bottom - layer.sourceCrop.top;
+                inputFrameInfo.contentHeight = layer.sourceCrop.right - layer.sourceCrop.left;
+            }
 
             inputFrameInfo.cropLeft = 0;
             // skip pading bytes in rotate buffer
