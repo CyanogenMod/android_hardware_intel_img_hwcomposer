@@ -546,18 +546,23 @@ bool Drm::setDrmMode(int index, drmModeModeInfoPtr mode)
 {
     DrmOutput *output = &mOutputs[index];
 
+    int oldFbId =0;
+    int oldFbHandle = 0;
+
     drmModeModeInfo currentMode;
     memcpy(&currentMode, &output->mode, sizeof(drmModeModeInfo));
+
     if (isSameDrmMode(mode, &currentMode))
         return true;
 
+
     if (output->fbId) {
-        drmModeRmFB(mDrmFd, output->fbId);
+        oldFbId = output->fbId ;
         output->fbId = 0;
     }
 
     if (output->fbHandle) {
-        Hwcomposer::getInstance().getBufferManager()->freeFrameBuffer(output->fbHandle);
+        oldFbHandle = output->fbHandle;
         output->fbHandle = 0;
     }
 
@@ -594,6 +599,14 @@ bool Drm::setDrmMode(int index, drmModeModeInfoPtr mode)
         memcpy(&output->mode, mode, sizeof(drmModeModeInfo));
     } else {
         ETRACE("drmModeSetCrtc failed. error: %d", ret);
+    }
+
+    if (oldFbId) {
+        drmModeRmFB(mDrmFd, oldFbId);
+    }
+
+    if (oldFbHandle) {
+        Hwcomposer::getInstance().getBufferManager()->freeFrameBuffer(oldFbHandle);
     }
 
     return ret == 0;
