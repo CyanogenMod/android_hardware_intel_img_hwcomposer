@@ -60,17 +60,26 @@ protected:
 
 private:
     enum {
-        HDCP_INLOOP_RETRY_NUMBER = 20,
-        HDCP_INLOOP_RETRY_DELAY_US = 30000,
+        HDCP_INLOOP_RETRY_NUMBER = 1,
+        HDCP_INLOOP_RETRY_DELAY_US = 50000,
         HDCP_VERIFICATION_DELAY_MS = 2000,
         HDCP_ASYNC_START_DELAY_MS = 100,
-        HDCP_AUTHENTICATION_DELAY_MS = 500,
+        HDCP_AUTHENTICATION_SHORT_DELAY_MS = 200,
+        HDCP_AUTHENTICATION_LONG_DELAY_MS = 2000,
         HDCP_AUTHENTICATION_TIMEOUT_MS = 5000,
+        HDCP_RETRY_LIMIT = 10,
+    };
+
+    enum {
+        CALLBACK_PENDING,
+        CALLBACK_AUTHENTICATED,
+        CALLBACK_NOT_AUTHENTICATED,
     };
 
 protected:
     HdcpStatusCallback mCallback;
     void *mUserData;
+    int mCallbackState;
     Mutex mMutex;
     Condition mStoppedCondition;
     Condition mCompletedCondition;
@@ -78,6 +87,7 @@ protected:
     bool mStopped;
     bool mAuthenticated;
     int mActionDelay;  // in milliseconds
+    uint32_t mAuthRetryCount;
 
 private:
     DECLARE_THREAD(HdcpControlThread, HdcpControl);

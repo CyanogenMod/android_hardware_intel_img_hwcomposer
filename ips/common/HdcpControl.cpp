@@ -40,13 +40,15 @@ namespace intel {
 HdcpControl::HdcpControl()
     : mCallback(NULL),
       mUserData(NULL),
+      mCallbackState(CALLBACK_PENDING),
       mMutex(),
       mStoppedCondition(),
       mCompletedCondition(),
       mWaitForCompletion(false),
       mStopped(true),
       mAuthenticated(false),
-      mActionDelay(0)
+      mActionDelay(0),
+      mAuthRetryCount(0)
 {
 }
 
@@ -89,11 +91,12 @@ bool HdcpControl::startHdcp()
         return false;
     }
 
+    mAuthRetryCount = 0;
     mWaitForCompletion = !mAuthenticated;
     if (mAuthenticated) {
         mActionDelay = HDCP_VERIFICATION_DELAY_MS;
     } else {
-        mActionDelay = HDCP_AUTHENTICATION_DELAY_MS;
+        mActionDelay = HDCP_AUTHENTICATION_SHORT_DELAY_MS;
     }
 
     mThread->run("HdcpControl", PRIORITY_NORMAL);
@@ -138,8 +141,10 @@ bool HdcpControl::startHdcpAsync(HdcpStatusCallback cb, void *userData)
         return false;
     }
 
+    mAuthRetryCount = 0;
     mCallback = cb;
     mUserData = userData;
+    mCallbackState = CALLBACK_PENDING;
     mWaitForCompletion = false;
     mAuthenticated = false;
     mStopped = false;
@@ -298,9 +303,11 @@ bool HdcpControl::runHdcp()
             break;
         }
 
-        // Adding delay to make sure panel receives video signal so it can start HDCP authentication.
-        // (HDCP spec 1.3, section 2.3)
-        usleep(HDCP_INLOOP_RETRY_DELAY_US);
+        if (i < HDCP_INLOOP_RETRY_NUMBER - 1) {
+            // Adding delay to make sure panel receives video signal so it can start HDCP authentication.
+            // (HDCP spec 1.3, section 2.3)
+            usleep(HDCP_INLOOP_RETRY_DELAY_US);
+        }
     }
 
     postRunHdcp();
@@ -344,7 +351,9 @@ bool HdcpControl::threadLoop()
     bool ret = true;
     if (!mAuthenticated) {
         ret = runHdcp();
+        mAuthRetryCount++;
     } else {
+        mAuthRetryCount = 0;
         checkAuthenticated();
     }
 
@@ -352,7 +361,13 @@ bool HdcpControl::threadLoop()
     if (mAuthenticated) {
         mActionDelay = HDCP_VERIFICATION_DELAY_MS;
     } else {
-        mActionDelay = HDCP_AUTHENTICATION_DELAY_MS;
+        // If HDCP can not authenticate after "HDCP_RETRY_LIMIT" attempts
+        // reduce HDCP retry frequency to 2 sec
+        if (mAuthRetryCount >= HDCP_RETRY_LIMIT) {
+            mActionDelay = HDCP_AUTHENTICATION_LONG_DELAY_MS;
+        } else {
+            mActionDelay = HDCP_AUTHENTICATION_SHORT_DELAY_MS;
+        }
     }
 
     // TODO: move out of lock?
@@ -361,11 +376,17 @@ bool HdcpControl::threadLoop()
     }
 
     if (mCallback) {
-        (*mCallback)(mAuthenticated, mUserData);
+         if ((mAuthenticated && mCallbackState == CALLBACK_AUTHENTICATED) ||
+            (!mAuthenticated && mCallbackState == CALLBACK_NOT_AUTHENTICATED)) {
+            // ignore callback as state is not changed
+        } else {
+            mCallbackState =
+                mAuthenticated ? CALLBACK_AUTHENTICATED : CALLBACK_NOT_AUTHENTICATED;
+            (*mCallback)(mAuthenticated, mUserData);
+        }
     }
     return ret;
 }
-
 
 } // namespace intel
 } // namespace android

@@ -192,15 +192,20 @@ void ExternalDevice::HdcpLinkStatusListener(bool success, void *userData)
 
 void ExternalDevice::HdcpLinkStatusListener(bool success)
 {
-    // TODO:  send hotplug event only if HDCP is authenticated?
+    if (!success) {
+        ETRACE("HDCP is not authenticated, disabling dynamic vsync");
+        mHwc.getVsyncManager()->enableDynamicVsync(false);
+    }
+
     if (mHotplugEventPending) {
         DTRACE("HDCP authentication status %d, sending hotplug event...", success);
         mHwc.hotplug(mType, mConnected);
         mHotplugEventPending = false;
     }
 
-    if (!success) {
-        ETRACE("HDCP is not authenticated");
+    if (success) {
+        ITRACE("HDCP authenticated, enabling dynamic vsync");
+        mHwc.getVsyncManager()->enableDynamicVsync(true);
     }
 }
 
@@ -271,7 +276,7 @@ void ExternalDevice::setRefreshRate(int hz)
 
     ITRACE("changing refresh rate from %d to %d", mode.vrefresh, hz);
 
-    Hwcomposer::getInstance().getVsyncManager()->enableDynamicVsync(false);
+    mHwc.getVsyncManager()->enableDynamicVsync(false);
 
     mHdcpControl->stopHdcp();
 
@@ -279,7 +284,7 @@ void ExternalDevice::setRefreshRate(int hz)
 
     mHotplugEventPending = false;
     mHdcpControl->startHdcpAsync(HdcpLinkStatusListener, this);
-    Hwcomposer::getInstance().getVsyncManager()->enableDynamicVsync(true);
+    mHwc.getVsyncManager()->enableDynamicVsync(true);
 }
 
 } // namespace intel
