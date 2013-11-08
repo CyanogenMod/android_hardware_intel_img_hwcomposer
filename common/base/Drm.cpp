@@ -447,6 +447,8 @@ bool Drm::isConnected(int device)
 
 bool Drm::setDpmsMode(int device, int mode)
 {
+    WTRACE("DPMS ignored");
+    return false;
     Mutex::Autolock _l(mLock);
 
     int output = getOutputIndex(device);

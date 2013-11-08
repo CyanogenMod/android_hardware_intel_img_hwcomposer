@@ -26,120 +26,132 @@
  *
  */
 #include <HwcTrace.h>
-#include <VsyncEventObserver.h>
-#include <PhysicalDevice.h>
+#include <SoftVsyncObserver.h>
+#include <IDisplayDevice.h>
+
+extern "C" int clock_nanosleep(clockid_t clock_id, int flags,
+                           const struct timespec *request,
+                           struct timespec *remain);
+
 
 namespace android {
 namespace intel {
 
-VsyncEventObserver::VsyncEventObserver(PhysicalDevice& disp)
-    : mLock(),
-      mCondition(),
-      mDisplayDevice(disp),
-      mVsyncControl(NULL),
+SoftVsyncObserver::SoftVsyncObserver(IDisplayDevice& disp)
+    : mDisplayDevice(disp),
       mDevice(IDisplayDevice::DEVICE_COUNT),
       mEnabled(false),
-      mExitThread(false),
+      mRefreshRate(60), // default 60 frames per second
+      mRefreshPeriod(0),
+      mLock(),
+      mCondition(),
+      mNextFakeVSync(0),
       mInitialized(false)
 {
-    CTRACE();
 }
 
-VsyncEventObserver::~VsyncEventObserver()
+SoftVsyncObserver::~SoftVsyncObserver()
 {
     WARN_IF_NOT_DEINIT();
 }
 
-bool VsyncEventObserver::initialize()
+bool SoftVsyncObserver::initialize()
 {
     if (mInitialized) {
         WTRACE("object has been initialized");
         return true;
     }
 
-    mExitThread = false;
     mEnabled = false;
+    mRefreshRate = 60;
     mDevice = mDisplayDevice.getType();
-    mVsyncControl = mDisplayDevice.createVsyncControl();
-    if (!mVsyncControl || !mVsyncControl->initialize()) {
-        DEINIT_AND_RETURN_FALSE("failed to initialize vsync control");
-    }
-
     mThread = new VsyncEventPollThread(this);
     if (!mThread.get()) {
         DEINIT_AND_RETURN_FALSE("failed to create vsync event poll thread.");
     }
-
-    mThread->run("VsyncEventObserver", PRIORITY_URGENT_DISPLAY);
-
+    mThread->run("SoftVsyncObserver", PRIORITY_URGENT_DISPLAY);
     mInitialized = true;
     return true;
 }
 
-void VsyncEventObserver::deinitialize()
+void SoftVsyncObserver::deinitialize()
 {
     if (mEnabled) {
-        WTRACE("vsync is still enabled");
-        control(false);
+        mEnabled = false;
+        mCondition.signal();
     }
-    mInitialized = false;
-    mExitThread = true;
-    mEnabled = false;
-    mCondition.signal();
-
     if (mThread.get()) {
         mThread->requestExitAndWait();
         mThread = NULL;
     }
-
-    DEINIT_AND_DELETE_OBJ(mVsyncControl);
+    mInitialized = false;
 }
 
-bool VsyncEventObserver::control(bool enabled)
+void SoftVsyncObserver::setRefreshRate(int rate)
 {
-    ATRACE("enabled = %d on device %d", enabled, mDevice);
+    if (mEnabled) {
+        WTRACE("too late to set refresh rate");
+    } else if (rate < 1 || rate > 120) {
+        WTRACE("invalid refresh rate %d", rate);
+    } else {
+        mRefreshRate = rate;
+    }
+}
+
+bool SoftVsyncObserver::control(bool enabled)
+{
     if (enabled == mEnabled) {
         WTRACE("vsync state %d is not changed", enabled);
         return true;
     }
 
-    bool ret = mVsyncControl->control(mDevice, enabled);
-    if (!ret) {
-        ETRACE("failed to control (%d) vsync on display %d", enabled, mDevice);
-        return false;
+    if (enabled) {
+        mRefreshPeriod = nsecs_t(1e9 / mRefreshRate);
+        mNextFakeVSync = systemTime(CLOCK_MONOTONIC) + mRefreshPeriod;
     }
-
-    Mutex::Autolock _l(mLock);
     mEnabled = enabled;
     mCondition.signal();
     return true;
 }
 
-bool VsyncEventObserver::threadLoop()
+bool SoftVsyncObserver::threadLoop()
 {
-     do {
-        // scope for lock
+    { // scope for lock
         Mutex::Autolock _l(mLock);
         while (!mEnabled) {
             mCondition.wait(mLock);
-            if (mExitThread) {
-                ITRACE("exiting thread loop");
-                return false;
-            }
         }
-    } while (0);
-
-    int64_t timestamp;
-    bool ret = mVsyncControl->wait(mDevice, timestamp);
-
-    if (ret == false) {
-        WTRACE("failed to wait for vsync on display %d, vsync enabled %d", mDevice, mEnabled);
     }
 
-    // notify device
-    mDisplayDevice.onVsync(timestamp);
+
+    const nsecs_t period = mRefreshPeriod;
+    const nsecs_t now = systemTime(CLOCK_MONOTONIC);
+    nsecs_t next_vsync = mNextFakeVSync;
+    nsecs_t sleep = next_vsync - now;
+    if (sleep < 0) {
+        // we missed, find where the next vsync should be
+        sleep = (period - ((now - next_vsync) % period));
+        next_vsync = now + sleep;
+    }
+    mNextFakeVSync = next_vsync + period;
+
+    struct timespec spec;
+    spec.tv_sec  = next_vsync / 1000000000;
+    spec.tv_nsec = next_vsync % 1000000000;
+
+    int err;
+    do {
+        err = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &spec, NULL);
+    } while (err < 0 && errno == EINTR);
+
+
+    if (err == 0) {
+        mDisplayDevice.onVsync(next_vsync);
+    }
+
     return true;
 }
 
 } // namespace intel
 } // namesapce android
+

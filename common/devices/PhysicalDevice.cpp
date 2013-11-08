@@ -89,26 +89,6 @@ void PhysicalDevice::onGeometryChanged(hwc_display_contents_1_t *list)
                                   mType);
     if (!mLayerList) {
         WTRACE("failed to create layer list");
-    } else if (mType == IDisplayDevice::DEVICE_PRIMARY) {
-#if 0  // display driver does not support run-time power management yet
-        Hwcomposer& hwc = Hwcomposer::getInstance();
-        if (hwc.getDisplayAnalyzer()->checkVideoExtendedMode()) {
-            bool hasVisibleLayer = mLayerList->hasVisibleLayer();
-            Drm *drm = hwc.getDrm();
-            if (hasVisibleLayer == true && mDisplayState == DEVICE_DISPLAY_OFF) {
-                ITRACE("turn on device %d as there is visible layer", mType);
-                if (drm->setDpmsMode(mType, DEVICE_DISPLAY_ON) == true) {
-                    mDisplayState = DEVICE_DISPLAY_ON;
-                }
-            }
-            if (hasVisibleLayer == false && mDisplayState == DEVICE_DISPLAY_ON) {
-                ITRACE("turn off device %d as there is no visible layer", mType);
-                if (drm->setDpmsMode(mType, DEVICE_DISPLAY_OFF) == true) {
-                    mDisplayState = DEVICE_DISPLAY_OFF;
-                }
-            }
-        }
-#endif
     }
 }
 

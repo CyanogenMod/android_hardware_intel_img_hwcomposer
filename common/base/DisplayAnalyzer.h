@@ -45,14 +45,16 @@ public:
     bool initialize();
     void deinitialize();
     void analyzeContents(size_t numDisplays, hwc_display_contents_1_t** displays);
-    bool checkVideoExtendedMode();
-    bool isVideoExtendedModeEnabled();
+    bool isVideoExtModeActive();
+    bool isVideoExtModeEnabled();
     bool isVideoLayer(hwc_layer_1_t &layer);
     bool isVideoFullScreen(int device, hwc_layer_1_t &layer);
     bool isOverlayAllowed();
     int  getVideoInstances();
     void postHotplugEvent(bool connected);
     void postVideoEvent(int instanceID, int state);
+    void postInputEvent(bool active);
+    void postVideoEvent(int instances, int instanceID, bool preparing, bool playing);
     void postBlankEvent(bool blank);
     bool isPresentationLayer(hwc_layer_1_t &layer);
     bool isProtectedLayer(hwc_layer_1_t &layer);
@@ -63,6 +65,8 @@ private:
         BLANK_EVENT,
         VIDEO_EVENT,
         TIMING_EVENT,
+        INPUT_EVENT,
+        DPMS_EVENT
     };
 
     struct Event {
@@ -75,6 +79,7 @@ private:
 
         union {
             bool bValue;
+            int  nValue;
             VideoEvent videoEvent;
         };
     };
@@ -85,12 +90,17 @@ private:
     void handleBlankEvent(bool blank);
     void handleVideoEvent(int instanceID, int state);
     void handleTimingEvent();
+    void handleInputEvent(bool active);
+    void handleDpmsEvent(int delayCount);
 
     void blankSecondaryDevice();
-    void detectVideoExtendedMode();
-    void detectTrickMode(hwc_display_contents_1_t *list);
+    void handleVideoExtMode();
+    void checkVideoExtMode();
+    void enterVideoExtMode();
+    void exitVideoExtMode();
     bool hasProtectedLayer();
-    inline void resetCompositionType(hwc_display_contents_1_t *content);
+    inline void setCompositionType(hwc_display_contents_1_t *content, int type);
+    inline void setCompositionType(int device, int type, bool reset);
 
 private:
     // Video playback state, must match defintion in Multi Display Service
@@ -103,15 +113,22 @@ private:
         VIDEO_PLAYBACK_STOPPED,
     };
 
+    enum
+    {
+        // number of flips before display can be powered off in video extended mode
+        DELAY_BEFORE_DPMS_OFF = 10,
+    };
+
 private:
     bool mInitialized;
-    bool mEnableVideoExtendedMode;
-    bool mVideoExtendedMode;
-    bool mForceCloneMode;
+    bool mVideoExtModeEnabled;
+    bool mVideoExtModeEligible;
+    bool mVideoExtModeActive;
     bool mBlankDevice;
+    bool mOverlayAllowed;
+    bool mActiveInputState;
     // map video instance ID to video state
     KeyedVector<int, int> mVideoStateMap;
-    bool mOverlayAllowed;
     int mCachedNumDisplays;
     hwc_display_contents_1_t** mCachedDisplays;
     Vector<Event> mPendingEvents;

@@ -42,11 +42,12 @@ namespace intel {
 
 DisplayAnalyzer::DisplayAnalyzer()
     : mInitialized(false),
-      mEnableVideoExtendedMode(true),
-      mVideoExtendedMode(false),
-      mForceCloneMode(false),
+      mVideoExtModeEnabled(true),
+      mVideoExtModeEligible(false),
+      mVideoExtModeActive(false),
       mBlankDevice(false),
       mOverlayAllowed(true),
+      mActiveInputState(true),
       mCachedNumDisplays(0),
       mCachedDisplays(0),
       mPendingEvents(),
@@ -64,12 +65,13 @@ bool DisplayAnalyzer::initialize()
     // by default video extended mode is enabled
     char prop[PROPERTY_VALUE_MAX];
     if (property_get("hwc.video.extmode.enable", prop, "1") > 0) {
-        mEnableVideoExtendedMode = atoi(prop) ? true : false;
+        mVideoExtModeEnabled = atoi(prop) ? true : false;
     }
-    mVideoExtendedMode = false;
-    mForceCloneMode = false;
+    mVideoExtModeEligible = false;
+    mVideoExtModeActive = false;
     mBlankDevice = false;
     mOverlayAllowed = true;
+    mActiveInputState = true;
     mCachedNumDisplays = 0;
     mCachedDisplays = 0;
     mPendingEvents.clear();
@@ -95,11 +97,8 @@ void DisplayAnalyzer::analyzeContents(
 
     handlePendingEvents();
 
-    if (mEnableVideoExtendedMode) {
-        detectVideoExtendedMode();
-        if (mVideoExtendedMode) {
-            detectTrickMode(mCachedDisplays[IDisplayDevice::DEVICE_PRIMARY]);
-        }
+    if (mVideoExtModeEnabled) {
+        handleVideoExtMode();
     }
 
     if (mBlankDevice) {
@@ -109,32 +108,33 @@ void DisplayAnalyzer::analyzeContents(
     }
 }
 
-void DisplayAnalyzer::detectTrickMode(hwc_display_contents_1_t *list)
+void DisplayAnalyzer::handleVideoExtMode()
 {
-    if (list == NULL)
-        return;
-
-    bool detected = false;
-    for (size_t i = 0; i < list->numHwLayers; i++) {
-        hwc_layer_1_t *layer = &list->hwLayers[i];
-        if (layer && (layer->flags & HWC_TRICK_MODE)) {
-            detected = true;
-            break;
+    bool eligible = mVideoExtModeEligible;
+    checkVideoExtMode();
+    if (eligible == mVideoExtModeEligible) {
+        if (mVideoExtModeActive) {
+            // need to mark all layers
+            setCompositionType(0, HWC_OVERLAY, false);
         }
+        return;
     }
 
-    if (detected != mForceCloneMode) {
-        list->flags |= HWC_GEOMETRY_CHANGED;
-        mForceCloneMode = detected;
-        resetCompositionType(list);
+    if (mVideoExtModeEligible) {
+        if (mActiveInputState) {
+            VTRACE("input is active");
+        } else {
+            enterVideoExtMode();
+        }
+    } else {
+        exitVideoExtMode();
     }
 }
 
-void DisplayAnalyzer::detectVideoExtendedMode()
+void DisplayAnalyzer::checkVideoExtMode()
 {
     if (mVideoStateMap.size() != 1) {
-        mVideoExtendedMode = false;
-        mForceCloneMode = false;
+        mVideoExtModeEligible = false;
         return;
     }
 
@@ -154,17 +154,21 @@ void DisplayAnalyzer::detectVideoExtendedMode()
     }
 
     if (activeDisplays <= 1) {
-        mVideoExtendedMode = false;
+        mVideoExtModeEligible = false;
         return;
     }
 
+    // video state update event may come later than geometry change event.
+    // in that case, video extended mode is not detected properly.
+#if 0
     if (geometryChanged == false) {
         // use previous analysis result
         return;
     }
+#endif
 
-    // reset status of video extended mode
-    mVideoExtendedMode = false;
+    // reset eligibility of video extended mode
+    mVideoExtModeEligible = false;
 
     // check if there is video layer in the primary device
     content = mCachedDisplays[0];
@@ -201,34 +205,30 @@ void DisplayAnalyzer::detectVideoExtendedMode()
         for (int j = 0; j < (int)content->numHwLayers - 1; j++) {
             if ((uint32_t)content->hwLayers[j].handle == videoHandle) {
                 VTRACE("video layer exists in device %d", i);
-                mVideoExtendedMode = isVideoFullScreen(i, content->hwLayers[j]);
-                if (i == IDisplayDevice::DEVICE_VIRTUAL) {
-                    // WiDi exception: always in video extended mode
-                    mVideoExtendedMode = true;
-                }
+                mVideoExtModeEligible = isVideoFullScreen(i, content->hwLayers[j]);
                 return;
             }
         }
     }
 }
 
-bool DisplayAnalyzer::checkVideoExtendedMode()
+bool DisplayAnalyzer::isVideoExtModeActive()
 {
-    return mVideoExtendedMode && !mForceCloneMode;
+    return mVideoExtModeActive;
 }
 
-bool DisplayAnalyzer::isVideoExtendedModeEnabled()
+bool DisplayAnalyzer::isVideoExtModeEnabled()
 {
 #if 1
     // enable it for run-time debugging purpose.
     char prop[PROPERTY_VALUE_MAX];
     if (property_get("hwc.video.extmode.enable", prop, "1") > 0) {
-        mEnableVideoExtendedMode = atoi(prop) ? true : false;
+        mVideoExtModeEnabled = atoi(prop) ? true : false;
     }
-    ITRACE("video extended mode enabled: %d", mEnableVideoExtendedMode);
+    ITRACE("video extended mode enabled: %d", mVideoExtModeEnabled);
 #endif
 
-    return mEnableVideoExtendedMode;
+    return mVideoExtModeEnabled;
 }
 
 bool DisplayAnalyzer::isVideoLayer(hwc_layer_1_t &layer)
@@ -286,19 +286,17 @@ int DisplayAnalyzer::getVideoInstances()
 
 void DisplayAnalyzer::postHotplugEvent(bool connected)
 {
-    // TODO: turn on primary display immeidately
-
     if (!connected) {
         // enable vsync on the primary device immediately
-        Hwcomposer::getInstance().getVsyncManager()->resetVsyncSource();
-    } else {
-        // handle hotplug event (vsync switch) asynchronously
-        Event e;
-        e.type = HOTPLUG_EVENT;
-        e.bValue = connected;
-        postEvent(e);
-        Hwcomposer::getInstance().invalidate();
+        Hwcomposer::getInstance().getVsyncManager()->enableDynamicVsync(true);
     }
+
+    // handle hotplug event (vsync switch) asynchronously
+    Event e;
+    e.type = HOTPLUG_EVENT;
+    e.bValue = connected;
+    postEvent(e);
+    Hwcomposer::getInstance().invalidate();
 }
 
 void DisplayAnalyzer::postVideoEvent(int instanceID, int state)
@@ -329,6 +327,15 @@ void DisplayAnalyzer::postBlankEvent(bool blank)
     Event e;
     e.type = BLANK_EVENT;
     e.bValue = blank;
+    postEvent(e);
+    Hwcomposer::getInstance().invalidate();
+}
+
+void DisplayAnalyzer::postInputEvent(bool active)
+{
+    Event e;
+    e.type = INPUT_EVENT;
+    e.bValue = active;
     postEvent(e);
     Hwcomposer::getInstance().invalidate();
 }
@@ -372,12 +379,17 @@ void DisplayAnalyzer::handlePendingEvents()
     case TIMING_EVENT:
         handleTimingEvent();
         break;
+    case INPUT_EVENT:
+        handleInputEvent(e.bValue);
+        break;
+    case DPMS_EVENT:
+        handleDpmsEvent(e.nValue);
+        break;
     }
 }
 
 void DisplayAnalyzer::handleHotplugEvent(bool connected)
 {
-    Hwcomposer::getInstance().getVsyncManager()->resetVsyncSource();
 }
 
 void DisplayAnalyzer::handleBlankEvent(bool blank)
@@ -469,12 +481,7 @@ void DisplayAnalyzer::handleVideoEvent(int instanceID, int state)
     if (reset) {
         hwc_display_contents_1_t *content = NULL;
         for (int i = 0; i < (int)mCachedNumDisplays; i++) {
-            content = mCachedDisplays[i];
-            if (content == NULL) {
-                continue;
-            }
-            content->flags |= HWC_GEOMETRY_CHANGED;
-            resetCompositionType(content);
+            setCompositionType(i, HWC_FRAMEBUFFER, true);
         }
     }
 
@@ -517,8 +524,93 @@ void DisplayAnalyzer::blankSecondaryDevice()
     }
 }
 
+void DisplayAnalyzer::handleInputEvent(bool active)
+{
+    mActiveInputState = active;
+    if (!mVideoExtModeEligible) {
+        ITRACE("not eligible for video extended mode");
+        return;
+    }
+
+    if (active) {
+        exitVideoExtMode();
+    } else {
+        enterVideoExtMode();
+    }
+}
+
+void DisplayAnalyzer::handleDpmsEvent(int delayCount)
+{
+    if (mActiveInputState || !mVideoExtModeEligible) {
+        ITRACE("aborting display power off in video extended mode");
+        return;
+    }
+
+    if (delayCount < DELAY_BEFORE_DPMS_OFF) {
+        Event e;
+        e.type = DPMS_EVENT;
+        e.nValue = delayCount + 1;
+        postEvent(e);
+        return;
+    }
+
+    if (Hwcomposer::getInstance().getVsyncManager()->getVsyncSource() ==
+        IDisplayDevice::DEVICE_PRIMARY) {
+        ETRACE("primary display is source of vsync, it can't be powered off");
+        return;
+    }
+
+    ITRACE("powering off primary display...");
+    Hwcomposer::getInstance().getDrm()->setDpmsMode(
+        IDisplayDevice::DEVICE_PRIMARY,
+        IDisplayDevice::DEVICE_DISPLAY_OFF);
+}
+
+void DisplayAnalyzer::enterVideoExtMode()
+{
+    if (mVideoExtModeActive) {
+        WTRACE("already in video extended mode.");
+        return;
+    }
+
+    ITRACE("entering video extended mode...");
+    mVideoExtModeActive = true;
+    Hwcomposer::getInstance().getVsyncManager()->resetVsyncSource();
+
+    setCompositionType(0, HWC_OVERLAY, true);
+
+    // Do not power off primary display immediately as flip is asynchronous
+    Event e;
+    e.type = DPMS_EVENT;
+    e.nValue = 0;
+    postEvent(e);
+}
+
+void DisplayAnalyzer::exitVideoExtMode()
+{
+    if (!mVideoExtModeActive) {
+        WTRACE("Not in video extended mode");
+        return;
+    }
+
+    ITRACE("exitting video extended mode...");
+
+    mVideoExtModeActive = false;
+
+    Hwcomposer::getInstance().getDrm()->setDpmsMode(
+        IDisplayDevice::DEVICE_PRIMARY,
+        IDisplayDevice::DEVICE_DISPLAY_ON);
+
+    Hwcomposer::getInstance().getVsyncManager()->resetVsyncSource();
+
+    setCompositionType(0, HWC_FRAMEBUFFER, true);
+}
+
 bool DisplayAnalyzer::isPresentationLayer(hwc_layer_1_t &layer)
 {
+    if (layer.handle == NULL) {
+        return false;
+    }
     if (mCachedDisplays == NULL) {
         return false;
     }
@@ -565,25 +657,13 @@ bool DisplayAnalyzer::hasProtectedLayer()
     return false;
 }
 
-// reset the composition type of all layers to default
-void DisplayAnalyzer::resetCompositionType(hwc_display_contents_1_t *display)
-{
-    if (display == NULL)
-        return;
-
-    for (size_t i = 0; i < display->numHwLayers - 1; i++) {
-        hwc_layer_1_t *layer = &display->hwLayers[i];
-        if (layer) layer->compositionType = HWC_FRAMEBUFFER;
-    }
-}
-
 bool DisplayAnalyzer::isProtectedLayer(hwc_layer_1_t &layer)
 {
+    if (!layer.handle) {
+        return false;
+    }
     bool ret = false;
     BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
-    if (!layer.handle) {
-        return ret;
-    }
     DataBuffer *buffer = bm->lockDataBuffer((uint32_t)layer.handle);
     if (!buffer) {
         ETRACE("failed to get buffer");
@@ -592,6 +672,30 @@ bool DisplayAnalyzer::isProtectedLayer(hwc_layer_1_t &layer)
         bm->unlockDataBuffer(buffer);
     }
     return ret;
+}
+
+void DisplayAnalyzer::setCompositionType(hwc_display_contents_1_t *display, int type)
+{
+    for (size_t i = 0; i < display->numHwLayers - 1; i++) {
+        hwc_layer_1_t *layer = &display->hwLayers[i];
+        if (layer) layer->compositionType = type;
+    }
+}
+
+void DisplayAnalyzer::setCompositionType(int device, int type, bool reset)
+{
+    hwc_display_contents_1_t *content = mCachedDisplays[device];
+    if (content == NULL) {
+        ETRACE("Invalid device %d", device);
+        return;
+    }
+
+    // don't need to set geometry changed if layers are just needed to be marked
+    if (reset) {
+        content->flags |= HWC_GEOMETRY_CHANGED;
+    }
+
+    setCompositionType(content, type);
 }
 
 } // namespace intel

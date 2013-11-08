@@ -25,45 +25,40 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef VSYNC_MANAGER_H
-#define VSYNC_MANAGER_H
+#ifndef SOFT_VSYNC_OBSERVER_H
+#define SOFT_VSYNC_OBSERVER_H
 
-#include <IDisplayDevice.h>
-#include <utils/threads.h>
+#include <SimpleThread.h>
 
 namespace android {
 namespace intel {
 
+class IDisplayDevice;
 
-class VsyncManager {
+class SoftVsyncObserver {
 public:
-    VsyncManager(Vector<IDisplayDevice*>& devices);
-    virtual ~VsyncManager();
+    SoftVsyncObserver(IDisplayDevice& disp);
+    virtual ~SoftVsyncObserver();
 
 public:
-    bool initialize();
-    void deinitialize();
-    bool handleVsyncControl(int disp, bool enabled);
-    void resetVsyncSource();
-    int getVsyncSource();
-    void enableDynamicVsync(bool enable);
+    virtual bool initialize();
+    virtual void deinitialize();
+    virtual void setRefreshRate(int rate);
+    virtual bool control(bool enabled);
 
 private:
-    inline int getCandidate();
-    inline bool enableVsync(int candidate);
-    inline void disableVsync();
-
-private:
-    Vector<IDisplayDevice*>& mDevices;
-    bool mInitialized;
-    bool mEnableDynamicVsync;
+    IDisplayDevice& mDisplayDevice;
+    int  mDevice;
     bool mEnabled;
-    int  mVsyncSource;
-    Mutex mLock;
+    int mRefreshRate;
+    nsecs_t mRefreshPeriod;
+    mutable Mutex mLock;
+    Condition mCondition;
+    mutable nsecs_t mNextFakeVSync;
+    bool mInitialized;
 
 private:
-    // toggle this constant to use primary vsync only or enable dynamic vsync.
-    static const bool scUsePrimaryVsyncOnly = false;
+    DECLARE_THREAD(VsyncEventPollThread, SoftVsyncObserver);
 };
 
 } // namespace intel
@@ -71,4 +66,5 @@ private:
 
 
 
-#endif /* VSYNC_MANAGER_H */
+#endif /* SOFT_VSYNC_OBSERVER_H */
+
