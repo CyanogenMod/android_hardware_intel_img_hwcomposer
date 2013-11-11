@@ -229,13 +229,6 @@ bool HwcLayer::update(hwc_layer_1_t *layer)
         }
     }
 
-    if (mType == LAYER_FRAMEBUFFER_TARGET ||
-        mType == LAYER_FB ||
-        mType == LAYER_FORCE_FB) {
-        // reset composition type after possible smart composition
-        mLayer->compositionType = HWC_FRAMEBUFFER;
-    }
-
     return true;
 }
 
@@ -1046,29 +1039,29 @@ bool HwcLayerList::setupZOrderConfig()
 
 void HwcLayerList::setupSmartComposition()
 {
-    bool smartComposition = true;
-    int frameBufferLayers = 0;
+    uint32_t compositionType = HWC_OVERLAY;
     HwcLayer *hwcLayer = NULL;
 
-    for (size_t i = 0; i < mLayerCount - 1; i++) {
-        hwcLayer = mLayers.itemAt(i);
-        if (hwcLayer->getCompositionType() == HWC_FRAMEBUFFER) {
-            frameBufferLayers++;
-            if (hwcLayer->isUpdated()) {
-                smartComposition = false;
-                break;
-            }
+    // setup smart composition only there's no update on all FB layers
+    for (size_t i = 0; i < mFBLayers.size(); i++) {
+        hwcLayer = mFBLayers.itemAt(i);
+        if (hwcLayer->isUpdated())
+            compositionType = HWC_FRAMEBUFFER;
+    }
+
+    VTRACE("smart composition enabled %s",
+           (compositionType == HWC_OVERLAY) ? "TRUE" : "FALSE");
+    for (size_t i = 0; i < mFBLayers.size(); i++) {
+        hwcLayer = mFBLayers.itemAt(i);
+        switch (hwcLayer->getType()) {
+        case HwcLayer::LAYER_FB:
+        case HwcLayer::LAYER_FORCE_FB:
+            hwcLayer->setCompositionType(compositionType);
+            break;
+        default:
+            ETRACE("Invalid layer type %d", hwcLayer->getType());
+            break;
         }
-    }
-
-    if (!smartComposition || !frameBufferLayers) {
-        return;
-    }
-
-    VTRACE("entering smart composition");
-    for (size_t i = 0; i < mLayerCount - 1; i++) {
-        hwcLayer = mLayers.itemAt(i);
-        hwcLayer->setCompositionType(HWC_OVERLAY);
     }
 }
 
