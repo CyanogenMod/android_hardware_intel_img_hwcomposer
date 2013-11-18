@@ -34,7 +34,6 @@
 #include <BufferCache.h>
 #include <DisplayPlane.h>
 
-#include <displayclass_interface.h>
 #include <common/SpritePlaneBase.h>
 
 namespace android {

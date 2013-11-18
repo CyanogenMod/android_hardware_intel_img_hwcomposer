@@ -29,7 +29,7 @@
 #define PLATF_DISPLAY_PLANE_MANAGER_H
 
 #include <DisplayPlaneManager.h>
-#include <displayclass_interface.h>
+#include <linux/psb_drm.h>
 
 namespace android {
 namespace intel {

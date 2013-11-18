@@ -28,7 +28,6 @@
 #ifndef PNW_PRIMARY_PLANE_H
 #define PNW_PRIMARY_PLANE_H
 
-#include <displayclass_interface.h>
 #include <penwell/PnwSpritePlane.h>
 
 namespace android {

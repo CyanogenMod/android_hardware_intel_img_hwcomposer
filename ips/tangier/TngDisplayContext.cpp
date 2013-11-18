@@ -32,7 +32,6 @@
 #include <HwcLayerList.h>
 #include <tangier/TngDisplayContext.h>
 
-#include <displayclass_interface.h>
 
 namespace android {
 namespace intel {

@@ -27,7 +27,7 @@
  */
 
 #include <HwcTrace.h>
-#include <psb_drm.h>
+#include <linux/psb_drm.h>
 #include <Hwcomposer.h>
 #include <common/DrmControl.h>
 
