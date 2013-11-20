@@ -125,7 +125,7 @@ LOCAL_SRC_FILES += \
 endif
 
 ifeq ($(TARGET_HAS_MULTIPLE_DISPLAY),true)
-   LOCAL_SHARED_LIBRARIES += libmultidisplay
+   LOCAL_SHARED_LIBRARIES += libmultidisplay libbinder
    LOCAL_CFLAGS += -DTARGET_HAS_MULTIPLE_DISPLAY
 endif
 include $(BUILD_SHARED_LIBRARY)
