@@ -48,6 +48,7 @@ Hwcomposer::Hwcomposer()
     CTRACE();
 
     mDisplayDevices.setCapacity(IDisplayDevice::DEVICE_COUNT);
+    mDisplayDevices.clear();
 }
 
 Hwcomposer::~Hwcomposer()

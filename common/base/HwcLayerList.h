@@ -111,7 +111,7 @@ private:
 
     // for smart composition
     uint32_t mTransform;
-    hwc_rect_t mSourceCrop;
+    hwc_frect_t mSourceCropf;
     hwc_rect_t mDisplayFrame;
     bool mUpdated;
 };
