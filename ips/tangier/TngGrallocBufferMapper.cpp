@@ -217,6 +217,41 @@ bool TngGrallocBufferMapper::mapKhandle()
     return true;
 }
 
+uint32_t TngGrallocBufferMapper::getFbHandle(int subIndex)
+{
+    void *vaddr[SUB_BUFFER_MAX];
+    uint32_t size[SUB_BUFFER_MAX];
+    int err;
+
+    CTRACE();
+
+    if (subIndex < 0 || subIndex >= SUB_BUFFER_MAX) {
+        return 0;
+    }
+
+    // get virtual address
+    err = mIMGGrallocModule.getCpuAddress(&mIMGGrallocModule,
+                                          (buffer_handle_t)getHandle(),
+                                          vaddr,
+                                          size);
+    if (err) {
+        ETRACE("failed to map. err = %d", err);
+        return 0;
+    }
+
+    return (uint32_t)vaddr[subIndex];
+}
+
+void TngGrallocBufferMapper::putFbHandle()
+{
+    int err = mIMGGrallocModule.putCpuAddress(&mIMGGrallocModule,
+                                    (buffer_handle_t)getHandle());
+    if (err) {
+        ETRACE("failed to unmap. err = %d", err);
+    }
+    return;
+
+}
 
 } // namespace intel
 } // namespace android

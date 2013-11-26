@@ -55,6 +55,12 @@ public:
     uint32_t getKHandle(int subIndex) {
         return 0;
     }
+    uint32_t getFbHandle(int subIndex) {
+        return 0;
+    }
+    void putFbHandle() {
+        return;
+    }
 
     // wait idle
     bool waitIdle();

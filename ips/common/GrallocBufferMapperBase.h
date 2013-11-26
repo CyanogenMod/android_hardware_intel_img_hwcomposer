@@ -47,6 +47,8 @@ public:
     void* getCpuAddress(int subIndex) const;
     uint32_t getSize(int subIndex) const;
     virtual uint32_t getKHandle(int subIndex);
+    virtual uint32_t getFbHandle(int subIndex) = 0;
+    virtual void putFbHandle() = 0;
 
 protected:
     // mapped info

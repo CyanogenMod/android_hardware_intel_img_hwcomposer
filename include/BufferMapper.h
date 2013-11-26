@@ -68,7 +68,8 @@ public:
     virtual void* getCpuAddress(int subIndex) const = 0;
     virtual uint32_t getSize(int subIndex) const = 0;
     virtual uint32_t getKHandle(int subIndex) = 0;
-
+    virtual uint32_t getFbHandle(int subIndex) = 0;
+    virtual void putFbHandle() = 0;
 private:
     int mRefCount;
 };
