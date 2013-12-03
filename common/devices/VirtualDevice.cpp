@@ -298,7 +298,7 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
         layer.flags |= HWC_HINT_DISABLE_ANIMATION;
     }
 
-    sendToWidi(streamingLayer, ((display->flags & HWC_ROTATION_IN_PROGRESS) != 0), isProtected);
+    sendToWidi(streamingLayer, false, isProtected);
     return true;
 }
 
