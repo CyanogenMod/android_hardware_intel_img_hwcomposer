@@ -392,6 +392,15 @@ bool MultiDisplayObserver::isExternalDeviceTimingFixed() const
     return mExternalHdmiTiming;
 }
 
+status_t MultiDisplayObserver::notifyWidiConnectionStatus( bool connected)
+{
+    Mutex::Autolock _l(mLock);
+    if (mMDSConnObserver.get() == NULL) {
+        return NO_INIT;
+    }
+    return mMDSConnObserver->updateWidiConnectionStatus(connected);
+}
+
 #endif //TARGET_HAS_MULTIPLE_DISPLAY
 
 } // namespace intel

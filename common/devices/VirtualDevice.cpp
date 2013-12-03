@@ -134,6 +134,8 @@ status_t VirtualDevice::start(sp<IFrameTypeChangeListener> typeChangeListener)
     mNextConfig.policy.refresh = 60;
     mNextConfig.extendedModeEnabled =
         Hwcomposer::getInstance().getDisplayAnalyzer()->isVideoExtendedModeEnabled();
+    if (mNextConfig.extendedModeEnabled)
+        Hwcomposer::getInstance().getMultiDisplayObserver()->notifyWidiConnectionStatus(true);
     mNextConfig.forceNotify = true;
     mVideoFramerate = 0;
     return NO_ERROR;
@@ -156,6 +158,7 @@ status_t VirtualDevice::stop(bool isConnected)
         mCscWidth = 0;
         mCscHeight = 0;
     }
+    Hwcomposer::getInstance().getMultiDisplayObserver()->notifyWidiConnectionStatus(false);
     return NO_ERROR;
 }
 
