@@ -83,6 +83,8 @@ protected:
                                 coeffPtr pCoeff);
     virtual bool scalingSetup(BufferMapper& mapper);
     virtual void checkPosition(int& x, int& y, int& w, int& h);
+    virtual void checkCrop(int& x, int& y, int& w, int& h);
+
 
 protected:
     // back buffer operations
