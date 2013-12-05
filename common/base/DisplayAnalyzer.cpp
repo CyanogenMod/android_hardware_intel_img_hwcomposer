@@ -533,7 +533,6 @@ bool DisplayAnalyzer::isPresentationLayer(hwc_layer_1_t &layer)
 
 bool DisplayAnalyzer::hasProtectedLayer()
 {
-    bool isProtected = false;
     DataBuffer * buffer = NULL;
     hwc_display_contents_1_t *content = NULL;
     BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
@@ -553,12 +552,8 @@ bool DisplayAnalyzer::hasProtectedLayer()
         }
 
         for (size_t i = 0; i < content->numHwLayers - 1; i++) {
-            buffer = bm->lockDataBuffer((uint32_t)content->hwLayers[i].handle);
-            isProtected = ((GraphicBuffer*)buffer)->isProtectedBuffer((GraphicBuffer*)buffer);
-            bm->unlockDataBuffer(buffer);
-            if (isProtected){
+            if (isProtectedLayer(content->hwLayers[i]))
                 return true;
-            }
         }
     }
 
