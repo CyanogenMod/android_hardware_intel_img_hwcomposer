@@ -319,7 +319,7 @@ void HwcLayer::setupAttributes()
         mWidth = buffer->getWidth();
         mHeight = buffer->getHeight();
         mStride = buffer->getStride();
-        mPriority = buffer->getWidth() * buffer->getHeight();
+        mPriority = (mSourceCropf.right - mSourceCropf.left) * (mSourceCropf.bottom - mSourceCropf.top);
         mPriority <<= LAYER_PRIORITY_SIZE_OFFSET;
         mPriority |= mIndex;
         GraphicBuffer *gBuffer = (GraphicBuffer*)buffer;
