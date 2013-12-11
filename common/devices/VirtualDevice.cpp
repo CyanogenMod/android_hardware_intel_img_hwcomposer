@@ -99,7 +99,8 @@ VirtualDevice::VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
       mHwc(hwc),
       mDisplayPlaneManager(dpm),
       mOrigContentWidth(0),
-      mOrigContentHeight(0)
+      mOrigContentHeight(0),
+      mFirstVideoFrame(true)
 {
     CTRACE();
 }
@@ -137,6 +138,7 @@ status_t VirtualDevice::start(sp<IFrameTypeChangeListener> typeChangeListener)
     if (mNextConfig.extendedModeEnabled)
         Hwcomposer::getInstance().getMultiDisplayObserver()->notifyWidiConnectionStatus(true);
     mVideoFramerate = 0;
+    mFirstVideoFrame = true;
     mNextConfig.forceNotifyFrameType = true;
     mNextConfig.forceNotifyBufferInfo = true;
     return NO_ERROR;
@@ -267,8 +269,8 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
 
     if (streamingLayer.compositionType == HWC_FRAMEBUFFER_TARGET) {
         VTRACE("Clone mode");
-        // reset video framerate. re-inititialize when extended mode enabled
-        mVideoFramerate = 0;
+        // TODO: fix this workaround. Once metadeta has correct info.
+        mFirstVideoFrame = true;
         return true;
     }
 
@@ -285,7 +287,7 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
     }
 
     VTRACE("Extended mode");
-    sendToWidi(streamingLayer, false, isProtected);
+    sendToWidi(streamingLayer, isProtected);
     return true;
 }
 
@@ -309,13 +311,13 @@ bool VirtualDevice::commit(hwc_display_contents_1_t *display, IDisplayContext *c
     // This is for clone mode
     hwc_layer_1_t& streamingLayer = display->hwLayers[mLayerToSend];
     if (streamingLayer.compositionType == HWC_FRAMEBUFFER_TARGET) {
-        sendToWidi(streamingLayer, 0, 0);
+        sendToWidi(streamingLayer, 0);
     }
 
     return true;
 }
 
-void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool rotating, bool isProtected)
+void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
 {
     uint32_t handle = (uint32_t)layer.handle;
     if (handle == 0) {
@@ -336,19 +338,8 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool rotating, bool i
     inputFrameInfo.contentFrameRateD = 1;
     inputFrameInfo.isProtected = isProtected;
 
-    if ((inputFrameInfo.contentWidth < 176) || (inputFrameInfo.contentHeight < 176))
+    if ((inputFrameInfo.contentWidth < 176) || (inputFrameInfo.contentHeight < 144))
         return;
-
-    // Do not use the crop size if we are rotating. Use the orig
-    // frame size we saved off previously instead.
-    if (rotating && (mOrigContentWidth != inputFrameInfo.contentWidth ||
-                mOrigContentHeight != inputFrameInfo.contentHeight)) {
-        inputFrameInfo.contentWidth = mOrigContentWidth;
-        inputFrameInfo.contentHeight = mOrigContentHeight;
-    } else {
-        mOrigContentWidth = inputFrameInfo.contentWidth;
-        mOrigContentHeight = inputFrameInfo.contentHeight;
-    }
 
     FrameInfo outputFrameInfo;
     outputFrameInfo = inputFrameInfo;
@@ -359,6 +350,14 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool rotating, bool i
             ETRACE("Failed to map display buffer");
             return;
         }
+
+        // TODO: Fix this workaround once we get the content width & height in metadata.
+        if (mFirstVideoFrame) {
+            mOrigContentWidth = inputFrameInfo.contentWidth;
+            mOrigContentHeight = inputFrameInfo.contentHeight;
+        }
+
+
         // for video mode let 30 fps be the default value.
         inputFrameInfo.contentFrameRateN = 30;
         inputFrameInfo.contentFrameRateD = 1;
@@ -367,11 +366,12 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool rotating, bool i
         if (mPayloadManager->getMetaData(cachedBuffer->mapper, &metadata)) {
             heldBuffer = new HeldDecoderBuffer(this, cachedBuffer);
             mediaTimestamp = metadata.timestamp;
-
+            // Don't use the crop size if something changed derive it again..
             // Only get video source info if frame rate has not been initialized.
             // getVideoSourceInfo() is a fairly expensive operation. This optimization
             // will save us a few milliseconds per frame
-            if (mVideoFramerate == 0) {
+            if (mFirstVideoFrame || (mOrigContentWidth != inputFrameInfo.contentWidth) ||
+                (mOrigContentHeight != inputFrameInfo.contentHeight)) {
                 mVideoFramerate = inputFrameInfo.contentFrameRateN;
                 int sessionID = -1;
                 if (layer.flags & HWC_HAS_VIDEO_SESSION_ID)
@@ -388,18 +388,35 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool rotating, bool i
                             mVideoFramerate = videoInfo.frameRate;
                         }
                     }
+                    int contentWidth = (videoInfo.width + 0xf) & ~0xf;
+                    int contentHeight = (videoInfo.height + 0xf) & ~0xf;
+                    if (contentWidth == metadata.width &&
+                            contentHeight == metadata.height) {
+                        inputFrameInfo.contentWidth = videoInfo.width;
+                        inputFrameInfo.contentHeight = videoInfo.height;
+                        mOrigContentWidth = inputFrameInfo.contentWidth;
+                        mOrigContentHeight = inputFrameInfo.contentHeight;
+                    } else if (inputFrameInfo.contentWidth == metadata.width &&
+                            inputFrameInfo.contentHeight == metadata.height) {
+                        mOrigContentWidth = inputFrameInfo.contentWidth;
+                        mOrigContentHeight = inputFrameInfo.contentHeight;
+                    } else {
+                        mOrigContentWidth = metadata.width;
+                        mOrigContentHeight = metadata.height;
+                    }
                 }
+                mFirstVideoFrame = false;
             }
             inputFrameInfo.frameType = HWC_FRAMETYPE_VIDEO;
             inputFrameInfo.contentFrameRateN = mVideoFramerate;
             inputFrameInfo.contentFrameRateD = 1;
 
             if (metadata.transform & HAL_TRANSFORM_ROT_90) {
-                inputFrameInfo.contentWidth = layer.sourceCropf.bottom - layer.sourceCropf.top;
-                inputFrameInfo.contentHeight = layer.sourceCropf.right - layer.sourceCropf.left;
+                int tmp = inputFrameInfo.contentWidth;
+                inputFrameInfo.contentWidth = inputFrameInfo.contentHeight;
+                inputFrameInfo.contentHeight = tmp;
             }
 
-            inputFrameInfo.cropLeft = 0;
             // skip pading bytes in rotate buffer
             switch (metadata.transform) {
                 case HAL_TRANSFORM_ROT_90: {

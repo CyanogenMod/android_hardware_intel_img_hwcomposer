@@ -94,7 +94,7 @@ protected:
 
 private:
     android::sp<CachedBuffer> getMappedBuffer(uint32_t handle);
-    void sendToWidi(const hwc_layer_1_t& layer, bool rotating, bool isProtected);
+    void sendToWidi(const hwc_layer_1_t& layer, bool isProtected);
 
 public:
     VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm);
@@ -137,6 +137,7 @@ protected:
     IVideoPayloadManager *mPayloadManager;
     uint32_t mOrigContentWidth;
     uint32_t mOrigContentHeight;
+    bool mFirstVideoFrame;
 };
 
 }
