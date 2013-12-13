@@ -451,8 +451,24 @@ void DisplayAnalyzer::handleVideoEvent(int instanceID, int state)
         }
     }
 
+    // check if composition type needs to be reset
+    bool reset = false;
     if ((state == VIDEO_PLAYBACK_STARTING) ||
         (state == VIDEO_PLAYBACK_STOPPING && hasProtectedLayer())) {
+        // if video is in starting or stopping stage, overlay use is temporarily not allowed to
+        // avoid scrambed RGB overlay if video is protected.
+        mOverlayAllowed = false;
+        reset = true;
+
+        // disable overlay plane and acknolwdge the waiting thread
+        hwc->getPlaneManager()->disableOverlayPlanes();
+        mEventHandledCondition.signal();
+    } else {
+        reset = !mOverlayAllowed;
+        mOverlayAllowed = true;
+    }
+
+    if (reset) {
         hwc_display_contents_1_t *content = NULL;
         for (int i = 0; i < (int)mCachedNumDisplays; i++) {
             content = mCachedDisplays[i];
@@ -462,15 +478,6 @@ void DisplayAnalyzer::handleVideoEvent(int instanceID, int state)
             content->flags |= HWC_GEOMETRY_CHANGED;
             resetCompositionType(content);
         }
-        // if video is in starting or stopping stage, overlay use is temporarily not allowed to
-        // avoid scrambed RGB overlay if video is protected.
-        mOverlayAllowed = false;
-
-        // disable overlay plane and acknolwdge the waiting thread
-        hwc->getPlaneManager()->disableOverlayPlanes();
-        mEventHandledCondition.signal();
-    } else {
-        mOverlayAllowed = true;
     }
 
     // delay changing timing as it is a lengthy operation
