@@ -1082,16 +1082,11 @@ void HwcLayerList::setupSmartComposition()
     uint32_t compositionType = HWC_OVERLAY;
     HwcLayer *hwcLayer = NULL;
 
-    // disable smart composition if video layer exists
-    if (mOverlayCandidates.size())
-        return;
-
     // setup smart composition only there's no update on all FB layers
     for (size_t i = 0; i < mFBLayers.size(); i++) {
         hwcLayer = mFBLayers.itemAt(i);
         if (hwcLayer->isUpdated()) {
             compositionType = HWC_FRAMEBUFFER;
-            break;
         }
     }
 
