@@ -190,8 +190,7 @@ DisplayPlane* DisplayPlaneManager::getPlane(int type, int dsp)
     }
 
     // try to get free plane from reclaimed planes
-    if (type == DisplayPlane::PLANE_PRIMARY ||
-        type == DisplayPlane::PLANE_OVERLAY)
+    if (type == DisplayPlane::PLANE_PRIMARY)
         // primary planes are attached to specific displays
         freePlaneIndex = getPlane(mReclaimedPlanes[type], dsp);
     else
@@ -202,8 +201,7 @@ DisplayPlane* DisplayPlaneManager::getPlane(int type, int dsp)
         return mPlanes[type].itemAt(freePlaneIndex);
 
     // failed to get a free plane from reclaimed planes, try it on free planes
-    if (type == DisplayPlane::PLANE_PRIMARY ||
-        type == DisplayPlane::PLANE_OVERLAY)
+    if (type == DisplayPlane::PLANE_PRIMARY)
         freePlaneIndex = getPlane(mFreePlanes[type], dsp);
     else
         freePlaneIndex = getPlane(mFreePlanes[type]);
@@ -212,18 +210,11 @@ DisplayPlane* DisplayPlaneManager::getPlane(int type, int dsp)
     if (freePlaneIndex >= 0)
         return mPlanes[type].itemAt(freePlaneIndex);
 
-    // Check the free overlay again if one pipe needs two overlays
-    if (type == DisplayPlane::PLANE_OVERLAY) {
-        freePlaneIndex = getPlane(mFreePlanes[type]);
-        if (freePlaneIndex >= 0)
-            return mPlanes[type].itemAt(freePlaneIndex);
-    }
-
     VTRACE("failed to get a plane, type %d", type);
     return 0;
 }
 
-void DisplayPlaneManager::putPlane(DisplayPlane& plane)
+void DisplayPlaneManager::putPlane(int dsp, DisplayPlane& plane)
 {
     int index;
     int type;
@@ -266,7 +257,7 @@ bool DisplayPlaneManager::hasFreePlanes(int type, int dsp)
     return freePlanes ? true : false;
 }
 
-DisplayPlane* DisplayPlaneManager::getSpritePlane()
+DisplayPlane* DisplayPlaneManager::getSpritePlane(int dsp)
 {
     return getPlane((int)DisplayPlane::PLANE_SPRITE);
 }
@@ -281,12 +272,12 @@ DisplayPlane* DisplayPlaneManager::getPrimaryPlane(int dsp)
     return getPlane((int)DisplayPlane::PLANE_PRIMARY, dsp);
 }
 
-bool DisplayPlaneManager::hasFreeSprite()
+bool DisplayPlaneManager::hasFreeSprite(int dsp)
 {
     return hasFreePlanes((int)DisplayPlane::PLANE_SPRITE);
 }
 
-bool DisplayPlaneManager::hasFreeOverlay()
+bool DisplayPlaneManager::hasFreeOverlay(int dsp)
 {
     return hasFreePlanes((int)DisplayPlane::PLANE_OVERLAY);
 }
@@ -296,7 +287,7 @@ bool DisplayPlaneManager::hasFreePrimary(int dsp)
     return hasFreePlanes((int)DisplayPlane::PLANE_PRIMARY, dsp);
 }
 
-void DisplayPlaneManager::reclaimPlane(DisplayPlane& plane)
+void DisplayPlaneManager::reclaimPlane(int dsp, DisplayPlane& plane)
 {
     RETURN_VOID_IF_NOT_INIT();
 
