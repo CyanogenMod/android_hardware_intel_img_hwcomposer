@@ -180,6 +180,7 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
     BufferMapper *mapper;
     ssize_t index;
     bool ret;
+    bool isCompression;
     BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
 
     RETURN_FALSE_IF_NOT_INIT();
@@ -205,6 +206,8 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
     }
 
     mIsProtectedBuffer = GraphicBuffer::isProtectedBuffer((GraphicBuffer*)buffer);
+    isCompression = GraphicBuffer::isCompressionBuffer((GraphicBuffer*)buffer);
+
     // map buffer if it's not in cache
     index = mDataBuffers.indexOfKey(buffer->getKey());
     if (index < 0) {
@@ -222,6 +225,8 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
 
     // always update source crop to mapper
     mapper->setCrop(mSrcCrop.x, mSrcCrop.y, mSrcCrop.w, mSrcCrop.h);
+
+    mapper->setIsCompression(isCompression);
 
     // unlock buffer after getting mapper
     bm->unlockDataBuffer(buffer);

@@ -115,7 +115,7 @@ bool AnnRGBPlane::setDataBuffer(uint32_t handle)
 bool AnnRGBPlane::setDataBuffer(BufferMapper& mapper)
 {
     int bpp;
-    int srcX, srcY;
+    int srcX, srcY, srcW, srcH;
     int dstX, dstY, dstW, dstH;
     uint32_t spriteFormat;
     uint32_t stride;
@@ -140,6 +140,8 @@ bool AnnRGBPlane::setDataBuffer(BufferMapper& mapper)
     // setup stride and source buffer crop
     srcX = mapper.getCrop().x;
     srcY = mapper.getCrop().y;
+    srcW = mapper.getWidth();
+    srcH = mapper.getHeight();
     stride = mapper.getStride().rgb.stride;
     linoff = srcY * stride + srcX * bpp;
 
@@ -161,6 +163,14 @@ bool AnnRGBPlane::setDataBuffer(BufferMapper& mapper)
     mContext.ctx.sp_ctx.cntr |= (0x1 << 23);
     mContext.ctx.sp_ctx.linoff = linoff;
     mContext.ctx.sp_ctx.stride = stride;
+
+    if (mapper.isCompression()) {
+        mContext.ctx.sp_ctx.stride = align_to(srcW, 32) * 4;
+        mContext.ctx.sp_ctx.linoff = (align_to(srcW, 32) * srcH / 64) - 1;
+        mContext.ctx.sp_ctx.tileoff = (srcY & 0xfff) << 16 | (srcX & 0xfff);
+        mContext.ctx.sp_ctx.cntr |= (0x1 << 11);
+    }
+
     mContext.ctx.sp_ctx.surf = mapper.getGttOffsetInPage(0) << 12;
     mContext.ctx.sp_ctx.pos = (dstY & 0xfff) << 16 | (dstX & 0xfff);
     mContext.ctx.sp_ctx.size =
@@ -207,11 +217,12 @@ bool AnnRGBPlane::enablePlane(bool enabled)
     }
 
     return true;
-
 }
 
 void AnnRGBPlane::setFramebufferTarget(uint32_t handle)
 {
+    uint32_t stride;
+
     CTRACE();
 
     // do not need to update the buffer handle
@@ -230,17 +241,19 @@ void AnnRGBPlane::setFramebufferTarget(uint32_t handle)
     else
         mContext.type = DC_PRIMARY_PLANE;
 
+    stride = align_to((4 * align_to(mPosition.w, 32)), 64);
+
     // FIXME: use sprite context for sprite plane
     mContext.ctx.prim_ctx.update_mask = SPRITE_UPDATE_ALL;
     mContext.ctx.prim_ctx.index = mIndex;
     mContext.ctx.prim_ctx.pipe = mDevice;
     mContext.ctx.prim_ctx.linoff = 0;
-    mContext.ctx.prim_ctx.stride = align_to((4 * align_to(mPosition.w, 32)), 64);
+    mContext.ctx.prim_ctx.stride = stride;
+    mContext.ctx.prim_ctx.tileoff = 0;
     mContext.ctx.prim_ctx.pos = 0;
     mContext.ctx.prim_ctx.size =
         ((mPosition.h - 1) & 0xfff) << 16 | ((mPosition.w - 1) & 0xfff);
     mContext.ctx.prim_ctx.surf = 0;
-
     mContext.ctx.prim_ctx.cntr = PixelFormat::PLANE_PIXEL_FORMAT_BGRA8888;
     mContext.ctx.prim_ctx.cntr |= (0x1 << 23);
     mContext.ctx.prim_ctx.cntr |= 0x80000000;

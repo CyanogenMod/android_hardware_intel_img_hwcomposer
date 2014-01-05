@@ -52,6 +52,9 @@ public:
     static bool isProtectedUsage(uint32_t usage);
     static bool isProtectedBuffer(GraphicBuffer *buffer);
 
+    static bool isCompressionUsage(uint32_t usage);
+    static bool isCompressionBuffer(GraphicBuffer *buffer);
+
 private:
     void initBuffer(uint32_t handle);
 

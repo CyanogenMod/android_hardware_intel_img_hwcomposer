@@ -91,6 +91,9 @@ public:
 
     uint64_t getKey() const { return mKey; }
 
+    void setIsCompression(bool isCompressed) { mIsCompression = isCompressed; }
+    bool isCompression() { return mIsCompression; }
+
 private:
     void initBuffer(uint32_t handle) {
         mHandle = handle;
@@ -109,6 +112,7 @@ protected:
     uint32_t mWidth;
     uint32_t mHeight;
     uint64_t mKey;
+    bool mIsCompression;
 };
 
 static inline uint32_t align_to(uint32_t arg, uint32_t align)
