@@ -242,6 +242,7 @@ bool HwcLayer::update(hwc_layer_1_t *layer, int dsp)
                               layer->sourceCropf.right - layer->sourceCropf.left,
                               layer->sourceCropf.bottom - layer->sourceCropf.top);
         mPlane->setTransform(layer->transform);
+        mPlane->setPlaneAlpha(layer->planeAlpha);
         mPlane->assignToDevice(dsp);
         bool ret = mPlane->setDataBuffer((uint32_t)layer->handle);
         if (ret == true) {

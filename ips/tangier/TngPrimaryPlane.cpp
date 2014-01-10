@@ -73,6 +73,7 @@ void TngPrimaryPlane::setFramebufferTarget(uint32_t handle)
     mContext.ctx.prim_ctx.size =
         ((mPosition.h - 1) & 0xfff) << 16 | ((mPosition.w - 1) & 0xfff);
     mContext.ctx.prim_ctx.surf = 0;
+    mContext.ctx.prim_ctx.contalpa = 0;
 
     mContext.ctx.prim_ctx.cntr = PixelFormat::PLANE_PIXEL_FORMAT_BGRA8888;
     mContext.ctx.prim_ctx.cntr |= 0x80000000;
