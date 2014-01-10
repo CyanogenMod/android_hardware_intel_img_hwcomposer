@@ -266,8 +266,8 @@ bool DisplayAnalyzer::isVideoFullScreen(int device, hwc_layer_1_t &layer)
 
     int dstW = layer.displayFrame.right - layer.displayFrame.left;
     int dstH = layer.displayFrame.bottom - layer.displayFrame.top;
-    if (dstW < width - 1 &&
-        dstH < height - 1) {
+    if (dstW < width - 3 &&
+        dstH < height - 3) {
         VTRACE("video is not full-screen");
         return false;
     }
