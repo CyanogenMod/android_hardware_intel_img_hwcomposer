@@ -714,13 +714,13 @@ bool OverlayPlaneBase::bufferOffsetSetup(BufferMapper& mapper)
         break;
     case HAL_PIXEL_FORMAT_NV12:    // NV12
         backBuffer->OBUF_0Y = 0;
-        backBuffer->OBUF_0U = yStride * align_to(h, 32);
+        backBuffer->OBUF_0U = yStride * h;
         backBuffer->OBUF_0V = 0;
         backBuffer->OCMD |= OVERLAY_FORMAT_PLANAR_NV12_2;
         break;
     // NOTE: this is the decoded video format, align the height to 32B
     //as it's defined by video driver
-    case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:    // NV12
+    case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:    // Intel codec NV12
         backBuffer->OBUF_0Y = 0;
         backBuffer->OBUF_0U = yStride * align_to(h, 32);
         backBuffer->OBUF_0V = 0;
