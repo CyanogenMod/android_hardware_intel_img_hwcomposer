@@ -485,6 +485,11 @@ void DisplayAnalyzer::handleVideoEvent(int instanceID, int state)
         }
     }
 
+    if (mVideoStateMap.size() == 0) {
+        // reset active input state after video playback stops.
+        // MDS should update input state in 5 seconds after video playback starts
+        mActiveInputState = true;
+    }
     // delay changing timing as it is a lengthy operation
     if (state == VIDEO_PLAYBACK_STARTED ||
         state == VIDEO_PLAYBACK_STOPPED) {
@@ -526,6 +531,9 @@ void DisplayAnalyzer::blankSecondaryDevice()
 
 void DisplayAnalyzer::handleInputEvent(bool active)
 {
+    if (active == mActiveInputState) {
+        WTRACE("same input state: %d", active);
+    }
     mActiveInputState = active;
     if (!mVideoExtModeEligible) {
         ITRACE("not eligible for video extended mode");
@@ -593,7 +601,7 @@ void DisplayAnalyzer::exitVideoExtMode()
         return;
     }
 
-    ITRACE("exitting video extended mode...");
+    ITRACE("exiting video extended mode...");
 
     mVideoExtModeActive = false;
 
