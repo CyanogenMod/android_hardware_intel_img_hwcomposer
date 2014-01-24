@@ -101,20 +101,17 @@ bool AnnDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
 
         // check layer parameters
         if (!display->hwLayers[i].handle) {
-            close(display->hwLayers[i].acquireFenceFd);
             continue;
         }
 
         DisplayPlane* plane = layerList->getPlane(i);
         if (!plane) {
-            close(display->hwLayers[i].acquireFenceFd);
             continue;
         }
 
         ret = plane->flip(NULL);
         if (ret == false) {
             VTRACE("failed to flip plane %d", i);
-            close(display->hwLayers[i].acquireFenceFd);
             continue;
         }
 
@@ -174,6 +171,41 @@ bool AnnDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t *
         }
     }
 
+    // close acquire fence
+    for (size_t i = 0; i < numDisplays; i++) {
+        // Wait and close HWC_OVERLAY typed layer's acquire fence
+        hwc_display_contents_1_t* display = displays[i];
+        if (!display) {
+            continue;
+        }
+
+        for (size_t j = 0; j < display->numHwLayers-1; j++) {
+            hwc_layer_1_t& layer = display->hwLayers[j];
+            if (layer.compositionType == HWC_OVERLAY) {
+                if (layer.acquireFenceFd != -1) {
+                    // sync_wait(layer.acquireFenceFd, 16ms);
+                    close(layer.acquireFenceFd);
+                    layer.acquireFenceFd = -1;
+                }
+            }
+        }
+
+        // Wait and close framebuffer target layer's acquire fence
+        hwc_layer_1_t& fbt = display->hwLayers[display->numHwLayers-1];
+        if (fbt.acquireFenceFd != -1) {
+            // sync_wait(fbt.acquireFencdFd, 16ms);
+            close(fbt.acquireFenceFd);
+            fbt.acquireFenceFd = -1;
+        }
+
+        // Wait and close outbuf's acquire fence
+        if (display->outbufAcquireFenceFd != -1) {
+            // sync_wait(display->outbufAcquireFenceFd, 16ms);
+            close(display->outbufAcquireFenceFd);
+            display->outbufAcquireFenceFd = -1;
+        }
+    }
+
     // update release fence
     for (size_t i = 0; i < numDisplays; i++) {
         if (!displays[i]) {
@@ -186,6 +218,19 @@ bool AnnDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t *
                  (uint32_t)displays[i]->hwLayers[j].handle,
                  displays[i]->hwLayers[j].acquireFenceFd,
                  displays[i]->hwLayers[j].releaseFenceFd);
+        }
+
+        // retireFence is used for SurfaceFlinger to do DispSync;
+        // dup releaseFenceFd for physical displays and assign -1 for virtual
+        // display; we don't distinguish between release and retire, and all
+        // physical displays are using a single releaseFence; for virtual
+        // display, we are using sync mode to do NV12 bliting, and composition
+        // is always completed after commit.
+        if (i < IDisplayDevice::DEVICE_VIRTUAL) {
+            displays[i]->retireFenceFd =
+                             (releaseFenceFd>=0) ? dup(releaseFenceFd) : -1;
+        } else {
+            displays[i]->retireFenceFd = -1;
         }
     }
 
