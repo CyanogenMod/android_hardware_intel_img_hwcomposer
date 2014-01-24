@@ -55,6 +55,8 @@ public:
                       unsigned long size);
     bool writeIoctl(unsigned long cmd, void *data,
                       unsigned long size);
+    bool readIoctl(unsigned long cmd, void *data,
+                      unsigned long size);
 
     bool isConnected(int device);
     bool setDpmsMode(int device, int mode);

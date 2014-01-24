@@ -419,8 +419,8 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
                             mVideoFramerate = videoInfo.frameRate;
                         }
                     }
-                    int contentWidth = (videoInfo.width + 0xf) & ~0xf;
-                    int contentHeight = (videoInfo.height + 0xf) & ~0xf;
+                    uint32_t contentWidth = (videoInfo.width + 0xf) & ~0xf;
+                    uint32_t contentHeight = (videoInfo.height + 0xf) & ~0xf;
                     if (contentWidth == metadata.width &&
                             contentHeight == metadata.height) {
                         inputFrameInfo.contentWidth = videoInfo.width;

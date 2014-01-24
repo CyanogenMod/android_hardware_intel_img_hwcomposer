@@ -289,7 +289,8 @@ void HwcLayer::postFlip()
         // by doing this pipe for primary device can enter idle state
         if (mDevice == IDisplayDevice::DEVICE_PRIMARY &&
             mType == LAYER_FRAMEBUFFER_TARGET &&
-            Hwcomposer::getInstance().getDisplayAnalyzer()->isVideoExtModeActive()) {
+            (Hwcomposer::getInstance().getDisplayAnalyzer()->isVideoExtModeActive() ||
+             Hwcomposer::getInstance().getPowerManager()->getIdleReady())) {
             ITRACE("Skipping frame buffer target...");
             mType = LAYER_SKIPPED;
         }
@@ -533,6 +534,8 @@ bool HwcLayerList::initialize()
             hwcLayer->setType(HwcLayer::LAYER_FRAMEBUFFER_TARGET);
         } else if (layer->compositionType == HWC_OVERLAY){
             hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
+        } else if (layer->compositionType == HWC_FORCE_FRAMEBUFFER) {
+            // type will be set in preprocess()
         } else {
             hwcLayer->setType(HwcLayer::LAYER_FB);
         }
@@ -581,6 +584,12 @@ void HwcLayerList::preProccess()
         if (layer->compositionType == HWC_OVERLAY) {
             hwcLayer->setType(HwcLayer::LAYER_SKIPPED);
             mSkippedLayers.add(hwcLayer);
+            continue;
+        }
+
+        if (layer->compositionType == HWC_FORCE_FRAMEBUFFER) {
+            layer->compositionType = HWC_FRAMEBUFFER;
+            hwcLayer->setType(HwcLayer::LAYER_FORCE_FB);
             continue;
         }
 

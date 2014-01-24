@@ -29,7 +29,6 @@
 #include <PlatfExternalDevice.h>
 #include <common/VsyncControl.h>
 #include <common/BlankControl.h>
-#include <common/HotplugControl.h>
 #include <common/HdcpControl.h>
 #include <common/PrepareListener.h>
 
@@ -62,11 +61,6 @@ IBlankControl* PlatfExternalDevice::createBlankControl()
 IPrepareListener* PlatfExternalDevice::createPrepareListener()
 {
     return new PrepareListener();
-}
-
-IHotplugControl* PlatfExternalDevice::createHotplugControl()
-{
-    return new HotplugControl();
 }
 
 IHdcpControl* PlatfExternalDevice::createHdcpControl()

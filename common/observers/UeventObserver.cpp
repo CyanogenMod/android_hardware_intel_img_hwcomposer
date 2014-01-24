@@ -23,7 +23,6 @@
  *
  * Authors:
  *    Jackie Li <yaodong.li@intel.com>
- *
  */
 #include <poll.h>
 #include <sys/socket.h>
@@ -32,32 +31,36 @@
 #include <linux/netlink.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <HwcTrace.h>
 #include <DrmConfig.h>
-#include <common/HotplugControl.h>
+#include <HwcTrace.h>
+#include <UeventObserver.h>
 
 namespace android {
 namespace intel {
 
-HotplugControl::HotplugControl()
-    : IHotplugControl(),
-      mUeventFd(-1)
+UeventObserver::UeventObserver()
+    : mUeventFd(-1),
+      mListeners()
 {
-    CTRACE();
 }
 
-HotplugControl::~HotplugControl()
+UeventObserver::~UeventObserver()
 {
-    if (mUeventFd != -1) {
-        ETRACE("object is not deinitialized");
-    }
+    deinitialize();
 }
 
-bool HotplugControl::initialize()
+bool UeventObserver::initialize()
 {
+    mListeners.clear();
+
     if (mUeventFd != -1) {
-        WTRACE("object has been initialized");
         return true;
+    }
+
+    mThread = new UeventObserverThread(this);
+    if (!mThread.get()) {
+        ETRACE("failed to create uevent observer thread");
+        return false;
     }
 
     // init uevent socket
@@ -73,15 +76,16 @@ bool HotplugControl::initialize()
 
     mUeventFd = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_KOBJECT_UEVENT);
     if (mUeventFd < 0) {
-        DTRACE("failed to create uevent socket");
-        return false;
+        DEINIT_AND_RETURN_FALSE("failed to create uevent socket");
     }
 
-    setsockopt(mUeventFd, SOL_SOCKET, SO_RCVBUFFORCE, &sz, sizeof(sz));
+    if (setsockopt(mUeventFd, SOL_SOCKET, SO_RCVBUFFORCE, &sz, sizeof(sz))) {
+        WTRACE("setsockopt() failed");
+        //return false;
+    }
 
     if (bind(mUeventFd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-        ETRACE("failed to bind scoket");
-        deinitialize();
+        DEINIT_AND_RETURN_FALSE("failed to bind scoket");
         return false;
     }
 
@@ -89,15 +93,58 @@ bool HotplugControl::initialize()
     return true;
 }
 
-void HotplugControl::deinitialize()
+void UeventObserver::deinitialize()
 {
     if (mUeventFd != -1) {
         close(mUeventFd);
         mUeventFd = -1;
     }
+
+    if (mThread.get()) {
+        mThread->requestExitAndWait();
+        mThread = NULL;
+    }
+
+    while (!mListeners.isEmpty()) {
+        UeventListener *listener = mListeners.valueAt(0);
+        mListeners.removeItemsAt(0);
+        delete listener;
+    }
 }
 
-bool HotplugControl::waitForEvent()
+void UeventObserver::start()
+{
+    if (mThread.get()) {
+        mThread->run("UeventObserver", PRIORITY_URGENT_DISPLAY);
+    }
+}
+
+
+void UeventObserver::registerListener(const char *event, UeventListenerFunc func, void *data)
+{
+    if (!event || !func) {
+        ETRACE("invalid event string or listener to register");
+        return;
+    }
+
+    String8 key(event);
+    if (mListeners.indexOfKey(key) >= 0) {
+        ETRACE("listener for uevent %s exists", event);
+        return;
+    }
+
+    UeventListener *listener = new UeventListener;
+    if (!listener) {
+        ETRACE("failed to create Uevent Listener");
+        return;
+    }
+    listener->func = func;
+    listener->data = data;
+
+    mListeners.add(key, listener);
+}
+
+bool UeventObserver::threadLoop()
 {
     if (mUeventFd == -1) {
         ETRACE("invalid uEvent file descriptor");
@@ -114,32 +161,40 @@ bool HotplugControl::waitForEvent()
 
     if (nr > 0 && fds.revents == POLLIN) {
         int count = recv(mUeventFd, mUeventMessage, UEVENT_MSG_LEN - 2, 0);
-        if (count > 0)
-            return isHotplugEvent(mUeventMessage, UEVENT_MSG_LEN - 2);
-    } else {
-        ITRACE("exiting wait");
+        if (count > 0) {
+            onUevent();
+        }
     }
-
-    return false;
+    // always looping
+    return true;
 }
 
-bool HotplugControl::isHotplugEvent(const char *msg, int msgLen)
+void UeventObserver::onUevent()
 {
-    if (strcmp(msg, DrmConfig::getHotplugEnvelope()) != 0)
-        return false;
+    char *msg = mUeventMessage;
+    const char *envelope = DrmConfig::getUeventEnvelope();
+    if (strncmp(msg, envelope, strlen(envelope)) != 0)
+        return;
 
     msg += strlen(msg) + 1;
-    const char* hotplugString = DrmConfig::getHotplugString();
 
-    do {
-        if (strncmp(msg, hotplugString, strlen(hotplugString)) == 0) {
-            return true;
+    UeventListener *listener;
+    String8 key;
+    while (*msg) {
+        key = String8(msg);
+        if (mListeners.indexOfKey(key) >= 0) {
+            DTRACE("received Uevent: %s", msg);
+            listener = mListeners.valueFor(key);
+            if (listener) {
+                listener->func(listener->data);
+            } else {
+                ETRACE("no listener for uevent %s", msg);
+            }
         }
         msg += strlen(msg) + 1;
-    } while (*msg);
-
-    return false;
+    }
 }
 
 } // namespace intel
 } // namespace android
+

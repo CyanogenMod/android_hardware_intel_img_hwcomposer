@@ -28,6 +28,7 @@
 #include <hal_public.h>
 #include <HwcTrace.h>
 #include <tangier/TngDisplayContext.h>
+#include <common/PowerManager.h>
 #include <PlatfDisplayPlaneManager.h>
 #include <PlatfBufferManager.h>
 #include <IDisplayDevice.h>
@@ -88,6 +89,11 @@ IDisplayContext* PlatfHwcomposer::createDisplayContext()
 {
     CTRACE();
     return new TngDisplayContext();
+}
+
+IPowerManager* PlatfHwcomposer::createPowerManager()
+{
+    return new PowerManager();
 }
 
 Hwcomposer* Hwcomposer::createHwcomposer()

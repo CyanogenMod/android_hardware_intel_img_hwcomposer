@@ -28,6 +28,7 @@
 #include <HwcTrace.h>
 #include <Drm.h>
 #include <Hwcomposer.h>
+#include <DrmConfig.h>
 #include <PrimaryDevice.h>
 
 namespace android {
@@ -42,6 +43,61 @@ PrimaryDevice::PrimaryDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
 PrimaryDevice::~PrimaryDevice()
 {
     CTRACE();
+}
+
+bool PrimaryDevice::initialize()
+{
+    if (!PhysicalDevice::initialize()) {
+        DEINIT_AND_RETURN_FALSE("failed to initialize physical device");
+    }
+
+    UeventObserver *observer = Hwcomposer::getInstance().getUeventObserver();
+    if (observer) {
+        observer->registerListener(
+            DrmConfig::getRepeatedFrameString(),
+            repeatedFrameEventListener,
+            this);
+    } else {
+        ETRACE("Uevent observer is NULL");
+    }
+
+    return true;
+}
+
+void PrimaryDevice::deinitialize()
+{
+    PhysicalDevice::deinitialize();
+}
+
+
+void PrimaryDevice::repeatedFrameEventListener(void *data)
+{
+    PrimaryDevice *pThis = (PrimaryDevice*)data;
+    if (pThis) {
+        pThis->repeatedFrameListener();
+    }
+}
+
+void PrimaryDevice::repeatedFrameListener()
+{
+    Hwcomposer::getInstance().getDisplayAnalyzer()->postIdleEntryEvent();
+    Hwcomposer::getInstance().invalidate();
+}
+
+bool PrimaryDevice::blank(bool blank)
+{
+    if (!mConnected)
+        return true;
+
+    // control of repeated frames
+    IPowerManager *pm = Hwcomposer::getInstance().getPowerManager();
+    if (!blank) {
+        pm->enableIdleControl();
+    } else {
+        pm->disableIdleControl();
+    }
+
+    return PhysicalDevice::blank(blank);
 }
 
 } // namespace intel

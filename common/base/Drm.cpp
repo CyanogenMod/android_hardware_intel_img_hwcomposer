@@ -384,6 +384,32 @@ bool Drm::writeIoctl(unsigned long cmd, void *data,
     return true;
 }
 
+
+bool Drm::readIoctl(unsigned long cmd, void *data,
+                       unsigned long size)
+{
+    int err;
+
+    if (mDrmFd <= 0) {
+        ETRACE("drm is not initialized");
+        return false;
+    }
+
+    if (!data || !size) {
+        ETRACE("invalid parameters");
+        return false;
+    }
+
+    err = drmCommandRead(mDrmFd, cmd, data, size);
+    if (err) {
+        WTRACE("failed to call %ld ioctl with failure %d", cmd, err);
+        return false;
+    }
+
+    return true;
+}
+
+
 int Drm::getDrmFd() const
 {
     return mDrmFd;

@@ -56,6 +56,7 @@ public:
     void postInputEvent(bool active);
     void postVideoEvent(int instances, int instanceID, bool preparing, bool playing);
     void postBlankEvent(bool blank);
+    void postIdleEntryEvent();
     bool isPresentationLayer(hwc_layer_1_t &layer);
     bool isProtectedLayer(hwc_layer_1_t &layer);
 
@@ -66,7 +67,9 @@ private:
         VIDEO_EVENT,
         TIMING_EVENT,
         INPUT_EVENT,
-        DPMS_EVENT
+        DPMS_EVENT,
+        IDLE_ENTRY_EVENT,
+        IDLE_EXIT_EVENT,
     };
 
     struct Event {
@@ -92,6 +95,8 @@ private:
     void handleTimingEvent();
     void handleInputEvent(bool active);
     void handleDpmsEvent(int delayCount);
+    void handleIdleEntryEvent(int count);
+    void handleIdleExitEvent();
 
     void blankSecondaryDevice();
     void handleVideoExtMode();
@@ -115,6 +120,10 @@ private:
 
     enum
     {
+        // number of idle flips before display can enter idle mode
+        // minimum delay is 1
+        DELAY_BEFORE_IDLE_ENTRY = 2,
+
         // number of flips before display can be powered off in video extended mode
         DELAY_BEFORE_DPMS_OFF = 10,
     };
