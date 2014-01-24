@@ -153,11 +153,7 @@ bool TngDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t *
 
     VTRACE("count = %d", mCount);
 
-    // nothing need to be submitted
-    if (!mCount)
-        return true;
-
-    if (mIMGDisplayDevice) {
+    if (mIMGDisplayDevice && mCount) {
         int err = mIMGDisplayDevice->post(mIMGDisplayDevice,
                                           mImgLayers,
                                           mCount,
@@ -210,7 +206,8 @@ bool TngDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t *
         }
 
         for (size_t j = 0; j < displays[i]->numHwLayers; j++) {
-            displays[i]->hwLayers[j].releaseFenceFd = dup(releaseFenceFd);
+            displays[i]->hwLayers[j].releaseFenceFd =
+                (releaseFenceFd != -1) ? dup(releaseFenceFd) : -1;
             VTRACE("handle %#x, acquiredFD %d, releaseFD %d",
                  (uint32_t)displays[i]->hwLayers[j].handle,
                  displays[i]->hwLayers[j].acquireFenceFd,
@@ -225,14 +222,16 @@ bool TngDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t *
         // is always completed after commit.
         if (i < IDisplayDevice::DEVICE_VIRTUAL) {
             displays[i]->retireFenceFd =
-                             (releaseFenceFd>=0) ? dup(releaseFenceFd) : -1;
+                (releaseFenceFd != -1) ? dup(releaseFenceFd) : -1;
         } else {
             displays[i]->retireFenceFd = -1;
         }
     }
 
     // close original release fence fd
-    close(releaseFenceFd);
+    if (releaseFenceFd != -1) {
+        close(releaseFenceFd);
+    }
     return true;
 }
 
