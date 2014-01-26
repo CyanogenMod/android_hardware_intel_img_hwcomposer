@@ -38,7 +38,6 @@ TngSpritePlane::TngSpritePlane(int index, int disp)
     : SpritePlaneBase(index, disp)
 {
     CTRACE();
-
     memset(&mContext, 0, sizeof(mContext));
 }
 
@@ -148,6 +147,14 @@ bool TngSpritePlane::enablePlane(bool enabled)
         return false;
     }
 
+    Hwcomposer& hwc = Hwcomposer::getInstance();
+    DisplayPlaneManager *pm = hwc.getPlaneManager();
+    void *config = pm->getZOrderConfig();
+    if (config != NULL) {
+        struct intel_dc_plane_zorder *zorder =  (struct intel_dc_plane_zorder *)config;
+        zorder->abovePrimary = 0;
+    }
+
     return true;
 
 }
@@ -183,6 +190,5 @@ void TngSpritePlane::setZOrderConfig(ZOrderConfig& zorderConfig,
         (struct intel_dc_plane_zorder *)nativeConfig;
     zorder->abovePrimary = mAbovePrimary ? 1 : 0;
 }
-
 } // namespace intel
 } // namespace android
