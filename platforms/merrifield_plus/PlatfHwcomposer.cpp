@@ -27,7 +27,7 @@
  */
 #include <hal_public.h>
 #include <HwcTrace.h>
-#include <anniedale/AnnDisplayContext.h>
+#include <tangier/TngDisplayContext.h>
 #include <PlatfDisplayPlaneManager.h>
 #include <PlatfBufferManager.h>
 #include <IDisplayDevice.h>
@@ -87,7 +87,7 @@ IDisplayDevice* PlatfHwcomposer::createDisplayDevice(int disp,
 IDisplayContext* PlatfHwcomposer::createDisplayContext()
 {
     CTRACE();
-    return new AnnDisplayContext();
+    return new TngDisplayContext();
 }
 
 Hwcomposer* Hwcomposer::createHwcomposer()

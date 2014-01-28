@@ -28,7 +28,7 @@
 #include <HwcTrace.h>
 #include <Hwcomposer.h>
 #include <BufferManager.h>
-#include <anniedale/AnnGrallocBuffer.h>
+#include <tangier/TngGrallocBuffer.h>
 #include <anniedale/AnnDisplayPlane.h>
 #include <common/PixelFormat.h>
 

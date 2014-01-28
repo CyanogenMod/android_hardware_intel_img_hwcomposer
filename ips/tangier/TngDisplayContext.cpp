@@ -124,7 +124,12 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
         // update z order
         Hwcomposer& hwc = Hwcomposer::getInstance();
         DisplayPlaneManager *pm = hwc.getPlaneManager();
-        memcpy(&ctx->zorder, pm->getZOrderConfig(), sizeof(ctx->zorder));
+        void *config = pm->getZOrderConfig();
+        if (config) {
+            memcpy(&ctx->zorder, config, sizeof(ctx->zorder));
+        } else {
+            memset(&ctx->zorder, 0, sizeof(ctx->zorder));
+        }
 
         VTRACE("count %d, handle %#x, trans %#x, blending %#x"
               " sourceCrop %f,%f - %fx%f, dst %d,%d - %dx%d, custom %#x",

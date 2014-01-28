@@ -29,7 +29,7 @@
 #include <Hwcomposer.h>
 #include <BufferManager.h>
 #include <anniedale/AnnRGBPlane.h>
-#include <anniedale/AnnGrallocBuffer.h>
+#include <tangier/TngGrallocBuffer.h>
 #include <common/PixelFormat.h>
 
 namespace android {
@@ -90,7 +90,7 @@ bool AnnRGBPlane::setDataBuffer(uint32_t handle)
         return true;
     }
 
-    AnnGrallocBuffer tmpBuf(handle);
+    TngGrallocBuffer tmpBuf(handle);
     uint32_t usage;
     bool ret;
 
