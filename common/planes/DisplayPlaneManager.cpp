@@ -190,8 +190,12 @@ DisplayPlane* DisplayPlaneManager::getPlane(int type, int dsp)
     }
 
     // try to get free plane from reclaimed planes
+#ifdef MERR
     if (type == DisplayPlane::PLANE_PRIMARY ||
         type == DisplayPlane::PLANE_OVERLAY)
+#else
+    if (type == DisplayPlane::PLANE_PRIMARY)
+#endif
         // primary planes are attached to specific displays
         freePlaneIndex = getPlane(mReclaimedPlanes[type], dsp);
     else
@@ -202,8 +206,12 @@ DisplayPlane* DisplayPlaneManager::getPlane(int type, int dsp)
         return mPlanes[type].itemAt(freePlaneIndex);
 
     // failed to get a free plane from reclaimed planes, try it on free planes
+#ifdef MERR
     if (type == DisplayPlane::PLANE_PRIMARY ||
         type == DisplayPlane::PLANE_OVERLAY)
+#else
+    if (type == DisplayPlane::PLANE_PRIMARY)
+#endif
         freePlaneIndex = getPlane(mFreePlanes[type], dsp);
     else
         freePlaneIndex = getPlane(mFreePlanes[type]);
@@ -212,12 +220,14 @@ DisplayPlane* DisplayPlaneManager::getPlane(int type, int dsp)
     if (freePlaneIndex >= 0)
         return mPlanes[type].itemAt(freePlaneIndex);
 
+#ifdef MERR
     // Check the free overlay again if one pipe needs two overlays
     if (type == DisplayPlane::PLANE_OVERLAY) {
         freePlaneIndex = getPlane(mFreePlanes[type]);
         if (freePlaneIndex >= 0)
             return mPlanes[type].itemAt(freePlaneIndex);
     }
+#endif
     VTRACE("failed to get a plane, type %d", type);
     return 0;
 }
