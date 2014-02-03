@@ -171,6 +171,7 @@ void DisplayPlane::setPlaneAlpha(uint8_t alpha)
 
     if (mPlaneAlpha != alpha) {
         mPlaneAlpha = alpha;
+        mUpdateMasks |= PLANE_BUFFER_CHANGED;
     }
 }
 
