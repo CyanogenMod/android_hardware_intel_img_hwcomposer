@@ -109,7 +109,8 @@ VirtualDevice::VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
       mVsyncObserver(NULL),
       mOrigContentWidth(0),
       mOrigContentHeight(0),
-      mFirstVideoFrame(true)
+      mFirstVideoFrame(true),
+      mCloneModeStarted(false)
 {
     CTRACE();
 }
@@ -260,8 +261,8 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
         }
     }
 
-    bool isProtected = false;
-    bool isVideoLayer = false;
+    bool protectedLayer = false;
+    bool presentationLayer = false;
     if (mCurrentConfig.extendedModeEnabled) {
         for (size_t i = 0; i < display->numHwLayers-1; i++) {
             hwc_layer_1_t& layer = display->hwLayers[i];
@@ -273,9 +274,9 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
                     VTRACE("Identified video layer of resolution < QCIF :playing in clone mode. mLayerToSend = %d", mLayerToSend);
                     break;
                 }
-                isProtected = analyzer->isProtectedLayer(layer);
-                isVideoLayer = analyzer->isPresentationLayer(layer);
-                if (!isVideoLayer || isProtected) {
+                protectedLayer = analyzer->isProtectedLayer(layer);
+                presentationLayer = analyzer->isPresentationLayer(layer);
+                if (!presentationLayer || protectedLayer) {
                     VTRACE("Layer (%d) is extended video layer", mLayerToSend);
                     mLayerToSend = i;
                     break;
@@ -293,7 +294,12 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
         return true;
     }
 
-    if((analyzer->getVideoInstances() <= 0) && isVideoLayer) {
+    if (!mCloneModeStarted) {
+        ITRACE("Clone mode not started yet, Ignore extended mode");
+        return true;
+    }
+
+    if ((analyzer->getVideoInstances() <= 0) && presentationLayer) {
         VTRACE("No video Instance found, in transition");
         return true;
     }
@@ -306,7 +312,7 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
     }
 
     VTRACE("Extended mode");
-    sendToWidi(streamingLayer, isProtected);
+    sendToWidi(streamingLayer, protectedLayer);
     return true;
 }
 
@@ -356,6 +362,10 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
     inputFrameInfo.contentFrameRateN = 60;
     inputFrameInfo.contentFrameRateD = 1;
     inputFrameInfo.isProtected = isProtected;
+
+    // This is to guard encoder if anytime frame is less then one macroblock size.
+    if ((inputFrameInfo.contentWidth < 16) || (inputFrameInfo.contentHeight < 16))
+        return;
 
     FrameInfo outputFrameInfo;
     outputFrameInfo = inputFrameInfo;
@@ -565,6 +575,7 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
         outputFrameInfo.chromaUStride = dataBuf->getWidth();
         outputFrameInfo.chromaVStride = dataBuf->getWidth();
         mgr->unlockDataBuffer(dataBuf);
+        mCloneModeStarted = true;
     }
 
     if (mCurrentConfig.forceNotifyFrameType ||
