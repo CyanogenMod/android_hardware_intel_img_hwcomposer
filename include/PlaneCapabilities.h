@@ -41,7 +41,7 @@ public:
                                     uint32_t w,
                                     uint32_t h,
                                     const stride_t& stride);
-    static bool isBlendingSupported(int planeType, uint32_t blending);
+    static bool isBlendingSupported(int planeType, uint32_t blending, uint8_t planeAlpha);
     static bool isScalingSupported(int planeType,
                                        hwc_frect_t& src,
                                        hwc_rect_t& dest);

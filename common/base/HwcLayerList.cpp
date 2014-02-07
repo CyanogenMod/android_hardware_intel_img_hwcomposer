@@ -248,7 +248,7 @@ bool HwcLayer::update(hwc_layer_1_t *layer, int dsp)
                               layer->sourceCropf.right - layer->sourceCropf.left,
                               layer->sourceCropf.bottom - layer->sourceCropf.top);
         mPlane->setTransform(layer->transform);
-        mPlane->setPlaneAlpha(layer->planeAlpha);
+        mPlane->setPlaneAlpha(layer->planeAlpha, layer->blending);
 #ifndef MERR
         mPlane->assignToDevice(dsp);
 #endif
@@ -468,7 +468,8 @@ bool HwcLayerList::checkSupported(int planeType, HwcLayer *hwcLayer)
 
     // check layer blending
     valid = PlaneCapabilities::isBlendingSupported(planeType,
-                                                  (uint32_t)layer.blending);
+                                                  (uint32_t)layer.blending,
+                                                  layer.planeAlpha );
     if (!valid) {
         VTRACE("plane type %d: (bad blending)", planeType);
         return false;
