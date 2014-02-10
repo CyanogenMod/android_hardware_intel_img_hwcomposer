@@ -75,6 +75,7 @@ private:
     DisplayPlane* getRealPlane(int dsp, int type, int slot);
     void reclaimRealPlane(DisplayPlane *plane);
     void disableReclaimedRealPlanes();
+    bool primaryPlaneActive(ZOrderConfig& zorderConfig);
 private:
     int mExtraSpriteCount;
     Vector<DisplayPlane*> mExtraSprites;

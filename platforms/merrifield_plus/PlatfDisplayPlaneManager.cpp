@@ -283,6 +283,22 @@ void PlatfDisplayPlaneManager::disableReclaimedPlanes()
     disableReclaimedRealPlanes();
 }
 
+// WA for HW issue
+bool PlatfDisplayPlaneManager::primaryPlaneActive(ZOrderConfig& zorderConfig)
+{
+    for (size_t i = 0; i < zorderConfig.size(); i++) {
+        DisplayPlane *plane = zorderConfig.itemAt(i);
+        if (!plane) {
+            continue;
+        }
+
+        if (plane->getType() == DisplayPlane::PLANE_PRIMARY) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool PlatfDisplayPlaneManager::setZOrderConfig(ZOrderConfig& zorderConfig)
 {
     AnnDisplayPlane *annPlane;
@@ -312,8 +328,15 @@ bool PlatfDisplayPlaneManager::setZOrderConfig(ZOrderConfig& zorderConfig)
             reclaimRealPlane(annPlane->getRealPlane());
         }
 
+        int slot = i;
+        // WA for HW issue
+        if (!primaryPlaneActive(zorderConfig)) {
+            ITRACE("primary plane is NOT active");
+            slot += 1;
+        }
+
         DisplayPlane *realPlane = getRealPlane(zorderConfig.getDisplayDevice(),
-                                               plane->getType(), i);
+                                               plane->getType(), slot);
         if (!realPlane) {
             ETRACE("failed to get real plane");
             return false;
