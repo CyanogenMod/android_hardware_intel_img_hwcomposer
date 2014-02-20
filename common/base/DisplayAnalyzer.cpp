@@ -178,11 +178,13 @@ void DisplayAnalyzer::checkVideoExtMode()
 
     uint32_t videoHandle = 0;
     bool videoLayerExist = false;
+    bool videoFullScreenOnPrimary = false;
     // exclude the frame buffer target layer
     for (int j = 0; j < (int)content->numHwLayers - 1; j++) {
         videoLayerExist = isVideoLayer(content->hwLayers[j]);
         if (videoLayerExist) {
             videoHandle = (uint32_t)content->hwLayers[j].handle;
+            videoFullScreenOnPrimary = isVideoFullScreen(0, content->hwLayers[j]);
             break;
         }
     }
@@ -205,7 +207,11 @@ void DisplayAnalyzer::checkVideoExtMode()
         for (int j = 0; j < (int)content->numHwLayers - 1; j++) {
             if ((uint32_t)content->hwLayers[j].handle == videoHandle) {
                 VTRACE("video layer exists in device %d", i);
-                mVideoExtModeEligible = isVideoFullScreen(i, content->hwLayers[j]);
+                if (videoFullScreenOnPrimary) {
+                    mVideoExtModeEligible = true;
+                } else {
+                    mVideoExtModeEligible = isVideoFullScreen(i, content->hwLayers[j]);
+                }
                 return;
             }
         }
@@ -264,10 +270,17 @@ bool DisplayAnalyzer::isVideoFullScreen(int device, hwc_layer_1_t &layer)
         layer.displayFrame.top, layer.displayFrame.bottom,
         width, height);
 
+    // full-screen defintion:
+    // width of target display frame == width of target device, with 1 pixel of tolerance, or
+    // Height of target display frame == height of target device, with 1 pixel of tolerance, or
+    // width * height of display frame > 90% of width * height of display device, or
+    // any of above condition is met on either primary display or secondary display
+
     int dstW = layer.displayFrame.right - layer.displayFrame.left;
     int dstH = layer.displayFrame.bottom - layer.displayFrame.top;
-    if (dstW < width - 3 &&
-        dstH < height - 3) {
+    if (dstW < width - 1 &&
+        dstH < height - 1 &&
+        dstW * dstH * 10 < width * height * 9) {
         VTRACE("video is not full-screen");
         return false;
     }
