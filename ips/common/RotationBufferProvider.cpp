@@ -352,6 +352,10 @@ bool RotationBufferProvider::setupRotationBuffer(VideoPayloadBuffer *payload, in
         return ret;
     }
 
+    if (payload->width > 1280) {
+        payload->tiling = 1;
+    }
+
     do {
         if (isContextChanged(payload->width, payload->height, transform)) {
             ITRACE("Rotation config changes, will re-start VA");

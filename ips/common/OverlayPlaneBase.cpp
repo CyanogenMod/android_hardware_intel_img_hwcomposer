@@ -398,8 +398,13 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
         h = payload->rotated_height;
         checkCrop(srcX, srcY, srcW, srcH);
 
+        uint32_t format = grallocMapper.getFormat();
+        // this is for sw decode with tiled buffer in landscape mode
+        if (payload->tiling)
+            format = OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled;
+
         // calculate stride
-        switch (grallocMapper.getFormat()) {
+        switch (format) {
         case HAL_PIXEL_FORMAT_YV12:
         case HAL_PIXEL_FORMAT_I420:
             uint32_t yStride_align;
@@ -444,7 +449,7 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
         buf.setWidth(w);
         buf.setHeight(h);
         buf.setCrop(srcX, srcY, srcW, srcH);
-        buf.setFormat(grallocMapper.getFormat());
+        buf.setFormat(format);
 
         // create buffer mapper
         bool res = false;
