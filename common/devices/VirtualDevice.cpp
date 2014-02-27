@@ -298,6 +298,9 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
         VTRACE("Clone mode");
         // TODO: fix this workaround. Once metadeta has correct info.
         mFirstVideoFrame = true;
+
+        if (mCurrentConfig.frameListener != NULL)
+            mCurrentConfig.frameListener->onFramePrepare(mRenderTimestamp, -1);
         return true;
     }
 
