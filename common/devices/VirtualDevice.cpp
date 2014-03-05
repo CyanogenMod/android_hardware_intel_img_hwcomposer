@@ -367,8 +367,8 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
     inputFrameInfo.frameType = HWC_FRAMETYPE_FRAME_BUFFER;
     inputFrameInfo.contentWidth = layer.sourceCropf.right - layer.sourceCropf.left;
     inputFrameInfo.contentHeight = layer.sourceCropf.bottom - layer.sourceCropf.top;
-    inputFrameInfo.contentFrameRateN = 60;
-    inputFrameInfo.contentFrameRateD = 1;
+    inputFrameInfo.contentFrameRateN = 0;
+    inputFrameInfo.contentFrameRateD = 0;
     inputFrameInfo.isProtected = isProtected;
 
     // This is to guard encoder if anytime frame is less then one macroblock size.
