@@ -45,7 +45,6 @@ protected:
     IBlankControl* createBlankControl();
     IPrepareListener* createPrepareListener();
     IHdcpControl* createHdcpControl();
-    virtual void setRefreshRate(int hz) {};
 };
 
 }
