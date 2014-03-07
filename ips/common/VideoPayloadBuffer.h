@@ -69,6 +69,9 @@ struct VideoPayloadBuffer {
     uint32_t scaling_luma_stride;
     uint32_t scaling_chroma_u_stride;
     uint32_t scaling_chroma_v_stride;
+
+    uint32_t crop_width;
+    uint32_t crop_height;
 };
 
 

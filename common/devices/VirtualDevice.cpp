@@ -400,13 +400,19 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
         if (mPayloadManager->getMetaData(cachedBuffer->mapper, &metadata)) {
             heldBuffer = new HeldDecoderBuffer(this, cachedBuffer);
             mediaTimestamp = metadata.timestamp;
-            // Don't use the crop size if something changed derive it again..
+            inputFrameInfo.contentWidth = metadata.crop_width;
+            inputFrameInfo.contentHeight = metadata.crop_height;
+            // Use the crop size if something changed derive it again..
             // Only get video source info if frame rate has not been initialized.
             // getVideoSourceInfo() is a fairly expensive operation. This optimization
             // will save us a few milliseconds per frame
             if (mFirstVideoFrame || (mOrigContentWidth != inputFrameInfo.contentWidth) ||
                 (mOrigContentHeight != inputFrameInfo.contentHeight)) {
                 mVideoFramerate = inputFrameInfo.contentFrameRateN;
+                ITRACE("VideoWidth = %d, VideoHeight = %d", metadata.crop_width, metadata.crop_height);
+                mOrigContentWidth = inputFrameInfo.contentWidth;
+                mOrigContentHeight = inputFrameInfo.contentHeight;
+
                 int sessionID = -1;
                 if (layer.flags & HWC_HAS_VIDEO_SESSION_ID)
                     sessionID = ((layer.flags & GRALLOC_USAGE_MDS_SESSION_ID_MASK) >> 24);
@@ -422,22 +428,6 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
                             mVideoFramerate = videoInfo.frameRate;
                         }
                     }
-                    uint32_t contentWidth = (videoInfo.width + 0xf) & ~0xf;
-                    uint32_t contentHeight = (videoInfo.height + 0xf) & ~0xf;
-                    if (contentWidth == metadata.width &&
-                            contentHeight == metadata.height) {
-                        inputFrameInfo.contentWidth = videoInfo.width;
-                        inputFrameInfo.contentHeight = videoInfo.height;
-                        mOrigContentWidth = inputFrameInfo.contentWidth;
-                        mOrigContentHeight = inputFrameInfo.contentHeight;
-                    } else if (inputFrameInfo.contentWidth == metadata.width &&
-                            inputFrameInfo.contentHeight == metadata.height) {
-                        mOrigContentWidth = inputFrameInfo.contentWidth;
-                        mOrigContentHeight = inputFrameInfo.contentHeight;
-                    } else {
-                        mOrigContentWidth = metadata.width;
-                        mOrigContentHeight = metadata.height;
-                    }
                 }
                 mFirstVideoFrame = false;
             }
@@ -445,11 +435,6 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
             inputFrameInfo.contentFrameRateN = mVideoFramerate;
             inputFrameInfo.contentFrameRateD = 1;
 
-            if (metadata.transform & HAL_TRANSFORM_ROT_90) {
-                int tmp = inputFrameInfo.contentWidth;
-                inputFrameInfo.contentWidth = inputFrameInfo.contentHeight;
-                inputFrameInfo.contentHeight = tmp;
-            }
 
             // skip pading bytes in rotate buffer
             switch (metadata.transform) {
