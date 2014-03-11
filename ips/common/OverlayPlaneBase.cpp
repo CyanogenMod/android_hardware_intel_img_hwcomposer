@@ -1006,6 +1006,12 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
          return false;
     }
 
+    //Overlay flip when height is 1 causes MIPI stall on TNG
+    if (h <= 1) {
+         VTRACE("Overlay Flip discard when height=1");
+         return false;
+    }
+
     // setup dst position
     backBuffer->DWINPOS = (y << 16) | x;
     backBuffer->DWINSZ = (h << 16) | w;
