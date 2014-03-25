@@ -56,6 +56,7 @@ private:
     Condition mCondition;
     mutable nsecs_t mNextFakeVSync;
     bool mInitialized;
+    bool mExitThread;
 
 private:
     DECLARE_THREAD(VsyncEventPollThread, SoftVsyncObserver);

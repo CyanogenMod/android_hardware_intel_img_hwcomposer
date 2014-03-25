@@ -46,6 +46,7 @@ SoftVsyncObserver::SoftVsyncObserver(IDisplayDevice& disp)
       mLock(),
       mCondition(),
       mNextFakeVSync(0),
+      mExitThread(false),
       mInitialized(false)
 {
 }
@@ -62,6 +63,7 @@ bool SoftVsyncObserver::initialize()
         return true;
     }
 
+    mExitThread = false;
     mEnabled = false;
     mRefreshRate = 60;
     mDevice = mDisplayDevice.getType();
@@ -77,9 +79,13 @@ bool SoftVsyncObserver::initialize()
 void SoftVsyncObserver::deinitialize()
 {
     if (mEnabled) {
-        mEnabled = false;
-        mCondition.signal();
+        WTRACE("soft vsync is still enabled");
+        control(false);
     }
+
+    mExitThread = true;
+    mCondition.signal();
+
     if (mThread.get()) {
         mThread->requestExitAndWait();
         mThread = NULL;
@@ -120,6 +126,10 @@ bool SoftVsyncObserver::threadLoop()
         Mutex::Autolock _l(mLock);
         while (!mEnabled) {
             mCondition.wait(mLock);
+            if (mExitThread) {
+                ITRACE("exiting thread loop");
+                return false;
+            }
         }
     }
 
