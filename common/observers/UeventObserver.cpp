@@ -40,6 +40,8 @@ namespace intel {
 
 UeventObserver::UeventObserver()
     : mUeventFd(-1),
+      mExitRDFd(-1),
+      mExitWDFd(-1),
       mListeners()
 {
 }
@@ -90,12 +92,26 @@ bool UeventObserver::initialize()
     }
 
     memset(mUeventMessage, 0, UEVENT_MSG_LEN);
+
+    int exitFds[2];
+    if (pipe(exitFds) < 0) {
+        ETRACE("failed to make pipe");
+        deinitialize();
+        return false;
+    }
+    mExitRDFd = exitFds[0];
+    mExitWDFd = exitFds[1];
+
     return true;
 }
 
 void UeventObserver::deinitialize()
 {
     if (mUeventFd != -1) {
+        if (mExitWDFd != -1) {
+            close(mExitWDFd);
+            mExitWDFd = -1;
+        }
         close(mUeventFd);
         mUeventFd = -1;
     }
@@ -151,19 +167,28 @@ bool UeventObserver::threadLoop()
         return false;
     }
 
-    struct pollfd fds;
+    struct pollfd fds[2];
     int nr;
 
-    fds.fd = mUeventFd;
-    fds.events = POLLIN;
-    fds.revents = 0;
-    nr = poll(&fds, 1, -1);
+    fds[0].fd = mUeventFd;
+    fds[0].events = POLLIN;
+    fds[0].revents = 0;
+    fds[1].fd = mExitRDFd;
+    fds[1].events = POLLIN;
+    fds[1].revents = 0;
+    nr = poll(fds, 2, -1);
 
-    if (nr > 0 && fds.revents == POLLIN) {
+    if (nr > 0 && fds[0].revents == POLLIN) {
         int count = recv(mUeventFd, mUeventMessage, UEVENT_MSG_LEN - 2, 0);
         if (count > 0) {
             onUevent();
         }
+    } else {
+        if (fds[1].revents) {
+            close(mExitRDFd);
+            mExitRDFd = -1;
+        }
+        ITRACE("exiting wait");
     }
     // always looping
     return true;
