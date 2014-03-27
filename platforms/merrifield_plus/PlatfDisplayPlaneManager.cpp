@@ -537,6 +537,7 @@ void PlatfDisplayPlaneManager::reclaimRealPlane(DisplayPlane *plane)
 void PlatfDisplayPlaneManager::disableReclaimedRealPlanes()
 {
     uint32_t i, j;
+    bool ret = false;
 
     RETURN_VOID_IF_NOT_INIT();
 
@@ -547,16 +548,19 @@ void PlatfDisplayPlaneManager::disableReclaimedRealPlanes()
 
                 if (mReclaimedRealPlanes[i] & bit) {
                     DisplayPlane* plane = mRealPlanes[i].itemAt(j);
-                    // disable plane first
-                    plane->disable();
+                    // check plane state first
+                    ret = plane->isDisabled();
                     // reset plane
-                    plane->reset();
+                    if (ret)
+                        ret = plane->reset();
                 }
             }
 
-            // merge into free bitmap
-            mFreeRealPlanes[i] |= mReclaimedRealPlanes[i];
-            mReclaimedRealPlanes[i] = 0;
+            if (ret) {
+                // merge into free bitmap
+                mFreeRealPlanes[i] |= mReclaimedRealPlanes[i];
+                mReclaimedRealPlanes[i] = 0;
+            }
         }
     }
 }

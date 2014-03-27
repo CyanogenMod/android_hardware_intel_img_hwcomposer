@@ -219,6 +219,33 @@ bool AnnRGBPlane::enablePlane(bool enabled)
     return true;
 }
 
+bool AnnRGBPlane::isDisabled()
+{
+    RETURN_FALSE_IF_NOT_INIT();
+
+    struct drm_psb_register_rw_arg arg;
+    memset(&arg, 0, sizeof(struct drm_psb_register_rw_arg));
+
+    if (mType == PLANE_SPRITE)
+        arg.plane.type = DC_SPRITE_PLANE;
+    else
+        arg.plane.type = DC_PRIMARY_PLANE;
+
+    arg.get_plane_state_mask = 1;
+    arg.plane.index = mIndex;
+    arg.plane.ctx = 0;
+
+    // issue ioctl
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+    bool ret = drm->writeReadIoctl(DRM_PSB_REGISTER_RW, &arg, sizeof(arg));
+    if (ret == false) {
+        WTRACE("plane state query failed with error code %d", ret);
+        return false;
+    }
+
+    return arg.plane.ctx == PSB_DC_PLANE_DISABLED;
+}
+
 void AnnRGBPlane::setFramebufferTarget(uint32_t handle)
 {
     uint32_t stride;

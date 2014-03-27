@@ -131,6 +131,13 @@ bool AnnDisplayPlane::disable()
     return mRealPlane->disable();
 }
 
+bool AnnDisplayPlane::isDisabled()
+{
+    RETURN_FALSE_IF_NO_REAL_PLANE();
+
+    return mRealPlane->isDisabled();
+}
+
 void* AnnDisplayPlane::getContext() const
 {
     if (!mRealPlane) {

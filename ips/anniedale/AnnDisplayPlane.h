@@ -61,6 +61,7 @@ public:
     bool reset();
     bool enable();
     bool disable();
+    bool isDisabled();
 
     void* getContext() const;
 

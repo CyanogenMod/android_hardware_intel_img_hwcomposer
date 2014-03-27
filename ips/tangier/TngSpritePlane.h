@@ -46,6 +46,7 @@ public:
 public:
     virtual void* getContext() const;
     virtual void setZOrderConfig(ZOrderConfig& config, void *nativeConfig);
+    virtual bool isDisabled();
 protected:
     virtual bool setDataBuffer(BufferMapper& mapper);
     virtual bool enablePlane(bool enabled);

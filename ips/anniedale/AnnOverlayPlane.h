@@ -64,6 +64,7 @@ public:
     virtual bool reset();
     virtual bool enable();
     virtual bool disable();
+    virtual bool isDisabled();
 
     virtual void* getContext() const;
     virtual bool initialize(uint32_t bufferCount);

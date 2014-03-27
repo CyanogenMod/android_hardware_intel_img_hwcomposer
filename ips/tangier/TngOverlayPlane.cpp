@@ -60,7 +60,8 @@ bool TngOverlayPlane::flip(void *ctx)
     mContext.ctx.ov_ctx.ovadd = 0x0;
     mContext.ctx.ov_ctx.ovadd = (mBackBuffer->gttOffsetInPage << 12);
     mContext.ctx.ov_ctx.index = mIndex;
-    mContext.ctx.ov_ctx.pipe = mPipeConfig;
+    mContext.ctx.ov_ctx.pipe = mDevice;
+    mContext.ctx.ov_ctx.ovadd |= mPipeConfig;
     mContext.ctx.ov_ctx.ovadd |= 0x1;
 
     VTRACE("ovadd = %#x, index = %d, device = %d",

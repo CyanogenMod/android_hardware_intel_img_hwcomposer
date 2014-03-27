@@ -47,6 +47,7 @@ public:
     // hardware operations
     bool enable();
     bool disable();
+    bool isDisabled();
 
     void* getContext() const;
     void setZOrderConfig(ZOrderConfig& config, void *nativeConfig);

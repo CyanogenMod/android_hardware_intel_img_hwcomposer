@@ -123,6 +123,7 @@ public:
     virtual bool reset();
     virtual bool enable() = 0;
     virtual bool disable() = 0;
+    virtual bool isDisabled() = 0;
 
     // set z order config
     virtual void setZOrderConfig(ZOrderConfig& config,

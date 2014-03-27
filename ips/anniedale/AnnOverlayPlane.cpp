@@ -125,7 +125,7 @@ bool AnnOverlayPlane::setDataBuffer(uint32_t handle)
         return false;
 
     if (mDisablePending) {
-        if (isFlushed() || mDisablePendingCount >= OVERLAY_DISABLING_COUNT_MAX) {
+        if (isDisabled() || mDisablePendingCount >= OVERLAY_DISABLING_COUNT_MAX) {
             mDisablePending = false;
             mDisablePendingDevice = 0;
             mDisablePendingCount = 0;
@@ -211,7 +211,7 @@ bool AnnOverlayPlane::reset()
     RETURN_FALSE_IF_NOT_INIT();
 
     if (mDisablePending) {
-        if (isFlushed() || mDisablePendingCount >= OVERLAY_DISABLING_COUNT_MAX) {
+        if (isDisabled() || mDisablePendingCount >= OVERLAY_DISABLING_COUNT_MAX) {
             mDisablePending = false;
             mDisablePendingDevice = 0;
             mDisablePendingCount = 0;
@@ -283,6 +283,34 @@ bool AnnOverlayPlane::disable()
     mDisablePendingDevice = mDevice;
     mDisablePendingCount = 0;
     return true;
+}
+
+bool AnnOverlayPlane::isDisabled()
+{
+    RETURN_FALSE_IF_NOT_INIT();
+
+    struct drm_psb_register_rw_arg arg;
+    memset(&arg, 0, sizeof(struct drm_psb_register_rw_arg));
+
+    arg.get_plane_state_mask = 1;
+    arg.plane.type = DC_OVERLAY_PLANE;
+    arg.plane.index = mIndex;
+    // pass the pipe index to check its enabled status
+    // now we can pass the device id directly since
+    // their values are just equal
+    arg.plane.ctx = mDisablePendingDevice;
+
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+    bool ret = drm->writeReadIoctl(DRM_PSB_REGISTER_RW, &arg, sizeof(arg));
+    if (ret == false) {
+        WTRACE("overlay plane query failed with error code %d", ret);
+        return false;
+    }
+
+    VTRACE("overlay %d status %s on device %d, current device %d",
+        mIndex, arg.plane.ctx ? "DISABLED" : "ENABLED", mDisablePendingDevice, mDevice);
+
+    return arg.plane.ctx == PSB_DC_PLANE_DISABLED;
 }
 
 OverlayBackBuffer* AnnOverlayPlane::createBackBuffer()
@@ -1003,7 +1031,8 @@ bool AnnOverlayPlane::flip(void *ctx)
     mContext.type = DC_OVERLAY_PLANE;
     mContext.ctx.ov_ctx.ovadd = ovadd;
     mContext.ctx.ov_ctx.index = mIndex;
-    mContext.ctx.ov_ctx.pipe = mPipeConfig;
+    mContext.ctx.ov_ctx.pipe = mDevice;
+    mContext.ctx.ov_ctx.ovadd |= mPipeConfig;
 
     // move to next back buffer
     mCurrent = (mCurrent + 1) % OVERLAY_BACK_BUFFER_COUNT;
