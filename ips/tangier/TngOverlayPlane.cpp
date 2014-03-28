@@ -135,10 +135,8 @@ bool TngOverlayPlane::rotatedBufferReady(BufferMapper& mapper)
 
     if (payload->client_transform != mTransform ||
         payload->force_output_method == FORCE_OUTPUT_SW_DECODE) {
-        if (payload->surface_protected) {
-            payload->hwc_timestamp = systemTime();
-            payload->layer_transform = mTransform;
-        }
+        payload->hwc_timestamp = systemTime();
+        payload->layer_transform = mTransform;
 
         if (payload->force_output_method == FORCE_OUTPUT_OVERLAY ||
             payload->force_output_method == FORCE_OUTPUT_SW_DECODE ||
