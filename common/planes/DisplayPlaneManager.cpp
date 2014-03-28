@@ -34,7 +34,9 @@ namespace intel {
 
 DisplayPlaneManager::DisplayPlaneManager()
     : mTotalPlaneCount(0),
-      mNativeZOrderConfig(0),
+      mPrimaryPlaneCount(DEFAULT_PRIMARY_PLANE_COUNT),
+      mSpritePlaneCount(0),
+      mOverlayPlaneCount(0),
       mInitialized(false)
 {
     int i;
@@ -67,36 +69,30 @@ void DisplayPlaneManager::deinitialize()
         mPlanes[i].clear();
     }
 
-    mNativeZOrderConfig = 0;
     mInitialized = false;
 }
 
 bool DisplayPlaneManager::initialize()
 {
     int i, j;
-    int spriteCount = 0;
-    int overlayCount = 0;
-    int primaryCount = 0;
-
-    CTRACE();
 
     if (mInitialized) {
         WTRACE("object has been initialized");
         return true;
     }
 
-    // detect display plane usage. Hopefully throw DRM ioctl
-    if (!detect(spriteCount, overlayCount, primaryCount)) {
-        ETRACE("failed to detect planes");
+
+    // calculate total plane number and free plane bitmaps
+    mPlaneCount[DisplayPlane::PLANE_SPRITE] = mSpritePlaneCount;
+    mPlaneCount[DisplayPlane::PLANE_OVERLAY] = mOverlayPlaneCount;
+    mPlaneCount[DisplayPlane::PLANE_PRIMARY] = mPrimaryPlaneCount;
+
+    mTotalPlaneCount = mSpritePlaneCount+ mOverlayPlaneCount+ mPrimaryPlaneCount;
+    if (mTotalPlaneCount == 0) {
+        ETRACE("plane count is not initialized");
         return false;
     }
 
-    // calculate total plane number and free plane bitmaps
-    mPlaneCount[DisplayPlane::PLANE_SPRITE] = spriteCount;
-    mPlaneCount[DisplayPlane::PLANE_OVERLAY] = overlayCount;
-    mPlaneCount[DisplayPlane::PLANE_PRIMARY] = primaryCount;
-
-    mTotalPlaneCount = spriteCount + overlayCount + primaryCount;
     for (i = 0; i < DisplayPlane::PLANE_MAX; i++) {
         mFreePlanes[i] = ((1 << mPlaneCount[i]) - 1);
     }
@@ -115,13 +111,6 @@ bool DisplayPlaneManager::initialize()
                 mPlanes[i].push_back(plane);
             }
         }
-    }
-
-    // get native z order config
-    mNativeZOrderConfig = getNativeZOrderConfig();
-    if (!mNativeZOrderConfig) {
-        ETRACE("failed to get native z order config");
-        DEINIT_AND_RETURN_FALSE();
     }
 
     mInitialized = true;
@@ -173,62 +162,43 @@ int DisplayPlaneManager::getPlane(uint32_t& mask, int index)
     return -1;
 }
 
-DisplayPlane* DisplayPlaneManager::getPlane(int type, int dsp)
+DisplayPlane* DisplayPlaneManager::getPlane(int type, int index)
 {
-    int freePlaneIndex;
-
     RETURN_NULL_IF_NOT_INIT();
-
-    if (dsp < 0 || dsp > IDisplayDevice::DEVICE_EXTERNAL) {
-        ETRACE("Invalid display device %d", dsp);
-        return 0;
-    }
 
     if (type < 0 || type >= DisplayPlane::PLANE_MAX) {
         ETRACE("Invalid plane type %d", type);
         return 0;
     }
 
-    // try to get free plane from reclaimed planes
-#ifdef MERR
-    if (type == DisplayPlane::PLANE_PRIMARY ||
-        type == DisplayPlane::PLANE_OVERLAY)
-#else
-    if (type == DisplayPlane::PLANE_PRIMARY)
-#endif
-        // primary planes are attached to specific displays
-        freePlaneIndex = getPlane(mReclaimedPlanes[type], dsp);
-    else
-        freePlaneIndex = getPlane(mReclaimedPlanes[type]);
-
-    // if has free plane, return it
+    int freePlaneIndex = getPlane(mReclaimedPlanes[type], index);
     if (freePlaneIndex >= 0)
         return mPlanes[type].itemAt(freePlaneIndex);
 
-    // failed to get a free plane from reclaimed planes, try it on free planes
-#ifdef MERR
-    if (type == DisplayPlane::PLANE_PRIMARY ||
-        type == DisplayPlane::PLANE_OVERLAY)
-#else
-    if (type == DisplayPlane::PLANE_PRIMARY)
-#endif
-        freePlaneIndex = getPlane(mFreePlanes[type], dsp);
-    else
-        freePlaneIndex = getPlane(mFreePlanes[type]);
-
-    // found plane on free planes
+    freePlaneIndex = getPlane(mFreePlanes[type], index);
     if (freePlaneIndex >= 0)
         return mPlanes[type].itemAt(freePlaneIndex);
 
-#ifdef MERR
-    // Check the free overlay again if one pipe needs two overlays
-    if (type == DisplayPlane::PLANE_OVERLAY) {
-        freePlaneIndex = getPlane(mFreePlanes[type]);
-        if (freePlaneIndex >= 0)
-            return mPlanes[type].itemAt(freePlaneIndex);
+    return 0;
+}
+
+DisplayPlane* DisplayPlaneManager::getAnyPlane(int type)
+{
+    RETURN_NULL_IF_NOT_INIT();
+
+    if (type < 0 || type >= DisplayPlane::PLANE_MAX) {
+        ETRACE("Invalid plane type %d", type);
+        return 0;
     }
-#endif
-    VTRACE("failed to get a plane, type %d", type);
+
+    int freePlaneIndex = getPlane(mReclaimedPlanes[type]);
+    if (freePlaneIndex >= 0)
+        return mPlanes[type].itemAt(freePlaneIndex);
+
+    freePlaneIndex = getPlane(mFreePlanes[type]);
+    if (freePlaneIndex >= 0)
+        return mPlanes[type].itemAt(freePlaneIndex);
+
     return 0;
 }
 
@@ -250,11 +220,23 @@ void DisplayPlaneManager::putPlane(int dsp, DisplayPlane& plane)
     putPlane(index, mFreePlanes[type]);
 }
 
-bool DisplayPlaneManager::hasFreePlanes(int type, int dsp)
+bool DisplayPlaneManager::isFreePlane(int type, int index)
 {
-    uint32_t freePlanes = 0;
+    if (type < 0 || type >= DisplayPlane::PLANE_MAX) {
+        ETRACE("Invalid plane type %d", type);
+        return false;
+    }
 
-    RETURN_FALSE_IF_NOT_INIT();
+    int freePlanes = mFreePlanes[type] | mReclaimedPlanes[type];
+    if ((freePlanes & (1 << index)) == 0)
+        return false;
+
+    return true;
+}
+
+int DisplayPlaneManager::getFreePlanes(int dsp, int type)
+{
+    RETURN_NULL_IF_NOT_INIT();
 
     if (dsp < 0 || dsp > IDisplayDevice::DEVICE_EXTERNAL) {
         ETRACE("Invalid display device %d", dsp);
@@ -266,43 +248,20 @@ bool DisplayPlaneManager::hasFreePlanes(int type, int dsp)
         return 0;
     }
 
+
+    uint32_t freePlanes = mFreePlanes[type] | mReclaimedPlanes[type];
     if (type == DisplayPlane::PLANE_PRIMARY) {
-        freePlanes = (1 << dsp) & (mFreePlanes[type] | mReclaimedPlanes[type]);
+        return ((freePlanes & (1 << dsp)) == 0) ? 0 : 1;
     } else {
-        freePlanes = (mFreePlanes[type] | mReclaimedPlanes[type]);
+        int count = 0;
+        for (int i = 0; i < 32; i++) {
+            if ((1 << i) & freePlanes) {
+                count++;
+            }
+        }
+        return count;
     }
-
-    return freePlanes ? true : false;
-}
-
-DisplayPlane* DisplayPlaneManager::getSpritePlane(int dsp)
-{
-    return getPlane((int)DisplayPlane::PLANE_SPRITE);
-}
-
-DisplayPlane* DisplayPlaneManager::getOverlayPlane(int dsp)
-{
-    return getPlane((int)DisplayPlane::PLANE_OVERLAY, dsp);
-}
-
-DisplayPlane* DisplayPlaneManager::getPrimaryPlane(int dsp)
-{
-    return getPlane((int)DisplayPlane::PLANE_PRIMARY, dsp);
-}
-
-bool DisplayPlaneManager::hasFreeSprite(int dsp)
-{
-    return hasFreePlanes((int)DisplayPlane::PLANE_SPRITE);
-}
-
-bool DisplayPlaneManager::hasFreeOverlay(int dsp)
-{
-    return hasFreePlanes((int)DisplayPlane::PLANE_OVERLAY);
-}
-
-bool DisplayPlaneManager::hasFreePrimary(int dsp)
-{
-    return hasFreePlanes((int)DisplayPlane::PLANE_PRIMARY, dsp);
+    return 0;
 }
 
 void DisplayPlaneManager::reclaimPlane(int dsp, DisplayPlane& plane)
@@ -366,36 +325,6 @@ void DisplayPlaneManager::disableOverlayPlanes()
             }
         }
     }
-}
-
-bool DisplayPlaneManager::setZOrderConfig(ZOrderConfig& zorderConfig)
-{
-    RETURN_FALSE_IF_NOT_INIT();
-
-    if (!zorderConfig.size()) {
-        WTRACE("No zorder config, should NOT happen");
-        return false;
-    }
-
-    if (!isValidZOrderConfig(zorderConfig)) {
-        VTRACE("Invalid z order config");
-        return false;
-    }
-
-    // setup plane's z order
-    for (size_t i = 0; i < zorderConfig.size(); i++) {
-        DisplayPlane *plane = zorderConfig.itemAt(i);
-        plane->setZOrderConfig(zorderConfig, mNativeZOrderConfig);
-    }
-
-    return true;
-}
-
-void* DisplayPlaneManager::getZOrderConfig() const
-{
-    RETURN_NULL_IF_NOT_INIT();
-
-    return mNativeZOrderConfig;
 }
 
 void DisplayPlaneManager::dump(Dump& d)

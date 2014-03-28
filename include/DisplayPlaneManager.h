@@ -30,84 +30,79 @@
 
 #include <Dump.h>
 #include <DisplayPlane.h>
+#include <HwcLayer.h>
 #include <utils/Vector.h>
 
 namespace android {
 namespace intel {
 
-class ZOrderConfig : public SortedVector<DisplayPlane*> {
-public:
-    ZOrderConfig()
-        : mDisplayDevice(0) { }
-
-    int do_compare(const void* lhs, const void* rhs) const {
-        const DisplayPlane *l = *(DisplayPlane**)lhs;
-        const DisplayPlane *r = *(DisplayPlane**)rhs;
-
-        // sorted from z order 0 to n
-        return l->getZOrder() - r->getZOrder();
+struct ZOrderLayer
+{
+    ZOrderLayer() {
+        memset(this, 0, sizeof(ZOrderLayer));
     }
 
-    void setDisplayDevice(int dsp) { mDisplayDevice = dsp; }
-    int getDisplayDevice() const { return mDisplayDevice; }
-private:
-    int mDisplayDevice;
+    inline bool operator<(const ZOrderLayer& rhs) const {
+        return zorder < rhs.zorder;
+    }
+
+    int planeType;
+    int zorder;
+    DisplayPlane *plane;
+    HwcLayer *hwcLayer;
 };
 
+class ZOrderConfig : public SortedVector<ZOrderLayer*> {
+public:
+    ZOrderConfig() {}
+
+    int do_compare(const void* lhs, const void* rhs) const {
+        const ZOrderLayer *l = *(ZOrderLayer**)lhs;
+        const ZOrderLayer *r = *(ZOrderLayer**)rhs;
+
+        // sorted from z order 0 to n
+        return l->zorder - r->zorder;
+    }
+};
+
+
 class DisplayPlaneManager {
-    enum {
-        PLANE_ON_RECLAIMED_LIST = 1,
-        PLANE_ON_FREE_LIST,
-    };
 public:
     DisplayPlaneManager();
     virtual ~DisplayPlaneManager();
 
-    bool initCheck() const { return mInitialized; }
-
-    // sub-class can override initialize & deinitialize
+public:
     virtual bool initialize();
     virtual void deinitialize();
 
-    // plane allocation & free
-    virtual DisplayPlane* getSpritePlane(int dsp);
-    virtual DisplayPlane* getOverlayPlane(int dsp);
-    virtual DisplayPlane* getPrimaryPlane(int dsp);
-    virtual void putPlane(int dsp, DisplayPlane& plane);
-
-    virtual bool hasFreeSprite(int dsp);
-    virtual bool hasFreeOverlay(int dsp);
-    virtual bool hasFreePrimary(int dsp);
-
+    virtual bool isValidZOrder(int dsp, ZOrderConfig& config) = 0;
+    virtual bool assignPlanes(int dsp, ZOrderConfig& config) = 0;
+    // TODO: remove this API
+    virtual void* getZOrderConfig() const = 0;
+    virtual int getFreePlanes(int dsp, int type);
     virtual void reclaimPlane(int dsp, DisplayPlane& plane);
     virtual void disableReclaimedPlanes();
     virtual void disableOverlayPlanes();
-
-    // z order config
-    virtual bool setZOrderConfig(ZOrderConfig& zorderConfig);
-    virtual void* getZOrderConfig() const;
-
     // dump interface
     virtual void dump(Dump& d);
 
 protected:
+    // plane allocation & free
     int getPlane(uint32_t& mask);
     int getPlane(uint32_t& mask, int index);
+    DisplayPlane* getPlane(int type, int index);
+    DisplayPlane* getAnyPlane(int type);
     void putPlane(int index, uint32_t& mask);
-
-    inline DisplayPlane* getPlane(int type, int dsp = 0);
-    inline bool hasFreePlanes(int type, int dsp = 0);
-
-    // sub-classes need implement follow functions
-    virtual bool detect(int& spriteCount,
-                          int& overlayCount,
-                          int& primaryCount) = 0;
+    void putPlane(int dsp, DisplayPlane& plane);
+    bool isFreePlane(int type, int index);
     virtual DisplayPlane* allocPlane(int index, int type) = 0;
-    virtual bool isValidZOrderConfig(ZOrderConfig& zorderConfig) = 0;
-    virtual void* getNativeZOrderConfig() = 0;
+
 protected:
     int mPlaneCount[DisplayPlane::PLANE_MAX];
     int mTotalPlaneCount;
+    int mPrimaryPlaneCount;
+    int mSpritePlaneCount;
+    int mOverlayPlaneCount;
 
     Vector<DisplayPlane*> mPlanes[DisplayPlane::PLANE_MAX];
 
@@ -115,9 +110,11 @@ protected:
     uint32_t mFreePlanes[DisplayPlane::PLANE_MAX];
     uint32_t mReclaimedPlanes[DisplayPlane::PLANE_MAX];
 
-    void *mNativeZOrderConfig;
-
     bool mInitialized;
+
+enum {
+    DEFAULT_PRIMARY_PLANE_COUNT = 3
+};
 };
 
 } // namespace intel

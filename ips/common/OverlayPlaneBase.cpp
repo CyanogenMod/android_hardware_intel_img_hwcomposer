@@ -225,7 +225,7 @@ void OverlayPlaneBase::setZOrderConfig(ZOrderConfig& zorderConfig,
     int ovaZOrder = -1;
     int ovcZOrder = -1;
     for (size_t i = 0; i < zorderConfig.size(); i++) {
-        DisplayPlane *plane = zorderConfig.itemAt(i);
+        DisplayPlane *plane = zorderConfig[i]->plane;
         if (plane->getType() == DisplayPlane::PLANE_OVERLAY) {
             if (plane->getIndex() == 0) {
                 ovaZOrder = i;
@@ -1040,12 +1040,6 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
 
     if ((w <= 0) || (h <= 0)) {
          ETRACE("invalid dst width/height");
-         return false;
-    }
-
-    //Overlay flip when height is 1 causes MIPI stall on TNG
-    if (h <= 1) {
-         VTRACE("Overlay Flip discard when height=1");
          return false;
     }
 

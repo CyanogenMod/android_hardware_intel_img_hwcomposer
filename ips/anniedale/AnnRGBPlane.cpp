@@ -40,10 +40,6 @@ AnnRGBPlane::AnnRGBPlane(int index, int type, int disp)
 {
     CTRACE();
     memset(&mContext, 0, sizeof(mContext));
-
-    mZOrder = index;
-    if (type == PLANE_SPRITE)
-        mZOrder |= 0x8;
 }
 
 AnnRGBPlane::~AnnRGBPlane()
@@ -68,17 +64,6 @@ void* AnnRGBPlane::getContext() const
 }
 
 void AnnRGBPlane::setZOrderConfig(ZOrderConfig& config, void *nativeConfig)
-{
-    CTRACE();
-}
-
-bool AnnRGBPlane::assignToDevice(int disp)
-{
-    CTRACE();
-    return false;
-}
-
-void AnnRGBPlane::setZOrder(int zorder)
 {
     CTRACE();
 }
@@ -259,6 +244,12 @@ bool AnnRGBPlane::isDisabled()
     }
 
     return arg.plane.ctx == PSB_DC_PLANE_DISABLED;
+}
+
+void AnnRGBPlane::postFlip()
+{
+    // prevent mUpdateMasks from being reset
+    // skipping flip may cause flicking
 }
 
 void AnnRGBPlane::setFramebufferTarget(uint32_t handle)

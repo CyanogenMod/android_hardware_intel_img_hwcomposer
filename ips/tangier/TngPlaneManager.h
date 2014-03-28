@@ -25,60 +25,38 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef ANN_DISPLAY_PLANE_H
-#define ANN_DISPLAY_PLANE_H
+#ifndef TNG_PLANE_MANAGER_H
+#define TNG_PLANE_MANAGER_H
 
-#include <utils/KeyedVector.h>
-#include <hal_public.h>
-#include <Hwcomposer.h>
-#include <BufferCache.h>
-#include <DisplayPlane.h>
+#include <DisplayPlaneManager.h>
+#include <linux/psb_drm.h>
 
 namespace android {
 namespace intel {
 
-class AnnDisplayPlane : public DisplayPlane {
+class TngPlaneManager : public DisplayPlaneManager {
 public:
-    AnnDisplayPlane(int index, int type, int disp);
-    virtual ~AnnDisplayPlane();
+    TngPlaneManager();
+    virtual ~TngPlaneManager();
+
 public:
-    // data destination
-    void setPosition(int x, int y, int w, int h);
-    void setSourceCrop(int x, int y, int w, int h);
-    void setTransform(int transform);
-    void setPlaneAlpha(uint8_t alpha, uint32_t blending);
+    virtual bool initialize();
+    virtual void deinitialize();
+    virtual bool isValidZOrder(int dsp, ZOrderConfig& config);
+    virtual bool assignPlanes(int dsp, ZOrderConfig& config);
+    // TODO: remove this API
+    virtual void* getZOrderConfig() const;
 
-    // data source
-    bool setDataBuffer(uint32_t handle);
-
-    void invalidateBufferCache();
-
-    // display device
-    bool assignToDevice(int disp);
-
-    // hardware operations
-    bool flip(void *ctx);
-
-    bool reset();
-    bool enable();
-    bool disable();
-    bool isDisabled();
-
-    void* getContext() const;
-
-    bool initialize(uint32_t bufferCount);
-    void deinitialize();
-    void setZOrderConfig(ZOrderConfig& config, void *nativeConfig);
-
-    void setRealPlane(DisplayPlane *plane);
-    DisplayPlane* getRealPlane() const;
 protected:
-    bool setDataBuffer(BufferMapper& mapper);
+    DisplayPlane* allocPlane(int index, int type);
+    DisplayPlane* getPlaneHelper(int dsp, int type);
+
 private:
-    DisplayPlane *mRealPlane;
+    struct intel_dc_plane_zorder mZorder;
 };
 
 } // namespace intel
 } // namespace android
 
-#endif /* ANN_DISPLAY_PLANE_H */
+
+#endif /* TNG_PLANE_MANAGER_H */

@@ -53,7 +53,7 @@ private:
     IMG_display_device_public_t *mIMGDisplayDevice;
     IMG_hwc_layer_t mImgLayers[MAXIMUM_LAYER_NUMBER];
     bool mInitialized;
-    int mCount;
+    size_t mCount;
 };
 
 } // namespace intel

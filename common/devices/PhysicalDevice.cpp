@@ -84,9 +84,7 @@ void PhysicalDevice::onGeometryChanged(hwc_display_contents_1_t *list)
     }
 
     // create a new layer list
-    mLayerList = new HwcLayerList(list,
-                                  mDisplayPlaneManager,
-                                  mType);
+    mLayerList = new HwcLayerList(list, mType);
     if (!mLayerList) {
         WTRACE("failed to create layer list");
     }
@@ -121,9 +119,6 @@ bool PhysicalDevice::prepare(hwc_display_contents_1_t *display)
     // check if geometry is changed
     if (display->flags & HWC_GEOMETRY_CHANGED) {
         onGeometryChanged(display);
-        if (mLayerList && mLayerList->hasProtectedLayer()) {
-            mPrepareListener->onProtectedLayerStart(mType);
-        }
     }
     if (!mLayerList) {
         WTRACE("null HWC layer list");

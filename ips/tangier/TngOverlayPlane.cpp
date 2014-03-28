@@ -131,27 +131,18 @@ bool TngOverlayPlane::rotatedBufferReady(BufferMapper& mapper)
         return false;
     }
 
-    if (payload->force_output_method == FORCE_OUTPUT_GPU)
+    if (payload->force_output_method == FORCE_OUTPUT_GPU) {
+        ETRACE("Output method is not supported!");
         return false;
+    }
 
-    if (payload->client_transform != mTransform ||
-        payload->force_output_method == FORCE_OUTPUT_SW_DECODE) {
+    if (payload->client_transform != mTransform) {
         payload->hwc_timestamp = systemTime();
         payload->layer_transform = mTransform;
-
-        if (payload->force_output_method == FORCE_OUTPUT_OVERLAY ||
-            payload->force_output_method == FORCE_OUTPUT_SW_DECODE ||
-            payload->surface_protected) {
-            bool ret;
-            ret = mRotationBufProvider->setupRotationBuffer(payload, mTransform);
-            if (ret == true) {
-                return true;
-            } else {
-                ETRACE("failed to setup rotation buffer");
-                return false;
-            }
+        if (mRotationBufProvider->setupRotationBuffer(payload, mTransform)) {
+            return true;
         } else {
-            WTRACE("client is not ready");
+            ETRACE("failed to setup rotation buffer");
             return false;
         }
     }

@@ -25,8 +25,8 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef PLATF_DISPLAY_PLANE_MANAGER_H
-#define PLATF_DISPLAY_PLANE_MANAGER_H
+#ifndef ANN_PLANE_MANAGER_H
+#define ANN_PLANE_MANAGER_H
 
 #include <DisplayPlaneManager.h>
 #include <linux/psb_drm.h>
@@ -34,21 +34,27 @@
 namespace android {
 namespace intel {
 
-class PlatfDisplayPlaneManager : public DisplayPlaneManager {
+class AnnPlaneManager : public DisplayPlaneManager {
 public:
-    PlatfDisplayPlaneManager();
-    virtual ~PlatfDisplayPlaneManager();
+    AnnPlaneManager();
+    virtual ~AnnPlaneManager();
+
+public:
+    virtual bool initialize();
+    virtual void deinitialize();
+    virtual bool isValidZOrder(int dsp, ZOrderConfig& config);
+    virtual bool assignPlanes(int dsp, ZOrderConfig& config);
+    virtual int getFreePlanes(int dsp, int type);
+    // TODO: remove this API
+    virtual void* getZOrderConfig() const;
+
 protected:
-    bool detect(int&spriteCount, int& overlayCount, int& primaryCount);
     DisplayPlane* allocPlane(int index, int type);
-    bool isValidZOrderConfig(ZOrderConfig& zorderConfig);
-    void* getNativeZOrderConfig();
-private:
-    struct intel_dc_plane_zorder mZorder;
+    bool assignPlanes(int dsp, ZOrderConfig& config, const char *zorder);
 };
 
 } // namespace intel
 } // namespace android
 
 
-#endif /* PLATF_DISPLAY_PLANE_MANAGER_H */
+#endif /* ANN_PLANE_MANAGER_H */

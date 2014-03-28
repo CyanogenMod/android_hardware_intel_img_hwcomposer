@@ -152,7 +152,7 @@ void TngPrimaryPlane::setZOrderConfig(ZOrderConfig& zorderConfig,
     int overlayIndex = -1;
     // only consider force bottom when overlay is active
     for (size_t i = 0; i < zorderConfig.size(); i++) {
-        DisplayPlane *plane = zorderConfig.itemAt(i);
+        DisplayPlane *plane = zorderConfig[i]->plane;
         if (plane->getType() == DisplayPlane::PLANE_PRIMARY)
             primaryIndex = i;
         if (plane->getType() == DisplayPlane::PLANE_OVERLAY) {
