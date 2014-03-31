@@ -46,6 +46,7 @@ public:
     void setPosition(int x, int y, int w, int h);
     void setSourceCrop(int x, int y, int w, int h);
     void setTransform(int transform);
+    void setPlaneAlpha(uint8_t alpha, uint32_t blending);
 
     // data source
     bool setDataBuffer(uint32_t handle);

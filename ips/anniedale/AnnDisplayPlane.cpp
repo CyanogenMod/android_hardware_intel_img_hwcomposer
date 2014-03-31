@@ -84,6 +84,13 @@ void AnnDisplayPlane::setTransform(int transform)
     mRealPlane->setTransform(transform);
 }
 
+void AnnDisplayPlane::setPlaneAlpha(uint8_t alpha, uint32_t blending)
+{
+    RETURN_VOID_IF_NO_REAL_PLANE();
+
+    mRealPlane->setPlaneAlpha(alpha, blending);
+}
+
 bool AnnDisplayPlane::setDataBuffer(uint32_t handle)
 {
     RETURN_FALSE_IF_NO_REAL_PLANE();
