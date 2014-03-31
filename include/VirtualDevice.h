@@ -29,6 +29,9 @@
 #define VIRTUAL_DEVICE_H
 
 #include <IDisplayDevice.h>
+#include <SimpleThread.h>
+#include <utils/Condition.h>
+#include <utils/Mutex.h>
 #include "IFrameServer.h"
 
 namespace android {
@@ -83,6 +86,20 @@ protected:
     int mCscBuffersToCreate;
     uint32_t mCscWidth;
     uint32_t mCscHeight;
+
+    // async blit info
+    DECLARE_THREAD(WidiBlitThread, VirtualDevice);
+    Condition mRequestQueued;
+    Condition mRequestProcessed;
+    uint32_t mBlitSrcHandle;
+    uint32_t mBlitDestHandle;
+    uint32_t mBlitCropWidth;
+    uint32_t mBlitCropHeight;
+    bool mDoBlit;
+    // async onFrameReady info
+    int64_t mFrameReadyRenderTs;
+    bool mDoOnFrameReady;
+    bool mCancelOnFrameReady;
 
     FrameInfo mLastInputFrameInfo;
     FrameInfo mLastOutputFrameInfo;
