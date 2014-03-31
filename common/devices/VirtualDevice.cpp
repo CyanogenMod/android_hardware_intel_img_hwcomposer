@@ -113,7 +113,6 @@ VirtualDevice::VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
       mOrigContentWidth(0),
       mOrigContentHeight(0),
       mFirstVideoFrame(true),
-      mCloneModeStarted(false),
       mCachedBufferCapcity(16)
 {
     CTRACE();
@@ -362,12 +361,6 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
             mCurrentConfig.frameListener->onFramePrepare(mRenderTimestamp, -1);
         return true;
     }
-
-    if (!mCloneModeStarted) {
-        ITRACE("Clone mode not started yet, Ignore extended mode");
-        return true;
-    }
-
     if ((analyzer->getVideoInstances() <= 0) && presentationLayer) {
         VTRACE("No video Instance found, in transition");
         return true;
@@ -631,7 +624,6 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
         outputFrameInfo.chromaUStride = dataBuf->getWidth();
         outputFrameInfo.chromaVStride = dataBuf->getWidth();
         mgr->unlockDataBuffer(dataBuf);
-        mCloneModeStarted = true;
         queueOnFrameReady = true;
     }
 
