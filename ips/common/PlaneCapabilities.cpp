@@ -167,7 +167,7 @@ bool PlaneCapabilities::isBlendingSupported(int planeType, uint32_t blending, ui
     }
 }
 
-bool PlaneCapabilities::isScalingSupported(int planeType, hwc_frect_t& src, hwc_rect_t& dest)
+bool PlaneCapabilities::isScalingSupported(int planeType, hwc_frect_t& src, hwc_rect_t& dest, uint32_t trans)
 {
     int srcW, srcH;
     int dstW, dstH;

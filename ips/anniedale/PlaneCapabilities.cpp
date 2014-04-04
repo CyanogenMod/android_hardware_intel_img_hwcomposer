@@ -160,7 +160,7 @@ bool PlaneCapabilities::isBlendingSupported(int planeType, uint32_t blending, ui
     }
 }
 
-bool PlaneCapabilities::isScalingSupported(int planeType, hwc_frect_t& src, hwc_rect_t& dest)
+bool PlaneCapabilities::isScalingSupported(int planeType, hwc_frect_t& src, hwc_rect_t& dest, uint32_t trans)
 {
     int srcW, srcH;
     int dstW, dstH;
@@ -177,6 +177,18 @@ bool PlaneCapabilities::isScalingSupported(int planeType, hwc_frect_t& src, hwc_
     } else if (planeType == DisplayPlane::PLANE_OVERLAY) {
         // overlay cannot support resolution that bigger than 2047x2047.
         if ((srcW > INTEL_OVERLAY_MAX_WIDTH - 1) || (srcH > INTEL_OVERLAY_MAX_HEIGHT - 1)) {
+            return false;
+        }
+
+        if (trans == HAL_TRANSFORM_ROT_90 || trans == HAL_TRANSFORM_ROT_270) {
+            int tmp = srcW;
+            srcW = srcH;
+            srcH = tmp;
+        }
+        int scaleX = srcW / dstW;
+        int scaleY = srcH / dstH;
+        if (trans && (scaleX >= 3 || scaleY >= 3)) {
+            DTRACE("overlay rotation with scaling >= 3, fall back to GLES");
             return false;
         }
 

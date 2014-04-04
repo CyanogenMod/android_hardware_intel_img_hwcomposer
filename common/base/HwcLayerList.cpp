@@ -479,7 +479,8 @@ bool HwcLayerList::checkSupported(int planeType, HwcLayer *hwcLayer)
     // check layer scaling
     valid = PlaneCapabilities::isScalingSupported(planeType,
                                                   layer.sourceCropf,
-                                                  layer.displayFrame);
+                                                  layer.displayFrame,
+                                                  layer.transform);
     if (!valid) {
         VTRACE("plane type %d: (bad scaling)", planeType);
         return false;

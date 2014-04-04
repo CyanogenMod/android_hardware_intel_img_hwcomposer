@@ -44,7 +44,8 @@ public:
     static bool isBlendingSupported(int planeType, uint32_t blending, uint8_t planeAlpha);
     static bool isScalingSupported(int planeType,
                                        hwc_frect_t& src,
-                                       hwc_rect_t& dest);
+                                       hwc_rect_t& dest,
+                                       uint32_t trans);
     static bool isTransformSupported(int planeType, uint32_t trans);
 
 };
