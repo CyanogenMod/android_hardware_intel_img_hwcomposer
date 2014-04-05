@@ -112,7 +112,7 @@ protected:
 
 private:
     android::sp<CachedBuffer> getMappedBuffer(uint32_t handle);
-    void sendToWidi(const hwc_layer_1_t& layer, bool isProtected);
+    bool sendToWidi(const hwc_layer_1_t& layer, bool isProtected);
 
 public:
     VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm);

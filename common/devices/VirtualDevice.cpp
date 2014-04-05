@@ -366,14 +366,21 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
         return true;
     }
 
-    // if we're streaming one layer (extended mode or background mode), no need to composite
-    for (size_t i = 0; i < display->numHwLayers-1; i++) {
-        hwc_layer_1_t& layer = display->hwLayers[i];
-        layer.compositionType = HWC_OVERLAY;
-    }
 
     VTRACE("Extended mode");
-    sendToWidi(streamingLayer, protectedLayer);
+
+    if (sendToWidi(streamingLayer, protectedLayer)) {
+        // if we're streaming one layer (extended mode or background mode), no need to composite
+        for (size_t i = 0; i < display->numHwLayers-1; i++) {
+            hwc_layer_1_t& layer = display->hwLayers[i];
+            layer.compositionType = HWC_OVERLAY;
+        }
+    } else {
+        // if error in playback file , switch to clone mode
+        mLayerToSend = display->numHwLayers-1;
+        VTRACE("Switch to clone mode");
+    }
+
     return true;
 }
 
@@ -404,12 +411,12 @@ bool VirtualDevice::commit(hwc_display_contents_1_t *display, IDisplayContext *c
     return true;
 }
 
-void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
+bool VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
 {
     uint32_t handle = (uint32_t)layer.handle;
     if (handle == 0) {
         ETRACE("layer has no handle set");
-        return;
+        return false;
     }
     HWCBufferHandleType handleType = HWC_HANDLE_TYPE_GRALLOC;
     int64_t mediaTimestamp = -1;
@@ -427,7 +434,7 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
 
     // This is to guard encoder if anytime frame is less then one macroblock size.
     if ((inputFrameInfo.contentWidth < 16) || (inputFrameInfo.contentHeight < 16))
-        return;
+        return false;
 
     FrameInfo outputFrameInfo;
     outputFrameInfo = inputFrameInfo;
@@ -437,7 +444,7 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
         sp<CachedBuffer> cachedBuffer;
         if ((cachedBuffer = getMappedBuffer(handle)) == NULL) {
             ETRACE("Failed to map display buffer");
-            return;
+            return false;
         }
 
         // TODO: Fix this workaround once we get the content width & height in metadata.
@@ -529,9 +536,8 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
                 outputFrameInfo.chromaVStride = metadata.chromaVStride;
             } else {
                 ETRACE("Couldn't get any khandle");
-                return;
+                return false;
             }
-
             if (outputFrameInfo.bufferFormat == 0 ||
                 outputFrameInfo.bufferWidth < outputFrameInfo.contentWidth ||
                 outputFrameInfo.bufferHeight < outputFrameInfo.contentHeight ||
@@ -547,11 +553,11 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
                 ITRACE("outputFrameInfo.lumaUStride   = %d ", outputFrameInfo.lumaUStride);
                 ITRACE("outputFrameInfo.chromaUStride = %d ", outputFrameInfo.chromaUStride);
                 ITRACE("outputFrameInfo.chromaVStride = %d ", outputFrameInfo.chromaVStride);
-                return;
+                return false;
             }
         } else {
             ETRACE("Failed to get metadata");
-            return;
+            return false;
         }
     } else {
         BufferManager* mgr = mHwc.getBufferManager();
@@ -587,7 +593,7 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
             if (mAvailableCscBuffers.empty()) {
                 if (mCscBuffersToCreate <= 0) {
                     WTRACE("Out of CSC buffers, dropping frame");
-                    return;
+                    return false;
                 }
                 uint32_t bufHandle;
                 bufHandle = mgr->allocGrallocBuffer(mCurrentConfig.policy.scaledWidth,
@@ -597,7 +603,7 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
                                                     GRALLOC_USAGE_HW_RENDER);
                 if (bufHandle == 0){
                     ETRACE("failed to get gralloc buffer handle");
-                    return;
+                    return false;
                 }
                 mCscBuffersToCreate--;
                 mAvailableCscBuffers.push_back(bufHandle);
@@ -651,7 +657,7 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
         mDoOnFrameReady = true;
         mCancelOnFrameReady = true;
         mRequestQueued.signal();
-        return;
+        return false;
     }
 
     if (mCurrentConfig.forceNotifyBufferInfo ||
@@ -671,7 +677,7 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
 
     if (handleType == HWC_HANDLE_TYPE_KBUF &&
         handle == mExtLastKhandle && mediaTimestamp == mExtLastTimestamp) {
-        return;
+        return true; // Do not switch to clone mode here.
     }
 
     {
@@ -697,6 +703,7 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
         mExtLastKhandle = handle;
         mExtLastTimestamp = mediaTimestamp;
     }
+    return true;
 }
 
 bool VirtualDevice::vsyncControl(bool enabled)
