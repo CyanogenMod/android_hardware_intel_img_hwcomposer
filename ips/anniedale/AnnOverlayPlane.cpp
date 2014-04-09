@@ -466,8 +466,8 @@ bool AnnOverlayPlane::bufferOffsetSetup(BufferMapper& mapper)
         backBuffer->OCMD |= OVERLAY_FORMAT_PLANAR_YUV420;
         break;
     case HAL_PIXEL_FORMAT_NV12:    // NV12
-        uSurface = ySurface + yStride * align_to(h, 32);
-        vSurface = ySurface + yStride * align_to(h, 32);
+        uSurface = ySurface + yStride * align_to(h, 16);
+        vSurface = ySurface + yStride * align_to(h, 16);
         yTileOffsetX = srcX;
         yTileOffsetY = srcY;
         uTileOffsetX = srcX / 2;
