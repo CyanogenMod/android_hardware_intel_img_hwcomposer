@@ -78,7 +78,7 @@ bool PlatfBufferManager::convertRGBToNV12(uint32_t rgbHandle, uint32_t yuvHandle
     if (imgGrallocModule->Blit(imgGrallocModule, (buffer_handle_t)rgbHandle,
                                 (buffer_handle_t)yuvHandle,
                                 srcCrop.w, srcCrop.h, srcCrop.x,
-                                srcCrop.y, async)) {
+                                srcCrop.y, 0, async)) {
         ETRACE("Blit failed");
         return false;
     }
