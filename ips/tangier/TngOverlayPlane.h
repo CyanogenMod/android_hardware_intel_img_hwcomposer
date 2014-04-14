@@ -50,7 +50,8 @@ public:
 
     virtual bool initialize(uint32_t bufferCount);
     virtual void deinitialize();
-    virtual bool rotatedBufferReady(BufferMapper& mapper);
+    virtual bool rotatedBufferReady(BufferMapper& mapper, BufferMapper* &rotatedMapper);
+    virtual void invalidateBufferCache();
 protected:
     virtual bool setDataBuffer(BufferMapper& mapper);
     virtual bool flush(uint32_t flags);

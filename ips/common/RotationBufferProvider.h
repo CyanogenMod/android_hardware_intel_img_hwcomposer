@@ -54,6 +54,8 @@ public:
     bool initialize();
     void deinitialize();
     bool setupRotationBuffer(VideoPayloadBuffer *payload, int transform);
+    bool prepareBufferInfo(int, int, int, VideoPayloadBuffer *, void *);
+    void invalidateCaches();
 
 private:
     bool startVA(VideoPayloadBuffer *payload, int transform);
@@ -94,6 +96,12 @@ private:
     int mKhandles[MAX_SURFACE_NUM];
     VASurfaceID mRotatedSurfaces[MAX_SURFACE_NUM];
     void *mDrmBuf[MAX_SURFACE_NUM];
+
+    enum {
+        TTM_WRAPPER_COUNT = 10,
+    };
+
+    KeyedVector<uint64_t, void*> mTTMWrappers; /* userPt/wsbmBuffer  */
 };
 
 } // name space intel
