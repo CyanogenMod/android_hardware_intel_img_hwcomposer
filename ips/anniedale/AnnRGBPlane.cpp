@@ -169,9 +169,13 @@ bool AnnRGBPlane::setDataBuffer(BufferMapper& mapper)
     mContext.ctx.sp_ctx.index = mIndex;
     mContext.ctx.sp_ctx.pipe = mDevice;
     mContext.ctx.sp_ctx.cntr = spriteFormat | 0x80000000;
-    mContext.ctx.sp_ctx.cntr |= (0x1 << 23);
     mContext.ctx.sp_ctx.linoff = linoff;
     mContext.ctx.sp_ctx.stride = stride;
+
+    // turn off premultipled alpha blending for HWC_BLENDING_COVERAGE
+    if (mBlending == HWC_BLENDING_COVERAGE) {
+        mContext.ctx.sp_ctx.cntr |= (0x1 << 23);
+    }
 
     if (mapper.isCompression()) {
         mContext.ctx.sp_ctx.stride = align_to(srcW, 32) * 4;
@@ -302,8 +306,12 @@ void AnnRGBPlane::setFramebufferTarget(uint32_t handle)
     mContext.ctx.prim_ctx.surf = 0;
     mContext.ctx.prim_ctx.contalpa = planeAlpha;
     mContext.ctx.prim_ctx.cntr = PixelFormat::PLANE_PIXEL_FORMAT_BGRA8888;
-    mContext.ctx.prim_ctx.cntr |= (0x1 << 23);
     mContext.ctx.prim_ctx.cntr |= 0x80000000;
+
+    // turn off premultipled alpha blending for HWC_BLENDING_COVERAGE
+    if (mBlending == HWC_BLENDING_COVERAGE) {
+        mContext.ctx.prim_ctx.cntr |= (0x1 << 23);
+    }
 
     VTRACE("type = %d, index = %d, cntr = %#x, linoff = %#x, stride = %#x,"
           "surf = %#x, pos = %#x, size = %#x, contalpa = %#x", mType, mIndex,
