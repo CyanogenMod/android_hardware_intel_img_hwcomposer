@@ -419,8 +419,14 @@ void DisplayAnalyzer::handleHotplugEvent(bool connected)
 {
     if (connected) {
         Hwcomposer::getInstance().getPowerManager()->disableIdleControl();
-    } else if (mVideoStateMap.size() == 0) {
-        Hwcomposer::getInstance().getPowerManager()->enableIdleControl();
+    } else {
+        if (mVideoStateMap.size() == 0) {
+            Hwcomposer::getInstance().getPowerManager()->enableIdleControl();
+        } else if (mVideoStateMap.size() == 1) {
+            // Reset input state if HDMI is plug out to
+            // avoid entering extended mode immediately after HDMI is plug in
+            mActiveInputState = true;
+        }
     }
 }
 
