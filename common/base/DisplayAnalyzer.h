@@ -59,7 +59,7 @@ public:
     void postIdleEntryEvent();
     bool isPresentationLayer(hwc_layer_1_t &layer);
     bool isProtectedLayer(hwc_layer_1_t &layer);
-    int getFirstVideoInstanceSessionID();
+    int  getFirstVideoInstanceSessionID();
 
 private:
     enum DisplayEventType {

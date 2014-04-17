@@ -179,10 +179,18 @@ void DisplayAnalyzer::checkVideoExtMode()
     uint32_t videoHandle = 0;
     bool videoLayerExist = false;
     bool videoFullScreenOnPrimary = false;
+    bool videoLayerSkippedOnExtMode = false;
+
     // exclude the frame buffer target layer
     for (int j = 0; j < (int)content->numHwLayers - 1; j++) {
         videoLayerExist = isVideoLayer(content->hwLayers[j]);
         if (videoLayerExist) {
+            videoLayerSkippedOnExtMode = false;
+            if ((content->hwLayers[j].flags & HWC_SKIP_LAYER)) {
+                if (isVideoExtModeActive()) {
+                    videoLayerSkippedOnExtMode = true;
+                }
+            }
             videoHandle = (uint32_t)content->hwLayers[j].handle;
             videoFullScreenOnPrimary = isVideoFullScreen(0, content->hwLayers[j]);
             break;
@@ -207,7 +215,7 @@ void DisplayAnalyzer::checkVideoExtMode()
         for (int j = 0; j < (int)content->numHwLayers - 1; j++) {
             if ((uint32_t)content->hwLayers[j].handle == videoHandle) {
                 VTRACE("video layer exists in device %d", i);
-                if (videoFullScreenOnPrimary) {
+                if (videoFullScreenOnPrimary || videoLayerSkippedOnExtMode) {
                     mVideoExtModeEligible = true;
                 } else {
                     mVideoExtModeEligible = isVideoFullScreen(i, content->hwLayers[j]);
@@ -275,9 +283,16 @@ bool DisplayAnalyzer::isVideoFullScreen(int device, hwc_layer_1_t &layer)
     // Height of target display frame == height of target device, with 1 pixel of tolerance, or
     // width * height of display frame > 90% of width * height of display device, or
     // any of above condition is met on either primary display or secondary display
-
     int dstW = layer.displayFrame.right - layer.displayFrame.left;
     int dstH = layer.displayFrame.bottom - layer.displayFrame.top;
+    // If device is rotate, switch width and height;
+    if (layer.transform == HAL_TRANSFORM_ROT_90 ||
+            layer.transform == HAL_TRANSFORM_ROT_270) {
+        VTRACE("extended mode in rotate : %dx%d", dstW, dstH);
+        int temp = dstW;
+        dstW = dstH;
+        dstH = temp;
+    }
     if (dstW < width - 1 &&
         dstH < height - 1 &&
         dstW * dstH * 10 < width * height * 9) {
