@@ -473,8 +473,6 @@ bool Drm::isConnected(int device)
 
 bool Drm::setDpmsMode(int device, int mode)
 {
-    WTRACE("DPMS ignored");
-    return false;
     Mutex::Autolock _l(mLock);
 
     int output = getOutputIndex(device);
@@ -483,7 +481,8 @@ bool Drm::setDpmsMode(int device, int mode)
     }
 
     if (mode != IDisplayDevice::DEVICE_DISPLAY_OFF &&
-        mode != IDisplayDevice::DEVICE_DISPLAY_ON) {
+            mode != IDisplayDevice::DEVICE_DISPLAY_STANDBY &&
+            mode != IDisplayDevice::DEVICE_DISPLAY_ON) {
         ETRACE("invalid mode %d", mode);
         return false;
     }
@@ -506,7 +505,9 @@ bool Drm::setDpmsMode(int device, int mode)
                 mDrmFd,
                 out->connector->connector_id,
                 props->prop_id,
-                (mode == IDisplayDevice::DEVICE_DISPLAY_ON) ? DRM_MODE_DPMS_ON : DRM_MODE_DPMS_OFF);
+                (mode == IDisplayDevice::DEVICE_DISPLAY_ON) ? DRM_MODE_DPMS_ON :
+                        IDisplayDevice::DEVICE_DISPLAY_STANDBY == mode ?
+                        DRM_MODE_DPMS_STANDBY : DRM_MODE_DPMS_OFF);
             drmModeFreeProperty(props);
             if (ret != 0) {
                 ETRACE("unable to set DPMS %d", mode);
