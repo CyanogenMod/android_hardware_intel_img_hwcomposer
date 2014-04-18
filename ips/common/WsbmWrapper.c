@@ -384,7 +384,7 @@ uint32_t psbWsbmGetGttOffset(void * buf)
     VTRACE("buffer object %p", buf);
 
     uint32_t offset =
-        wsbmBOOffsetHint((struct _WsbmBufferObject *)buf) & 0x0fffffff;
+        wsbmBOOffsetHint((struct _WsbmBufferObject *)buf) - 0x10000000;
 
     VTRACE("offset %#x", offset >> 12);
 

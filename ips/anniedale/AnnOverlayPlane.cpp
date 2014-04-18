@@ -492,7 +492,7 @@ bool AnnOverlayPlane::bufferOffsetSetup(BufferMapper& mapper)
         vSurface = ySurface + yStride * align_to(h, 32);
         yTileOffsetX = srcX;
         yTileOffsetY = srcY;
-        uTileOffsetX = srcX / 2;
+        uTileOffsetX = srcX;
         uTileOffsetY = srcY / 2;
         vTileOffsetX = uTileOffsetX;
         vTileOffsetY = uTileOffsetY;
@@ -503,7 +503,7 @@ bool AnnOverlayPlane::bufferOffsetSetup(BufferMapper& mapper)
         vSurface = ySurface + yStride * align_to(h, 32);
         yTileOffsetX = srcX;
         yTileOffsetY = srcY;
-        uTileOffsetX = srcX / 2;
+        uTileOffsetX = srcX;
         uTileOffsetY = srcY / 2;
         vTileOffsetX = uTileOffsetX;
         vTileOffsetY = uTileOffsetY;
