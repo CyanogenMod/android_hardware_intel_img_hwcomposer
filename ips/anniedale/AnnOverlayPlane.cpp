@@ -429,6 +429,12 @@ bool AnnOverlayPlane::bufferOffsetSetup(BufferMapper& mapper)
     uint32_t uTileOffsetX, uTileOffsetY;
     uint32_t vTileOffsetX, vTileOffsetY;
 
+    // ANN overlay plane require offset align 64
+    if (srcX & 63) {
+        ETRACE("offset %d not align to 64", srcX);
+        return false;
+    }
+
     // clear original format setting
     backBuffer->OCMD &= ~(0xf << 10);
     backBuffer->OCMD &= ~OVERLAY_MEMORY_LAYOUT_TILED;
