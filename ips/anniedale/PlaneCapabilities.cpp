@@ -155,6 +155,8 @@ bool PlaneCapabilities::isBlendingSupported(int planeType, HwcLayer *hwcLayer)
         switch (blending) {
         case DisplayPlane::PLANE_BLENDING_NONE:
         case DisplayPlane::PLANE_BLENDING_PREMULT:
+        // add coverage alpha support for ann
+        case DisplayPlane::PLANE_BLENDING_COVERAGE:
             return true;
         default:
             VTRACE("unsupported blending %#x", blending);
