@@ -84,6 +84,13 @@ bool HwcLayerList::checkSupported(int planeType, HwcLayer *hwcLayer)
         return false;
     }
 
+    // check layer transform
+    valid = PlaneCapabilities::isTransformSupported(planeType, hwcLayer);
+    if (!valid) {
+        VTRACE("plane type %d: (bad transform)", planeType);
+        return false;
+    }
+
     // check buffer format
     valid = PlaneCapabilities::isFormatSupported(planeType, hwcLayer);
     if (!valid) {
