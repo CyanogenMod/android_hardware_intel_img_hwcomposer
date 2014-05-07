@@ -33,101 +33,47 @@
 #include <DisplayPlane.h>
 #include <BufferMapper.h>
 #include <common/Wsbm.h>
-#include <common/OverlayHardware.h>
-#include <common/VideoPayloadBuffer.h>
+#include <common/OverlayPlaneBase.h>
+#include <common/RotationBufferProvider.h>
 
 namespace android {
 namespace intel {
 
-typedef struct {
-    OverlayBackBufferBlk *buf;
-    uint32_t gttOffsetInPage;
-    uint32_t bufObject;
-} OverlayBackBuffer;
-
-class AnnOverlayPlane : public DisplayPlane {
+class AnnOverlayPlane : public OverlayPlaneBase {
 public:
     AnnOverlayPlane(int index, int disp);
     virtual ~AnnOverlayPlane();
 
-    virtual bool setDataBuffer(uint32_t handle);
-
-    virtual void invalidateBufferCache();
-
     virtual void setTransform(int transform);
-    virtual bool assignToDevice(int disp);
-
     virtual void setZOrderConfig(ZOrderConfig& config, void *nativeConfig);
-    virtual void setSourceCrop(int x, int y, int w, int h);
 
     // plane operations
-    virtual bool flip(void *ctx) ;
+    virtual bool flip(void *ctx);
     virtual bool reset();
     virtual bool enable();
     virtual bool disable();
-    virtual bool isDisabled();
     virtual void postFlip();
-
     virtual void* getContext() const;
     virtual bool initialize(uint32_t bufferCount);
     virtual void deinitialize();
+    virtual bool rotatedBufferReady(BufferMapper& mapper, BufferMapper* &rotatedMapper);
+    virtual bool useOverlayRotation(BufferMapper& mapper);
 
 protected:
-    // generic overlay register flush
-    virtual bool flush(uint32_t flags);
-    virtual bool isFlushed();
     virtual bool setDataBuffer(BufferMapper& mapper);
+    virtual bool flush(uint32_t flags);
     virtual bool bufferOffsetSetup(BufferMapper& mapper);
-    virtual uint32_t calculateSWidthSW(uint32_t offset, uint32_t width);
-    virtual bool coordinateSetup(BufferMapper& mapper);
-    virtual bool setCoeffRegs(double *coeff, int mantSize,
-                                 coeffPtr pCoeff, int pos);
-    virtual void updateCoeff(int taps, double fCutoff,
-                                bool isHoriz, bool isY,
-                                coeffPtr pCoeff);
     virtual bool scalingSetup(BufferMapper& mapper);
-    virtual void checkPosition(int& x, int& y, int& w, int& h);
 
-protected:
-    // back buffer operations
-    virtual OverlayBackBuffer* createBackBuffer();
-    virtual void deleteBackBuffer(int buf);
     virtual void resetBackBuffer(int buf);
-protected:
-    // flush flags
-    enum {
-        PLANE_ENABLE     = 0x00000001UL,
-        PLANE_DISABLE    = 0x00000002UL,
-        UPDATE_COEF      = 0x00000004UL,
-    };
 
-    enum {
-        OVERLAY_BACK_BUFFER_COUNT = 3,
-        OVERLAY_DATA_BUFFER_COUNT = 30,
-    };
-
-    // overlay back buffer
-    OverlayBackBuffer *mBackBuffer[OVERLAY_BACK_BUFFER_COUNT];
-    int mCurrent;
-
-    // wsbm
-    Wsbm *mWsbm;
-    // pipe config
-    uint32_t mPipeConfig;
-
-    // variables for asynchronous overlay disabling
-    enum {
-        // maximum wait count before aborting overlay disabling
-        OVERLAY_DISABLING_COUNT_MAX = 60,
-    };
-    bool mDisablePending;
-    bool mDisablePendingDevice;
-    int mDisablePendingCount;
+    RotationBufferProvider *mRotationBufProvider;
 
     // rotation config
     uint32_t mRotationConfig;
     // z order config
     uint32_t mZOrderConfig;
+    bool mUseOverlayRotation;
     // hardware context
     struct intel_dc_plane_ctx mContext;
 };

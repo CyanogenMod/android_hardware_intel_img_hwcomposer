@@ -57,21 +57,6 @@ class ZOrderConfig;
 
 class DisplayPlane {
 public:
-    // transform
-    enum {
-        PLANE_TRANSFORM_0 = 0,
-        PLANE_TRANSFORM_90 = HWC_TRANSFORM_ROT_90,
-        PLANE_TRANSFORM_180 = HWC_TRANSFORM_ROT_180,
-        PLANE_TRANSFORM_270 = HWC_TRANSFORM_ROT_270,
-    };
-
-    // blending
-    enum {
-        PLANE_BLENDING_NONE = HWC_BLENDING_NONE,
-        PLANE_BLENDING_PREMULT = HWC_BLENDING_PREMULT,
-        PLANE_BLENDING_COVERAGE = HWC_BLENDING_COVERAGE,
-    };
-
     // plane type
     enum {
         PLANE_SPRITE = 0,

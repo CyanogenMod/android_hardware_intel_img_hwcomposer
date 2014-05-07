@@ -261,7 +261,7 @@ bool HwcLayer::update(hwc_layer_1_t *layer)
         if (ret == true) {
             return true;
         }
-        WTRACE("failed to set data buffer,reset handle to 0!!");
+        DTRACE("failed to set data buffer, reset handle to 0!!");
         mHandle = 0;
         if (!mIsProtected) {
             // typical case: rotated buffer is not ready or handle is null
@@ -295,8 +295,8 @@ void HwcLayer::postFlip()
         if (mDevice == IDisplayDevice::DEVICE_PRIMARY &&
             mType == LAYER_FRAMEBUFFER_TARGET &&
             (Hwcomposer::getInstance().getDisplayAnalyzer()->isVideoExtModeActive() ||
-             Hwcomposer::getInstance().getPowerManager()->getIdleReady())) {
-            ITRACE("Skipping frame buffer target...");
+            Hwcomposer::getInstance().getPowerManager()->getIdleReady())) {
+            DTRACE("Skipping frame buffer target...");
             mType = LAYER_SKIPPED;
         }
     }

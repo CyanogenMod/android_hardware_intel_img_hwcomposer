@@ -71,6 +71,7 @@ bool PlaneCapabilities::isFormatSupported(int planeType, HwcLayer *hwcLayer)
             }
             return trans ? false : true;
         case HAL_PIXEL_FORMAT_YV12:
+            return trans ? false: true;
         case HAL_PIXEL_FORMAT_NV12:
         case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:
         case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled:
@@ -155,9 +156,9 @@ bool PlaneCapabilities::isBlendingSupported(int planeType, HwcLayer *hwcLayer)
 
         // support premultipled & none blanding
         switch (blending) {
-        case DisplayPlane::PLANE_BLENDING_NONE:
+        case HWC_BLENDING_NONE:
             return true;
-        case DisplayPlane::PLANE_BLENDING_PREMULT:
+        case HWC_BLENDING_PREMULT:
             ret = false;
             if ((planeAlpha == 0) || (planeAlpha == 255)) {
                 ret = true;
@@ -169,7 +170,7 @@ bool PlaneCapabilities::isBlendingSupported(int planeType, HwcLayer *hwcLayer)
         }
     } else if (planeType == DisplayPlane::PLANE_OVERLAY) {
         // overlay doesn't support blending
-        return (blending == DisplayPlane::PLANE_BLENDING_NONE) ? true : false;
+        return (blending == HWC_BLENDING_NONE) ? true : false;
     } else {
         ETRACE("invalid plane type %d", planeType);
         return false;

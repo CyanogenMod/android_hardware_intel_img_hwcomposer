@@ -631,21 +631,13 @@ void DisplayAnalyzer::handleDpmsEvent(int delayCount)
         return;
     }
 
-    /* FIXME: We workaround on Saltbay because touch panel share the power
-     * supply with LCD. So all we can do is to dim backlight to save power.
-     * We can move the logic into kernel in future. */
-    ETRACE("primary display coupled with touch on Saltbay, only dim backlight");
+    // panel can't be powered off as touch panel shares the power supply with LCD.
+    DTRACE("primary display coupled with touch on Saltbay, only dim backlight");
     Hwcomposer::getInstance().getDrm()->setDpmsMode(
                IDisplayDevice::DEVICE_PRIMARY,
                IDisplayDevice::DEVICE_DISPLAY_STANDBY);
+               //IDisplayDevice::DEVICE_DISPLAY_OFF);
     return;
-
-/*
-    ITRACE("powering off primary display...");
-    Hwcomposer::getInstance().getDrm()->setDpmsMode(
-        IDisplayDevice::DEVICE_PRIMARY,
-        IDisplayDevice::DEVICE_DISPLAY_OFF);
-*/
 }
 
 

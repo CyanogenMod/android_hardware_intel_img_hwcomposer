@@ -53,11 +53,12 @@ public:
 
     bool initialize();
     void deinitialize();
+    void reset();
     bool setupRotationBuffer(VideoPayloadBuffer *payload, int transform);
     bool prepareBufferInfo(int, int, int, VideoPayloadBuffer *, void *);
-    void invalidateCaches();
 
 private:
+    void invalidateCaches();
     bool startVA(VideoPayloadBuffer *payload, int transform);
     void stopVA();
     bool isContextChanged(int width, int height, int transform);

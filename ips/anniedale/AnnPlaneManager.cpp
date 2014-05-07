@@ -171,7 +171,7 @@ bool AnnPlaneManager::isValidZOrder(int dsp, ZOrderConfig& config)
     int size = (int)config.size();
 
     if (size == 0 || size > 4) {
-        DTRACE("invalid z order config size %d", size);
+        VTRACE("invalid z order config size %d", size);
         return false;
     }
 
@@ -185,7 +185,7 @@ bool AnnPlaneManager::isValidZOrder(int dsp, ZOrderConfig& config)
         }
 #ifdef OVERLAY_HW_WORKAROUND
         if (firstOverlay == 0 && size > 3) {
-            WTRACE("not capable to support 3 sprite layers on top of overlay");
+            VTRACE("not capable to support 3 sprite layers on top of overlay");
             return false;
         }
 #endif
@@ -290,7 +290,7 @@ bool AnnPlaneManager::assignPlanes(int dsp, ZOrderConfig& config, const char *zo
 
         if  (desc.type == DisplayPlane::PLANE_OVERLAY && desc.index == 1 &&
              config[i]->hwcLayer->getTransform() != 0) {
-            ITRACE("overlay C does not support transform");
+            DTRACE("overlay C does not support transform");
             return false;
         }
     }

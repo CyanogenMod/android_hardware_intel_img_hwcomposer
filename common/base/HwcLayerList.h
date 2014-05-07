@@ -60,8 +60,7 @@ public:
 
 private:
     bool checkSupported(int planeType, HwcLayer *hwcLayer);
-    bool allocatePlanesV1();
-    bool allocatePlanesV2();
+    bool allocatePlanes();
     bool assignOverlayPlanes();
     bool assignOverlayPlanes(int index, int planeNumber);
     bool assignSpritePlanes();
