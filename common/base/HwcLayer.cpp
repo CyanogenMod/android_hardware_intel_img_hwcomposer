@@ -143,11 +143,11 @@ void HwcLayer::setType(uint32_t type)
     // NOTE: set compositionType to HWC_FRAMEBUFFER here so that we have
     // a chance to submit the primary changes to HW.
     // Upper layer HWComposer will reset the compositionType automatically.
-    case LAYER_FRAMEBUFFER_TARGET:
     case LAYER_FB:
     case LAYER_FORCE_FB:
-    default:
         mLayer->compositionType = HWC_FRAMEBUFFER;
+        break;
+    default:
         break;
     }
 
