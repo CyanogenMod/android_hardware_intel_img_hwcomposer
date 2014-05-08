@@ -81,11 +81,12 @@ public:
     };
 
     enum {
-        // align with android's back buffer count
+        // one more than android's back buffer count to allow more space
+        // to do map/unmap, as plane reallocation may unmap on-screen layer.
         // each plane will cache the latest MIN_DATA_BUFFER_COUNT buffers
         // in case that these buffers are still in-using by display device
         // other buffers will be released on cache invalidation
-        MIN_DATA_BUFFER_COUNT = 3,
+        MIN_DATA_BUFFER_COUNT = 4,
     };
 
 protected:
