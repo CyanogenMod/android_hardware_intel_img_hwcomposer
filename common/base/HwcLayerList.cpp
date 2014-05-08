@@ -184,6 +184,16 @@ bool HwcLayerList::initialize()
         return false;
     }
 
+    // If has layer besides of FB_Target, but no FBLayers, skip plane allocation
+    // Note: There is case that SF passes down a layerlist with only FB_Target
+    // layer; we need to have this FB_Target to be flipped as well, otherwise it
+    // will have the buffer queue blocked. (The buffer hold by driver cannot be
+    // released if new buffers' flip is skipped).
+    if ((mFBLayers.size() == 0) && (mLayers.size() > 1)) {
+        VTRACE("no FB layers, skip plane allocation");
+        return true;
+    }
+
     allocatePlanes();
 
     //dump();
