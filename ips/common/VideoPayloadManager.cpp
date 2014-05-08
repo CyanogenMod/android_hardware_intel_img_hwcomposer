@@ -60,6 +60,13 @@ bool VideoPayloadManager::getMetaData(BufferMapper *mapper, MetaData *metadata)
     metadata->format = p->format;
     metadata->transform = p->metadata_transform;
     metadata->timestamp = p->timestamp;
+    metadata->scaling_khandle = p->scaling_khandle;
+    metadata->scaling_width = p->scaling_width;
+    metadata->scaling_height = p->scaling_height;
+
+    metadata->scaling_luma_stride = p->scaling_luma_stride;
+    metadata->scaling_chroma_u_stride = p->scaling_chroma_u_stride;
+    metadata->scaling_chroma_v_stride = p->scaling_chroma_v_stride;
 
     if (p->metadata_transform == 0) {
         metadata->width = p->width;
@@ -76,6 +83,11 @@ bool VideoPayloadManager::getMetaData(BufferMapper *mapper, MetaData *metadata)
         metadata->chromaVStride = p->rotate_chroma_v_stride;
         metadata->kHandle = p->rotated_buffer_handle;
     }
+    if (metadata->scaling_khandle)
+        VTRACE("Scaled video buffer, %dx%d",
+                metadata->scaling_width, metadata->scaling_height);
+    if (metadata->transform != 0)
+        VTRACE("Rotated video buffer, %dx%d", metadata->width, metadata->height);
 
     if ((p->metadata_transform == 0) || (p->metadata_transform == HAL_TRANSFORM_ROT_180)) {
         metadata->crop_width = p->crop_width;

@@ -114,6 +114,7 @@ protected:
     FrameInfo mLastOutputFrameInfo;
 
     int32_t mVideoFramerate;
+    bool mDScalingEnabled;
 
     android::KeyedVector<uint32_t, android::sp<CachedBuffer> > mMappedBufferCache;
     android::Mutex mHeldBuffersLock;
@@ -128,6 +129,8 @@ private:
     void copyVideo(buffer_handle_t videoHandle, uint8_t* destPtr, uint32_t destWidth, uint32_t destHeight);
     bool vanillaPrepare(hwc_display_contents_1_t *display);
     bool vanillaCommit(hwc_display_contents_1_t *display);
+    status_t setDownScaling(int width, int height,
+            int offX, int offY, int bufWidth, int bufHeight);
 
 public:
     VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm);
