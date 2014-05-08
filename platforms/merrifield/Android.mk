@@ -93,6 +93,8 @@ LOCAL_C_INCLUDES := $(addprefix $(LOCAL_PATH)/../../../, $(SGX_INCLUDES)) \
     $(call include-path-for, libhardware_legacy)/hardware_legacy \
     vendor/intel/hardware/PRIVATE/rgx/rogue/android/graphicshal \
     vendor/intel/hardware/PRIVATE/rgx/rogue/include/ \
+    prebuilts/intel/vendor/intel/hardware/prebuilts/$(REF_DEVICE_NAME)/rgx \
+    prebuilts/intel/vendor/intel/hardware/prebuilts/$(REF_DEVICE_NAME)/rgx/include \
     vendor/intel/hardware/PRIVATE/widi/libhwcwidi/ \
     $(TARGET_OUT_HEADERS)/drm \
     $(TARGET_OUT_HEADERS)/libdrm \
