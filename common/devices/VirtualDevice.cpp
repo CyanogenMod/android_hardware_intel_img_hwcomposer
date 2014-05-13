@@ -182,8 +182,12 @@ bool VirtualDevice::threadLoop()
             result = UNKNOWN_ERROR;
         mCancelOnFrameReady = false;
     }
-    if (result == OK)
-        result = mCurrentConfig.frameListener->onFrameReady((int32_t)destHandle, HWC_HANDLE_TYPE_GRALLOC, renderTimestamp, -1);
+    if (result == OK) {
+        if (mAsyncFrameListener != NULL)
+            result = mAsyncFrameListener->onFrameReady((int32_t)destHandle, HWC_HANDLE_TYPE_GRALLOC, renderTimestamp, -1);
+        else
+            result = UNKNOWN_ERROR;
+    }
     if (result != OK) {
         Mutex::Autolock _l(mHeldBuffersLock);
         mHeldBuffers.removeItem(destHandle);
@@ -191,6 +195,7 @@ bool VirtualDevice::threadLoop()
     {
         Mutex::Autolock _l(mCscLock);
         mDoOnFrameReady = false;
+        mAsyncFrameListener = NULL;
         mRequestProcessed.signal();
     }
 
@@ -215,6 +220,7 @@ status_t VirtualDevice::start(sp<IFrameTypeChangeListener> typeChangeListener)
     mVideoFramerate = 0;
     mFirstVideoFrame = true;
     mNextConfig.frameServerActive = true;
+    mNextConfig.frameListener = NULL;
     mNextConfig.forceNotifyFrameType = true;
     mNextConfig.forceNotifyBufferInfo = true;
     char prop[PROPERTY_VALUE_MAX];
@@ -712,6 +718,7 @@ bool VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
     if (mCurrentConfig.policy.scaledWidth == 0 || mCurrentConfig.policy.scaledHeight == 0) {
         Mutex::Autolock _l(mCscLock);
         mDoOnFrameReady = true;
+        mAsyncFrameListener = mCurrentConfig.frameListener;
         mCancelOnFrameReady = true;
         mRequestQueued.signal();
         return false;
@@ -746,10 +753,14 @@ bool VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
         Mutex::Autolock _l(mCscLock);
         mFrameReadyRenderTs = mRenderTimestamp;
         mDoOnFrameReady = true;
+        mAsyncFrameListener = mCurrentConfig.frameListener;
         mRequestQueued.signal();
     }
     else {
-        status_t result = mCurrentConfig.frameListener->onFrameReady((int32_t)handle, handleType, mRenderTimestamp, mediaTimestamp);
+        status_t result = UNKNOWN_ERROR;
+        if (mCurrentConfig.frameListener != NULL)
+            result = mCurrentConfig.frameListener->onFrameReady((int32_t)handle, handleType, mRenderTimestamp, mediaTimestamp);
+
         if (result != OK) {
             Mutex::Autolock _l(mHeldBuffersLock);
             mHeldBuffers.removeItem(handle);
