@@ -477,6 +477,7 @@ bool HwcLayerList::attachPlanes()
         ZOrderLayer *zlayer = mZOrderConfig.itemAt(i);
         if (zlayer->plane == NULL || zlayer->hwcLayer == NULL) {
             ETRACE("invalid ZOrderLayer, should never happen!!");
+            return false;
         }
 
         zlayer->plane->setZOrder(i);
