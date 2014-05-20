@@ -132,6 +132,7 @@ private:
     bool vanillaCommit(hwc_display_contents_1_t *display);
     status_t setDownScaling(int width, int height,
             int offX, int offY, int bufWidth, int bufHeight);
+    void colorSwap(buffer_handle_t src, buffer_handle_t dest, uint32_t pixelCount);
 
 public:
     VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm);
