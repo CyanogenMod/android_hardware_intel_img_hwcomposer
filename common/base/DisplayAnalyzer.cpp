@@ -619,6 +619,7 @@ void DisplayAnalyzer::handleDpmsEvent(int delayCount)
         e.type = DPMS_EVENT;
         e.nValue = delayCount + 1;
         postEvent(e);
+        Hwcomposer::getInstance().invalidate();
         return;
     }
 
@@ -716,6 +717,7 @@ void DisplayAnalyzer::enterVideoExtMode()
     e.type = DPMS_EVENT;
     e.nValue = 0;
     postEvent(e);
+    Hwcomposer::getInstance().invalidate();
 }
 
 void DisplayAnalyzer::exitVideoExtMode()
