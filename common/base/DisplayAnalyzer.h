@@ -126,7 +126,7 @@ private:
         DELAY_BEFORE_IDLE_ENTRY = 2,
 
         // number of flips before display can be powered off in video extended mode
-        DELAY_BEFORE_DPMS_OFF = 10,
+        DELAY_BEFORE_DPMS_OFF = 0,
     };
 
 private:
