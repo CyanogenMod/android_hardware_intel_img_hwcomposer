@@ -23,7 +23,7 @@ LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_SHARED_LIBRARIES := liblog libcutils libdrm \
                           libwsbm libutils libhardware \
                           libva libva-tpi libva-android \
-                          libhwcwidi libbinder
+                          libhwcwidi libbinder libsync
 LOCAL_SRC_FILES := \
     ../../common/base/Drm.cpp \
     ../../common/base/HwcLayer.cpp \

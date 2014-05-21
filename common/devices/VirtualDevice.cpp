@@ -30,16 +30,18 @@
 #include <DisplayPlaneManager.h>
 #include <DisplayQuery.h>
 #include <VirtualDevice.h>
-#include <IVideoPayloadManager.h>
 #include <SoftVsyncObserver.h>
 
 #include <binder/IServiceManager.h>
 #include <binder/ProcessState.h>
-#include <cutils/properties.h>
 
 #include <hal_public.h>
-
+#include <sync/sw_sync.h>
 #include <sync/sync.h>
+
+#include <va/va_android.h>
+#include <va/va_vpp.h>
+#include <va/va_tpi.h>
 
 #define NUM_CSC_BUFFERS 6
 
@@ -49,9 +51,152 @@
 namespace android {
 namespace intel {
 
+static const bool VSP_FOR_CLEAR_VIDEO = false; // debug feature
+
+class MappedSurface {
+public:
+    MappedSurface(VADisplay dpy, VASurfaceID surf)
+        : va_dpy(dpy),
+          ptr(NULL)
+    {
+        VAStatus va_status;
+        va_status = vaDeriveImage(va_dpy, surf, &image);
+        if (va_status != VA_STATUS_SUCCESS) {
+            ETRACE("vaDeriveImage returns %08x", va_status);
+            return;
+        }
+        va_status = vaMapBuffer(va_dpy, image.buf, (void**)&ptr);
+        if (va_status != VA_STATUS_SUCCESS) {
+            ETRACE("vaMapBuffer returns %08x", va_status);
+            vaDestroyImage(va_dpy, image.image_id);
+            return;
+        }
+    }
+    ~MappedSurface() {
+        if (ptr == NULL)
+            return;
+
+        VAStatus va_status;
+
+        va_status = vaUnmapBuffer(va_dpy, image.buf);
+        if (va_status != VA_STATUS_SUCCESS) ETRACE("vaUnmapBuffer returns %08x", va_status);
+
+        va_status = vaDestroyImage(va_dpy, image.image_id);
+        if (va_status != VA_STATUS_SUCCESS) ETRACE("vaDestroyImage returns %08x", va_status);
+    }
+    bool valid() { return ptr != NULL; }
+    uint8_t* getPtr() { return ptr; }
+private:
+    VADisplay va_dpy;
+    VAImage image;
+    uint8_t* ptr;
+};
+
+class VirtualDevice::VAMappedHandle {
+public:
+    VAMappedHandle(VADisplay dpy, buffer_handle_t handle, uint32_t stride, uint32_t height, bool rgb)
+        : va_dpy(dpy),
+          surface(0)
+    {
+        int format;
+        VASurfaceAttributeTPI attribTpi;
+        memset(&attribTpi, 0, sizeof(attribTpi));
+        VTRACE("Map gralloc %p size=%ux%u", handle, stride, height);
+        attribTpi.type = VAExternalMemoryAndroidGrallocBuffer;
+        attribTpi.width = stride;
+        attribTpi.height = height;
+        if (rgb) {
+            attribTpi.size = stride*height*4;
+            attribTpi.pixel_format = VA_FOURCC_RGBA;
+            attribTpi.luma_stride = stride;
+            attribTpi.chroma_u_stride = 0;
+            attribTpi.chroma_v_stride = 0;
+            attribTpi.luma_offset = 0;
+            attribTpi.chroma_u_offset = 0;
+            attribTpi.chroma_v_offset = 0;
+            format = VA_RT_FORMAT_RGB32;
+        }
+        else {
+            attribTpi.size = stride*height*3/2;
+            attribTpi.pixel_format = VA_FOURCC_NV12;
+            attribTpi.luma_stride = stride;
+            attribTpi.chroma_u_stride = stride;
+            attribTpi.chroma_v_stride = stride;
+            attribTpi.luma_offset = 0;
+            attribTpi.chroma_u_offset = stride*height;
+            attribTpi.chroma_v_offset = stride*height+1;
+            format = VA_RT_FORMAT_YUV420;
+        }
+        attribTpi.count = 1;
+        attribTpi.buffers = (long unsigned int*) &handle;
+
+        VAStatus va_status;
+        va_status = vaCreateSurfacesWithAttribute(va_dpy,
+                    stride,
+                    height,
+                    format,
+                    1,
+                    &surface,
+                    &attribTpi);
+        if (va_status != VA_STATUS_SUCCESS) {
+            ETRACE("vaCreateSurfacesWithAttribute returns %08x, surface = %x", va_status, surface);
+            surface = 0;
+        }
+    }
+    VAMappedHandle(VADisplay dpy, uint32_t khandle, uint32_t stride, uint32_t height)
+        : va_dpy(dpy),
+          surface(0)
+    {
+        int format;
+        VASurfaceAttributeTPI attribTpi;
+        memset(&attribTpi, 0, sizeof(attribTpi));
+        VTRACE("Map khandle 0x%x size=%ux%u", khandle, stride, height);
+        attribTpi.type = VAExternalMemoryKernelDRMBufffer;
+        attribTpi.width = stride;
+        attribTpi.height = height;
+        attribTpi.size = stride*height*3/2;
+        attribTpi.pixel_format = VA_FOURCC_NV12;
+        attribTpi.luma_stride = stride;
+        attribTpi.chroma_u_stride = stride;
+        attribTpi.chroma_v_stride = stride;
+        attribTpi.luma_offset = 0;
+        attribTpi.chroma_u_offset = stride*height;
+        attribTpi.chroma_v_offset = stride*height+1;
+        format = VA_RT_FORMAT_YUV420;
+        attribTpi.count = 1;
+        attribTpi.buffers = (long unsigned int*) &khandle;
+
+        VAStatus va_status;
+        va_status = vaCreateSurfacesWithAttribute(va_dpy,
+                    stride,
+                    height,
+                    format,
+                    1,
+                    &surface,
+                    &attribTpi);
+        if (va_status != VA_STATUS_SUCCESS) {
+            ETRACE("vaCreateSurfacesWithAttribute returns %08x", va_status);
+            surface = 0;
+        }
+    }
+    ~VAMappedHandle()
+    {
+        if (surface == 0)
+            return;
+        VAStatus va_status;
+        va_status = vaDestroySurfaces(va_dpy, &surface, 1);
+        if (va_status != VA_STATUS_SUCCESS) ETRACE("vaDestroySurfaces returns %08x", va_status);
+    }
+private:
+    VADisplay va_dpy;
+public:
+    VASurfaceID surface;
+};
+
 VirtualDevice::CachedBuffer::CachedBuffer(BufferManager *mgr, uint32_t handle)
     : manager(mgr),
-      mapper(NULL)
+      mapper(NULL),
+      vaMappedHandle(NULL)
 {
     DataBuffer *buffer = manager->lockDataBuffer(handle);
     mapper = manager->map(*buffer);
@@ -60,6 +205,8 @@ VirtualDevice::CachedBuffer::CachedBuffer(BufferManager *mgr, uint32_t handle)
 
 VirtualDevice::CachedBuffer::~CachedBuffer()
 {
+    if (vaMappedHandle != NULL)
+        delete vaMappedHandle;
     manager->unmap(mapper);
 }
 
@@ -103,11 +250,218 @@ VirtualDevice::HeldDecoderBuffer::~HeldDecoderBuffer()
     }
 }
 
+struct VirtualDevice::Task : public RefBase {
+    virtual void run(VirtualDevice& vd) = 0;
+    virtual ~Task() {}
+};
+
+struct VirtualDevice::RenderTask : public VirtualDevice::Task {
+    RenderTask() : successful(false) { }
+    virtual void run(VirtualDevice& vd) = 0;
+    bool successful;
+};
+
+struct VirtualDevice::ComposeTask : public VirtualDevice::RenderTask {
+    virtual void run(VirtualDevice& vd) {
+        VASurfaceID videoInSurface;
+
+        if (vd.va_context == 0 || vd.va_video_in == 0)
+            vd.vspEnable(outWidth, outHeight);
+
+        uint32_t videoKhandle;
+        uint32_t videoWidth;
+        uint32_t videoHeight;
+        uint32_t videoStride;
+        uint32_t videoBufHeight;
+
+        if (videoMetadata.scaling_khandle != 0) {
+            videoKhandle = videoMetadata.scaling_khandle;
+            videoWidth = videoMetadata.scaling_width;
+            videoHeight = videoMetadata.scaling_height;
+            videoStride = videoMetadata.scaling_luma_stride;
+            videoBufHeight = (videoHeight+0x1f) & ~0x1f;
+        }
+        else {
+            videoKhandle = videoMetadata.kHandle;
+            videoWidth = videoMetadata.crop_width;
+            videoHeight = videoMetadata.crop_height;
+            videoStride = videoMetadata.lumaStride;
+            videoBufHeight = videoMetadata.height;
+        }
+
+        if (displayFrame.left == 0 && displayFrame.top == 0 &&
+            displayFrame.right == outWidth && displayFrame.bottom == outHeight &&
+            videoStride == (uint32_t)outWidth && videoHeight == (uint32_t)outHeight) {
+            // direct use is possible
+            if (videoCachedBuffer->vaMappedHandle == NULL) {
+                videoCachedBuffer->vaMappedHandle = new VAMappedHandle(vd.va_dpy, videoKhandle, videoStride, videoBufHeight);
+            }
+            videoInSurface = videoCachedBuffer->vaMappedHandle->surface;
+        }
+        else {
+            // must copy video into the displayFrame rect of a blank buffer
+            // with the same dimensions as the RGB buffer
+            {
+                VAMappedHandle originalInputVideoHandle(vd.va_dpy, videoKhandle, videoStride, videoBufHeight);
+                MappedSurface origianlInputVideoSurface(vd.va_dpy, originalInputVideoHandle.surface);
+                uint8_t* srcPtr = origianlInputVideoSurface.getPtr();
+                if (srcPtr == NULL) {
+                    ETRACE("Couldn't map input video");
+                    return;
+                }
+                MappedSurface tmpInputVideoHandle(vd.va_dpy, vd.va_video_in);
+                uint8_t* destPtr = tmpInputVideoHandle.getPtr();
+                if (destPtr == NULL) {
+                    ETRACE("Couldn't map temp video surface");
+                    return;
+                }
+                vd.copyVideo(srcPtr, videoWidth, videoBufHeight, videoStride,
+                             destPtr, outWidth, outHeight,
+                             displayFrame.left, displayFrame.top,
+                             displayFrame.right - displayFrame.left, displayFrame.bottom - displayFrame.top);
+            }
+            vaSyncSurface(vd.va_dpy, vd.va_video_in);
+            videoInSurface = vd.va_video_in;
+        }
+        if (videoInSurface == 0) {
+            ETRACE("Couldn't map video");
+            return;
+        }
+        VTRACE("handle=%p khandle=%x va_surface=%x size=%ux%u crop=%ux%u",
+              videoHandle, videoMetadata.kHandle, videoInSurface,
+              videoMetadata.lumaStride, videoMetadata.height,
+              videoMetadata.crop_width, videoMetadata.crop_height);
+        VTRACE("scaling_khandle=%x size=%ux%u crop=%ux%u",
+              videoMetadata.scaling_khandle,
+              videoMetadata.scaling_luma_stride, videoMetadata.scaling_height,
+              videoMetadata.scaling_width, videoMetadata.scaling_height);
+        if (rgbAcquireFenceFd != -1) {
+            sync_wait(rgbAcquireFenceFd, 100);
+            close(rgbAcquireFenceFd);
+        }
+        VAMappedHandle mappedRgbIn(vd.va_dpy, rgbHandle, outWidth, outHeight, true);
+        if (mappedRgbIn.surface == 0) {
+            ETRACE("Unable to map RGB surface");
+            return;
+        }
+        VAMappedHandle mappedVideoOut(vd.va_dpy, outputHandle, outWidth, outHeight, false);
+        if (mappedVideoOut.surface == 0) {
+            ETRACE("Unable to map outbuf");
+            return;
+        }
+
+        vd.vspCompose(videoInSurface, mappedRgbIn.surface, mappedVideoOut.surface);
+        successful = true;
+    }
+    virtual ~ComposeTask() {
+        if (syncTimelineFd != -1) {
+            int err = sw_sync_timeline_inc(syncTimelineFd, 1);
+            if (err < 0)
+                ETRACE("Sync increment failed: %d", err);
+        }
+    }
+    buffer_handle_t videoHandle;
+    hwc_rect_t displayFrame;
+    buffer_handle_t rgbHandle;
+    buffer_handle_t outputHandle;
+    int32_t outWidth;
+    int32_t outHeight;
+    sp<CachedBuffer> videoCachedBuffer;
+    sp<RefBase> heldVideoBuffer;
+    IVideoPayloadManager::MetaData videoMetadata;
+    int rgbAcquireFenceFd;
+    int syncTimelineFd;
+};
+
+struct VirtualDevice::DisableVspTask : public VirtualDevice::Task {
+    virtual void run(VirtualDevice& vd) {
+        vd.vspDisable();
+    }
+};
+
+struct VirtualDevice::BlitTask : public VirtualDevice::RenderTask {
+    virtual void run(VirtualDevice& vd) {
+        const IMG_native_handle_t* nativeSrcHandle = reinterpret_cast<const IMG_native_handle_t*>(srcHandle);
+        const IMG_native_handle_t* nativeDestHandle = reinterpret_cast<const IMG_native_handle_t*>(destHandle);
+        if ((nativeSrcHandle->iFormat == HAL_PIXEL_FORMAT_RGBA_8888 &&
+            nativeDestHandle->iFormat == HAL_PIXEL_FORMAT_BGRA_8888) ||
+            (nativeSrcHandle->iFormat == HAL_PIXEL_FORMAT_BGRA_8888 &&
+            nativeDestHandle->iFormat == HAL_PIXEL_FORMAT_RGBA_8888)) {
+            vd.colorSwap(srcHandle, destHandle, nativeSrcHandle->iWidth*nativeSrcHandle->iHeight);
+        } else {
+            BufferManager* mgr = vd.mHwc.getBufferManager();
+            if (!(mgr->convertRGBToNV12((uint32_t)srcHandle, (uint32_t)destHandle, cropInfo, 0))) {
+                ETRACE("color space conversion from RGB to NV12 failed");
+            }
+            else
+                successful = true;
+        }
+        if (syncTimelineFd != -1) {
+            int err = sw_sync_timeline_inc(syncTimelineFd, 1);
+            if (err < 0)
+                ETRACE("Sync increment failed: %d", err);
+        }
+    }
+    buffer_handle_t srcHandle;
+    buffer_handle_t destHandle;
+    int acquireFenceFd;
+    int syncTimelineFd;
+    crop_t cropInfo;
+};
+
+struct VirtualDevice::FrameTypeChangedTask : public VirtualDevice::Task {
+    virtual void run(VirtualDevice& vd) {
+        typeChangeListener->frameTypeChanged(inputFrameInfo);
+        ITRACE("Notify frameTypeChanged: %dx%d in %dx%d @ %d fps",
+            inputFrameInfo.contentWidth, inputFrameInfo.contentHeight,
+            inputFrameInfo.bufferWidth, inputFrameInfo.bufferHeight,
+            inputFrameInfo.contentFrameRateN);
+    }
+    sp<IFrameTypeChangeListener> typeChangeListener;
+    FrameInfo inputFrameInfo;
+};
+
+struct VirtualDevice::BufferInfoChangedTask : public VirtualDevice::Task {
+    virtual void run(VirtualDevice& vd) {
+        typeChangeListener->bufferInfoChanged(outputFrameInfo);
+        ITRACE("Notify bufferInfoChanged: %dx%d in %dx%d @ %d fps",
+            outputFrameInfo.contentWidth, outputFrameInfo.contentHeight,
+            outputFrameInfo.bufferWidth, outputFrameInfo.bufferHeight,
+            outputFrameInfo.contentFrameRateN);
+    }
+    sp<IFrameTypeChangeListener> typeChangeListener;
+    FrameInfo outputFrameInfo;
+};
+
+struct VirtualDevice::OnFrameReadyTask : public VirtualDevice::Task {
+    virtual void run(VirtualDevice& vd) {
+        if (renderTask != NULL && !renderTask->successful)
+            return;
+
+        {
+            Mutex::Autolock _l(vd.mHeldBuffersLock);
+            //Add the heldbuffer to the vector before calling onFrameReady, so that the buffer will be removed
+            //from the vector properly even if the notifyBufferReturned call acquires mHeldBuffersLock first.
+            vd.mHeldBuffers.add(handle, heldBuffer);
+        }
+
+        status_t result = frameListener->onFrameReady(handle, handleType, renderTimestamp, mediaTimestamp);
+        if (result != OK) {
+            Mutex::Autolock _l(vd.mHeldBuffersLock);
+            vd.mHeldBuffers.removeItem(handle);
+        }
+    }
+    sp<RenderTask> renderTask;
+    sp<RefBase> heldBuffer;
+    sp<IFrameListener> frameListener;
+    uint32_t handle;
+    HWCBufferHandleType handleType;
+    int64_t renderTimestamp;
+    int64_t mediaTimestamp;
+};
+
 VirtualDevice::VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
-    : mDoBlit(false),
-      mDoOnFrameReady(false),
-      mCancelOnFrameReady(false),
-      mProtectedMode(false),
+    : mProtectedMode(false),
       mInitialized(false),
       mHwc(hwc),
       mDisplayPlaneManager(dpm),
@@ -116,13 +470,11 @@ VirtualDevice::VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
       mOrigContentWidth(0),
       mOrigContentHeight(0),
       mFirstVideoFrame(true),
-      mCachedBufferCapcity(16),
-      mDScalingEnabled(false)
+      mLastConnectionStatus(false),
+      mCachedBufferCapcity(16)
 {
     CTRACE();
     mNextConfig.frameServerActive = false;
-    memset(mBlackY.data, 0x10, sizeof(mBlackY.data));
-    memset(mBlackUV.data, 0x80, sizeof(mBlackUV.data));
 }
 
 VirtualDevice::~VirtualDevice()
@@ -149,57 +501,17 @@ sp<VirtualDevice::CachedBuffer> VirtualDevice::getMappedBuffer(uint32_t handle)
 
 bool VirtualDevice::threadLoop()
 {
-    crop_t cropInfo;
-    cropInfo.x = 0;
-    cropInfo.y = 0;
-    uint32_t srcHandle;
-    uint32_t destHandle;
+    sp<Task> task;
     {
         Mutex::Autolock _l(mCscLock);
-        while (!mDoBlit) {
+        while (mTasks.empty()) {
             mRequestQueued.wait(mCscLock);
         }
-        cropInfo.w = mBlitCropWidth;
-        cropInfo.h = mBlitCropHeight;
-        srcHandle = mBlitSrcHandle;
-        destHandle = mBlitDestHandle;
+        task = *mTasks.begin();
+        mTasks.erase(mTasks.begin());
+        mRequestDequeued.signal();
     }
-    BufferManager* mgr = mHwc.getBufferManager();
-    status_t result = OK;
-    if (!(mgr->convertRGBToNV12(srcHandle, destHandle, cropInfo, 0))) {
-        ETRACE("color space conversion from RGB to NV12 failed");
-        result = UNKNOWN_ERROR;
-    }
-
-    int64_t renderTimestamp;
-    {
-        Mutex::Autolock _l(mCscLock);
-        mDoBlit = false;
-        mRequestProcessed.signal();
-        while (!mDoOnFrameReady) {
-            mRequestQueued.wait(mCscLock);
-        }
-        renderTimestamp = mFrameReadyRenderTs;
-        if (mCancelOnFrameReady)
-            result = UNKNOWN_ERROR;
-        mCancelOnFrameReady = false;
-    }
-    if (result == OK) {
-        if (mAsyncFrameListener != NULL)
-            result = mAsyncFrameListener->onFrameReady((int32_t)destHandle, HWC_HANDLE_TYPE_GRALLOC, renderTimestamp, -1);
-        else
-            result = UNKNOWN_ERROR;
-    }
-    if (result != OK) {
-        Mutex::Autolock _l(mHeldBuffersLock);
-        mHeldBuffers.removeItem(destHandle);
-    }
-    {
-        Mutex::Autolock _l(mCscLock);
-        mDoOnFrameReady = false;
-        mAsyncFrameListener = NULL;
-        mRequestProcessed.signal();
-    }
+    task->run(*this);
 
     return true;
 }
@@ -209,6 +521,7 @@ status_t VirtualDevice::start(sp<IFrameTypeChangeListener> typeChangeListener)
     ITRACE();
     Mutex::Autolock _l(mConfigLock);
     mNextConfig.typeChangeListener = typeChangeListener;
+    mNextConfig.frameListener = NULL;
     mNextConfig.policy.scaledWidth = 0;
     mNextConfig.policy.scaledHeight = 0;
     mNextConfig.policy.xdpi = 96;
@@ -216,28 +529,12 @@ status_t VirtualDevice::start(sp<IFrameTypeChangeListener> typeChangeListener)
     mNextConfig.policy.refresh = 60;
     mNextConfig.extendedModeEnabled =
         Hwcomposer::getInstance().getDisplayAnalyzer()->isVideoExtModeEnabled();
-    MultiDisplayObserver* mds = mHwc.getMultiDisplayObserver();
-    if (mds != NULL)
-        mds->notifyWidiConnectionStatus(true);
     mVideoFramerate = 0;
     mFirstVideoFrame = true;
     mNextConfig.frameServerActive = true;
-    mNextConfig.frameListener = NULL;
     mNextConfig.forceNotifyFrameType = true;
     mNextConfig.forceNotifyBufferInfo = true;
-    char prop[PROPERTY_VALUE_MAX];
-    if (property_get("widi.video.dscaling.enable", prop, NULL) > 0 &&
-            strncmp(prop, "true", PROPERTY_VALUE_MAX) == 0) {
-        ITRACE("widi.video.dscaling is enabled, %s", prop);
-        mDScalingEnabled = true;
-    } else {
-        ITRACE("widi.video.dscaling is disabled");
-    }
 
-    if (mThread == NULL) {
-        mThread = new WidiBlitThread(this);
-        mThread->run("WidiBlit", PRIORITY_URGENT_DISPLAY);
-    }
     return NO_ERROR;
 }
 
@@ -261,7 +558,6 @@ status_t VirtualDevice::stop(bool isConnected)
         mCscWidth = 0;
         mCscHeight = 0;
     }
-    Hwcomposer::getInstance().getMultiDisplayObserver()->notifyWidiConnectionStatus(false);
     return NO_ERROR;
 }
 
@@ -285,8 +581,44 @@ status_t VirtualDevice::setResolution(const FrameProcessingPolicy& policy, sp<IF
     Mutex::Autolock _l(mConfigLock);
     mNextConfig.frameListener = listener;
     mNextConfig.policy = policy;
-    // setDownScalingSize(policy.scaledWidth, policy.scaledHeight);
     return NO_ERROR;
+}
+
+uint32_t VirtualDevice::getCscBuffer(uint32_t width, uint32_t height)
+{
+    if (mCscWidth != width || mCscHeight != height) {
+        ITRACE("CSC buffers changing from %dx%d to %dx%d",
+                mCscWidth, mCscHeight, width, height);
+        clearCscBuffers();
+        mCscWidth = width;
+        mCscHeight = height;
+        mCscBuffersToCreate = NUM_CSC_BUFFERS;
+    }
+
+    uint32_t bufHandle;
+    if (mAvailableCscBuffers.empty()) {
+        if (mCscBuffersToCreate <= 0) {
+            WTRACE("Out of CSC buffers, dropping frame");
+            return 0;
+        }
+        BufferManager* mgr = mHwc.getBufferManager();
+        bufHandle = mgr->allocGrallocBuffer(width,
+                                            height,
+                                            DisplayQuery::queryNV12Format(),
+                                            GRALLOC_USAGE_HW_VIDEO_ENCODER |
+                                            GRALLOC_USAGE_HW_RENDER);
+        if (bufHandle == 0){
+            ETRACE("failed to get gralloc buffer handle");
+            return 0;
+        }
+        mCscBuffersToCreate--;
+        return bufHandle;
+    }
+    else {
+        bufHandle = *mAvailableCscBuffers.begin();
+        mAvailableCscBuffers.erase(mAvailableCscBuffers.begin());
+    }
+    return bufHandle;
 }
 
 void VirtualDevice::clearCscBuffers()
@@ -312,9 +644,18 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
     RETURN_FALSE_IF_NOT_INIT();
 
     mRenderTimestamp = systemTime();
+    mVspInUse = false;
+
     {
         Mutex::Autolock _l(mConfigLock);
         mCurrentConfig = mNextConfig;
+    }
+
+    bool shouldBeConnected = (display != NULL && (!mCurrentConfig.frameServerActive ||
+                                                  mCurrentConfig.extendedModeEnabled));
+    if (shouldBeConnected != mLastConnectionStatus) {
+        Hwcomposer::getInstance().getMultiDisplayObserver()->notifyWidiConnectionStatus(shouldBeConnected);
+        mLastConnectionStatus = shouldBeConnected;
     }
 
     if (!display) {
@@ -326,107 +667,106 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
     }
 
     if (!mCurrentConfig.frameServerActive) {
-        {
-            // We're done with CSC buffers, since we blit to outbuf in this mode.
-            // We want to keep mappings cached, so we don't clear mMappedBufferCache.
-            Mutex::Autolock _l(mCscLock);
-            clearCscBuffers();
-        }
-        return vanillaPrepare(display);
+        // We're done with CSC buffers, since we blit to outbuf in this mode.
+        // We want to keep mappings cached, so we don't clear mMappedBufferCache.
+        Mutex::Autolock _l(mCscLock);
+        clearCscBuffers();
     }
 
     // by default send the FRAMEBUFFER_TARGET layer (composited image)
-    mLayerToSend = display->numHwLayers-1;
+    mRgbLayer = display->numHwLayers-1;
+    mYuvLayer = -1;
 
     DisplayAnalyzer *analyzer = mHwc.getDisplayAnalyzer();
 
-    if (mCurrentConfig.extendedModeEnabled &&
-            !analyzer->isOverlayAllowed() && (analyzer->getVideoInstances() <= 1)) {
+    mProtectedMode = false;
+
+    if (mCurrentConfig.typeChangeListener != NULL &&
+        !analyzer->isOverlayAllowed() &&
+        analyzer->getVideoInstances() <= 1) {
         if (mCurrentConfig.typeChangeListener->shutdownVideo() != OK) {
             ITRACE("Waiting for prior encoder session to shut down...");
         }
         /* Setting following flag to true will enable us to call bufferInfoChanged() in clone mode. */
         mNextConfig.forceNotifyBufferInfo = true;
-        return true;
+        mRgbLayer = -1;
+        mYuvLayer = -1;
+        goto finish;
     }
 
-    if (mCurrentConfig.extendedModeEnabled) {
-        if ((display->numHwLayers-1) == 1) {
-            hwc_layer_1_t& layer = display->hwLayers[0];
-            if (analyzer->isPresentationLayer(layer) && layer.transform == 0 && layer.blending == HWC_BLENDING_NONE) {
-                mLayerToSend = 0;
-                VTRACE("Layer (%d) is Presentation layer", mLayerToSend);
-            }
+#if 0
+    // TODO: Bring back this optimization
+    if (display->numHwLayers-1 == 1) {
+        hwc_layer_1_t& layer = display->hwLayers[0];
+        if (analyzer->isPresentationLayer(layer) && layer.transform == 0 && layer.blending == HWC_BLENDING_NONE) {
+            if (analyzer->isVideoLayer(layer))
+                mYuvLayer = 0;
+            else
+                mRgbLayer = 0;
+            VTRACE("Presentation fast path");
         }
+        goto finish;
     }
-    // FIXME: It isn't resonable to set downscaling at here
+#endif
+
     for (size_t i = 0; i < display->numHwLayers-1; i++) {
         hwc_layer_1_t& layer = display->hwLayers[i];
-        if (analyzer->isVideoLayer(layer)) {
-            int dswidth  = 1280;//mCurrentConfig.policy.scaledWidth;
-            int dsheight = 720; //mCurrentConfig.policy.scaledHeight;
-            int offX = 0;
-            int offY = 0;
-            int bufWidth  = 1920;
-            int bufHeight = 1080;
-            setDownScaling(dswidth, dsheight, offX, offY, bufWidth, bufHeight);
+        if (analyzer->isVideoLayer(layer) && (mCurrentConfig.extendedModeEnabled || VSP_FOR_CLEAR_VIDEO || analyzer->isProtectedLayer(layer))) {
+            if (mCurrentConfig.extendedModeEnabled && mCurrentConfig.frameServerActive) {
+                /* If the resolution of the video layer is less than QCIF, then we are going to play it in clone mode only.*/
+                uint32_t vidContentWidth = layer.sourceCropf.right - layer.sourceCropf.left;
+                uint32_t vidContentHeight = layer.sourceCropf.bottom - layer.sourceCropf.top;
+                if (vidContentWidth < QCIF_WIDTH || vidContentHeight < QCIF_HEIGHT) {
+                    VTRACE("Ingoring layer %d which is too small for extended mode", i);
+                    continue;
+                }
+            }
+            mYuvLayer = i;
+            mProtectedMode = analyzer->isProtectedLayer(layer);
+            if (mCurrentConfig.extendedModeEnabled)
+                mRgbLayer = -1;
             break;
         }
     }
 
-    bool protectedLayer = false;
-    bool presentationLayer = false;
-    if (mCurrentConfig.extendedModeEnabled) {
-        for (size_t i = 0; i < display->numHwLayers-1; i++) {
-            hwc_layer_1_t& layer = display->hwLayers[i];
-            if (analyzer->isVideoLayer(layer)) {
-                /* If the resolution of the video layer is less than QCIF, then we are going to play it in clone mode only.*/
-                uint32_t vidContentWidth = layer.sourceCropf.right - layer.sourceCropf.left;
-                uint32_t vidContentHeight = layer.sourceCropf.bottom - layer.sourceCropf.top;
-                if ( (vidContentWidth * vidContentHeight) < (QCIF_WIDTH * QCIF_HEIGHT) ){
-                    VTRACE("Identified video layer of resolution < QCIF :playing in clone mode. mLayerToSend = %d", mLayerToSend);
-                    break;
-                }
-                protectedLayer = analyzer->isProtectedLayer(layer);
-                presentationLayer = analyzer->isPresentationLayer(layer);
-                if (!presentationLayer || protectedLayer) {
-                    VTRACE("Layer (%d) is extended video layer", mLayerToSend);
-                    mLayerToSend = i;
-                    break;
-               }
-            }
-        }
+finish:
+    for (size_t i = 0; i < display->numHwLayers-1; i++) {
+        hwc_layer_1_t& layer = display->hwLayers[i];
+        if ((size_t)mRgbLayer == display->numHwLayers-1)
+            layer.compositionType = HWC_FRAMEBUFFER;
+        else
+            layer.compositionType = HWC_OVERLAY;
     }
+    if (mYuvLayer != -1)
+        display->hwLayers[mYuvLayer].compositionType = HWC_OVERLAY;
 
-    hwc_layer_1_t& streamingLayer = display->hwLayers[mLayerToSend];
-
-    if (streamingLayer.compositionType == HWC_FRAMEBUFFER_TARGET) {
+    if (mYuvLayer == -1) {
         VTRACE("Clone mode");
         // TODO: fix this workaround. Once metadeta has correct info.
         mFirstVideoFrame = true;
+    }
 
+    if ((size_t)mRgbLayer == display->numHwLayers-1) {
+        // we're streaming fbtarget, so send onFramePrepare and wait for composition to happen
         if (mCurrentConfig.frameListener != NULL)
             mCurrentConfig.frameListener->onFramePrepare(mRenderTimestamp, -1);
         return true;
     }
-    if ((analyzer->getVideoInstances() <= 0) && presentationLayer) {
-        VTRACE("No video Instance found, in transition");
-        return true;
-    }
 
-
-    VTRACE("Extended mode");
-
-    if (sendToWidi(streamingLayer, protectedLayer)) {
-        // if we're streaming one layer (extended mode or background mode), no need to composite
-        for (size_t i = 0; i < display->numHwLayers-1; i++) {
-            hwc_layer_1_t& layer = display->hwLayers[i];
-            layer.compositionType = HWC_OVERLAY;
-        }
+    // we don't need fbtarget, so send the frame now
+    bool result = sendToWidi(display);
+    if (result) {
+        mRgbLayer = -1;
+        mYuvLayer = -1;
     } else {
         // if error in playback file , switch to clone mode
-        mLayerToSend = display->numHwLayers-1;
-        VTRACE("Switch to clone mode");
+        WTRACE("Error, falling back to clone mode");
+        mRgbLayer = display->numHwLayers-1;
+        mYuvLayer = -1;
+        for (size_t i = 0; i < display->numHwLayers-1; i++) {
+            hwc_layer_1_t& layer = display->hwLayers[i];
+            layer.compositionType = HWC_FRAMEBUFFER;
+        }
     }
 
     return true;
@@ -436,343 +776,465 @@ bool VirtualDevice::commit(hwc_display_contents_1_t *display, IDisplayContext *c
 {
     RETURN_FALSE_IF_NOT_INIT();
 
-    if (!display)
-        return true;
+    if (display != NULL && (mRgbLayer != -1 || mYuvLayer != -1))
+        sendToWidi(display);
 
-    if (!mCurrentConfig.frameServerActive)
-        return vanillaCommit(display);
-
-    DisplayAnalyzer *analyzer = mHwc.getDisplayAnalyzer();
-
-    if (mCurrentConfig.extendedModeEnabled &&
-            !analyzer->isOverlayAllowed() && (analyzer->getVideoInstances() <= 1)) {
-        if (mCurrentConfig.typeChangeListener->shutdownVideo() != OK) {
-            ITRACE("Waiting for prior encoder session to shut down...");
-        }
-        mNextConfig.forceNotifyBufferInfo = true;
-        return true;
-    }
-
-    // This is for clone mode
-    hwc_layer_1_t& streamingLayer = display->hwLayers[mLayerToSend];
-    if (streamingLayer.compositionType == HWC_FRAMEBUFFER_TARGET) {
-        sendToWidi(streamingLayer, 0);
+    if (mVspEnabled && !mVspInUse) {
+        sp<DisableVspTask> disableVsp = new DisableVspTask();
+        Mutex::Autolock _l(mCscLock);
+        mTasks.push(disableVsp);
+        mVspEnabled = false;
     }
 
     return true;
 }
 
-bool VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
+bool VirtualDevice::sendToWidi(hwc_display_contents_1_t *display)
 {
-    uint32_t handle = (uint32_t)layer.handle;
-    if (handle == 0) {
-        ETRACE("layer has no handle set");
+    VTRACE("RGB=%d, YUV=%d", mRgbLayer, mYuvLayer);
+
+    if (mYuvLayer != -1 && mRgbLayer != -1) {
+        mVspEnabled = true;
+        mVspInUse = true;
+        if (queueCompose(display))
+            return true;
+
+        return queueColorConvert(display);
+    }
+
+    if (mRgbLayer != -1)
+        return queueColorConvert(display);
+
+    if (mYuvLayer != -1) {
+        if (mCurrentConfig.frameServerActive)
+            return handleExtendedMode(display);
+        return queueVideoCopy(display);
+    }
+
+    return true;
+}
+
+bool VirtualDevice::queueCompose(hwc_display_contents_1_t *display)
+{
+    sp<ComposeTask> composeTask = new ComposeTask();
+    sp<HeldCscBuffer> heldBuffer;
+
+    composeTask->syncTimelineFd = -1;
+
+    composeTask->videoHandle = display->hwLayers[mYuvLayer].handle;
+    if (composeTask->videoHandle == NULL) {
+        ETRACE("No video handle");
         return false;
     }
-    HWCBufferHandleType handleType = HWC_HANDLE_TYPE_GRALLOC;
-    int64_t mediaTimestamp = -1;
+    composeTask->displayFrame = display->hwLayers[mYuvLayer].displayFrame;
 
-    sp<RefBase> heldBuffer;
-
-    FrameInfo inputFrameInfo;
-    memset(&inputFrameInfo, 0, sizeof(inputFrameInfo));
-    inputFrameInfo.frameType = HWC_FRAMETYPE_FRAME_BUFFER;
-    inputFrameInfo.contentWidth = layer.sourceCropf.right - layer.sourceCropf.left;
-    inputFrameInfo.contentHeight = layer.sourceCropf.bottom - layer.sourceCropf.top;
-    inputFrameInfo.contentFrameRateN = 0;
-    inputFrameInfo.contentFrameRateD = 0;
-    inputFrameInfo.isProtected = isProtected;
-
-    // This is to guard encoder if anytime frame is less then one macroblock size.
-    if ((inputFrameInfo.contentWidth < 16) || (inputFrameInfo.contentHeight < 16))
+    composeTask->rgbHandle = display->hwLayers[mRgbLayer].handle;
+    if (composeTask->rgbHandle == NULL) {
+        ETRACE("No RGB handle");
         return false;
+    }
 
-    FrameInfo outputFrameInfo;
-    outputFrameInfo = inputFrameInfo;
-    bool queueOnFrameReady = false;
+    {
+        hwc_layer_1_t& rgbLayer = display->hwLayers[mRgbLayer];
+        composeTask->outWidth = rgbLayer.sourceCropf.right - rgbLayer.sourceCropf.left;
+        composeTask->outHeight = rgbLayer.sourceCropf.bottom - rgbLayer.sourceCropf.top;
+    }
 
-    if (mHwc.getDisplayAnalyzer()->isVideoLayer((hwc_layer_1_t&)layer)) {
-        sp<CachedBuffer> cachedBuffer;
-        if ((cachedBuffer = getMappedBuffer(handle)) == NULL) {
-            ETRACE("Failed to map display buffer");
-            return false;
-        }
+    Mutex::Autolock _l(mCscLock);
 
-        // TODO: Fix this workaround once we get the content width & height in metadata.
-        if (mFirstVideoFrame) {
-            mOrigContentWidth = inputFrameInfo.contentWidth;
-            mOrigContentHeight = inputFrameInfo.contentHeight;
-        }
-
-
-        // for video mode let 30 fps be the default value.
-        inputFrameInfo.contentFrameRateN = 30;
-        inputFrameInfo.contentFrameRateD = 1;
-
-        IVideoPayloadManager::MetaData metadata;
-        if (mPayloadManager->getMetaData(cachedBuffer->mapper, &metadata)) {
-            heldBuffer = new HeldDecoderBuffer(this, cachedBuffer);
-            mediaTimestamp = metadata.timestamp;
-            inputFrameInfo.contentWidth = metadata.crop_width;
-            inputFrameInfo.contentHeight = metadata.crop_height;
-            // Use the crop size if something changed derive it again..
-            // Only get video source info if frame rate has not been initialized.
-            // getVideoSourceInfo() is a fairly expensive operation. This optimization
-            // will save us a few milliseconds per frame
-            if (mFirstVideoFrame || (mOrigContentWidth != inputFrameInfo.contentWidth) ||
-                (mOrigContentHeight != inputFrameInfo.contentHeight)) {
-                mVideoFramerate = inputFrameInfo.contentFrameRateN;
-                ITRACE("VideoWidth = %d, VideoHeight = %d", metadata.crop_width, metadata.crop_height);
-                mOrigContentWidth = inputFrameInfo.contentWidth;
-                mOrigContentHeight = inputFrameInfo.contentHeight;
-
-                // For the first video session by default
-                int sessionID = Hwcomposer::getInstance().getDisplayAnalyzer()->getFirstVideoInstanceSessionID();
-                if (sessionID >= 0) {
-                    ITRACE("Session id = %d", sessionID);
-                    VideoSourceInfo videoInfo;
-                    memset(&videoInfo, 0, sizeof(videoInfo));
-                    status_t ret = mHwc.getMultiDisplayObserver()->getVideoSourceInfo(sessionID, &videoInfo);
-                    if (ret == NO_ERROR) {
-                        ITRACE("width = %d, height = %d, fps = %d", videoInfo.width, videoInfo.height,
-                                videoInfo.frameRate);
-                        if (videoInfo.frameRate > 0) {
-                            mVideoFramerate = videoInfo.frameRate;
-                        }
-                    }
-                }
-                mFirstVideoFrame = false;
-            }
-            inputFrameInfo.frameType = HWC_FRAMETYPE_VIDEO;
-            inputFrameInfo.contentFrameRateN = mVideoFramerate;
-            inputFrameInfo.contentFrameRateD = 1;
-
-
-            // skip pading bytes in rotate buffer
-            switch (metadata.transform) {
-                case HAL_TRANSFORM_ROT_90: {
-                    VTRACE("HAL_TRANSFORM_ROT_90");
-                    int contentWidth = inputFrameInfo.contentWidth;
-                    inputFrameInfo.contentWidth = (contentWidth + 0xf) & ~0xf;
-                    inputFrameInfo.cropLeft = inputFrameInfo.contentWidth - contentWidth;
-                } break;
-                case HAL_TRANSFORM_ROT_180: {
-                    VTRACE("HAL_TRANSFORM_ROT_180");
-                    int contentWidth = inputFrameInfo.contentWidth;
-                    int contentHeight = inputFrameInfo.contentHeight;
-                    inputFrameInfo.contentWidth = (contentWidth + 0xf) & ~0xf;
-                    inputFrameInfo.contentHeight = (contentHeight + 0xf) & ~0xf;
-                    inputFrameInfo.cropLeft = inputFrameInfo.contentWidth - contentWidth;
-                    inputFrameInfo.cropTop = inputFrameInfo.contentHeight - contentHeight;
-                } break;
-                case HAL_TRANSFORM_ROT_270: {
-                    VTRACE("HAL_TRANSFORM_ROT_270");
-                    int contentHeight = inputFrameInfo.contentHeight;
-                    inputFrameInfo.contentHeight = (contentHeight + 0xf) & ~0xf;
-                    inputFrameInfo.cropTop = inputFrameInfo.contentHeight - contentHeight;
-                } break;
-                default:
-                  break;
-            }
-            outputFrameInfo = inputFrameInfo;
-            outputFrameInfo.bufferFormat = metadata.format;
-
-            handleType = HWC_HANDLE_TYPE_KBUF;
-            bool isRotated = false;
-            if (metadata.transform == HAL_TRANSFORM_ROT_90 ||
-                    metadata.transform == HAL_TRANSFORM_ROT_180 ||
-                    metadata.transform == HAL_TRANSFORM_ROT_270) {
-                isRotated = true;
-            }
-            if (!isRotated && metadata.scaling_khandle) {
-                handle = metadata.scaling_khandle;
-                outputFrameInfo.bufferWidth = metadata.scaling_width;
-                outputFrameInfo.bufferHeight = ((metadata.scaling_height + 0x1f) & (~0x1f));
-                outputFrameInfo.lumaUStride = metadata.scaling_luma_stride;
-                outputFrameInfo.chromaUStride = metadata.scaling_chroma_u_stride;
-                outputFrameInfo.chromaVStride = metadata.scaling_chroma_v_stride;
-                outputFrameInfo.contentWidth = metadata.scaling_width;
-                outputFrameInfo.contentHeight =((metadata.scaling_height + 0x1f) & (~0x1f));
-            } else if (metadata.kHandle != 0) {
-                handle = metadata.kHandle;
-                outputFrameInfo.bufferWidth = metadata.width;
-                outputFrameInfo.bufferHeight = ((metadata.height + 0x1f) & (~0x1f));
-                outputFrameInfo.lumaUStride = metadata.lumaStride;
-                outputFrameInfo.chromaUStride = metadata.chromaUStride;
-                outputFrameInfo.chromaVStride = metadata.chromaVStride;
-                if (metadata.scaling_khandle && isRotated) {
-                    outputFrameInfo.contentWidth = metadata.scaling_height;
-                    outputFrameInfo.contentHeight = ((metadata.scaling_width + 0x1f) & (~0x1f));
-                }
-            } else {
-                ETRACE("Couldn't get any khandle");
-                return false;
-            }
-            if (outputFrameInfo.bufferFormat == 0 ||
-                outputFrameInfo.bufferWidth < outputFrameInfo.contentWidth ||
-                outputFrameInfo.bufferHeight < outputFrameInfo.contentHeight ||
-                outputFrameInfo.contentWidth <= 0 || outputFrameInfo.contentHeight <= 0 ||
-                outputFrameInfo.lumaUStride <= 0 ||
-                outputFrameInfo.chromaUStride <= 0 || outputFrameInfo.chromaVStride <= 0) {
-                ITRACE("Payload cleared or inconsistent info, not sending frame");
-                ITRACE("outputFrameInfo.bufferFormat  = %d ", outputFrameInfo.bufferFormat);
-                ITRACE("outputFrameInfo.bufferWidth   = %d ", outputFrameInfo.bufferWidth);
-                ITRACE("outputFrameInfo.contentWidth  = %d ", outputFrameInfo.contentWidth);
-                ITRACE("outputFrameInfo.bufferHeight  = %d ", outputFrameInfo.bufferHeight);
-                ITRACE("outputFrameInfo.contentHeight = %d ", outputFrameInfo.contentHeight);
-                ITRACE("outputFrameInfo.lumaUStride   = %d ", outputFrameInfo.lumaUStride);
-                ITRACE("outputFrameInfo.chromaUStride = %d ", outputFrameInfo.chromaUStride);
-                ITRACE("outputFrameInfo.chromaVStride = %d ", outputFrameInfo.chromaVStride);
-                return false;
-            }
-        } else {
-            ETRACE("Failed to get metadata");
-            return false;
-        }
+    if (mCurrentConfig.frameServerActive) {
+        composeTask->outputHandle = (buffer_handle_t) getCscBuffer(composeTask->outWidth, composeTask->outHeight);
+        heldBuffer = new HeldCscBuffer(this, (uint32_t) composeTask->outputHandle);
     } else {
-        BufferManager* mgr = mHwc.getBufferManager();
-        uint32_t grallocHandle = 0;
-        {
-            Mutex::Autolock _l(mCscLock);
-            while (mDoBlit) {
-                // wait for previous frame's blit if it hasn't completed
-                mRequestProcessed.wait(mCscLock);
-            }
-            // Blit only support 1:1 so until we get upscale/downsacle ,source & destination will be of same size.
-            if ((layer.compositionType == HWC_FRAMEBUFFER_TARGET) &&
-                ((mCurrentConfig.policy.scaledWidth != inputFrameInfo.contentWidth) ||
-                (mCurrentConfig.policy.scaledHeight != inputFrameInfo.contentHeight))) {
-                mCurrentConfig.policy.scaledWidth = inputFrameInfo.contentWidth;
-                mCurrentConfig.policy.scaledHeight = inputFrameInfo.contentHeight;
-            }
+        composeTask->outputHandle = display->outbuf;
+    }
 
-            if (mCscWidth != mCurrentConfig.policy.scaledWidth || mCscHeight != mCurrentConfig.policy.scaledHeight) {
-                ITRACE("CSC buffers changing from %dx%d to %dx%d",
-                      mCscWidth, mCscHeight, mCurrentConfig.policy.scaledWidth, mCurrentConfig.policy.scaledHeight);
-                clearCscBuffers();
-                mCscWidth = mCurrentConfig.policy.scaledWidth;
-                mCscHeight = mCurrentConfig.policy.scaledHeight;
-                mCscBuffersToCreate = NUM_CSC_BUFFERS;
-            }
+    if (composeTask->outputHandle == NULL) {
+        ETRACE("No outbuf");
+        return false;
+    }
+    composeTask->videoCachedBuffer = getMappedBuffer((uint32_t) composeTask->videoHandle);
+    if (composeTask->videoCachedBuffer == NULL) {
+        ETRACE("Couldn't map video handle %p", composeTask->videoHandle);
+        return false;
+    }
+    if (composeTask->videoCachedBuffer->mapper == NULL) {
+        ETRACE("Src mapper gone");
+        return false;
+    }
+    composeTask->heldVideoBuffer = new HeldDecoderBuffer(this, composeTask->videoCachedBuffer);
+    if (!mPayloadManager->getMetaData(composeTask->videoCachedBuffer->mapper, &composeTask->videoMetadata)) {
+        ETRACE("Failed to map video payload info");
+        return false;
+    }
+    if (composeTask->videoMetadata.width == 0 || composeTask->videoMetadata.height == 0) {
+        ETRACE("Bad video metadata for handle %p", composeTask->videoHandle);
+        return false;
+    }
+    if (composeTask->videoMetadata.kHandle == 0) {
+        ETRACE("Bad khandle");
+        return false;
+    }
+    uint32_t scaleWidth = composeTask->displayFrame.right - composeTask->displayFrame.left;
+    uint32_t scaleHeight = composeTask->displayFrame.bottom - composeTask->displayFrame.top;
 
-            if (mAvailableCscBuffers.empty()) {
-                if (mCscBuffersToCreate <= 0) {
-                    WTRACE("Out of CSC buffers, dropping frame");
-                    return false;
-                }
-                uint32_t bufHandle;
-                bufHandle = mgr->allocGrallocBuffer(mCurrentConfig.policy.scaledWidth,
-                                                    mCurrentConfig.policy.scaledHeight,
-                                                    DisplayQuery::queryNV12Format(),
-                                                    GRALLOC_USAGE_HW_VIDEO_ENCODER |
-                                                    GRALLOC_USAGE_HW_RENDER);
-                if (bufHandle == 0){
-                    ETRACE("failed to get gralloc buffer handle");
-                    return false;
-                }
-                mCscBuffersToCreate--;
-                mAvailableCscBuffers.push_back(bufHandle);
-            }
-            grallocHandle = *mAvailableCscBuffers.begin();
-            mAvailableCscBuffers.erase(mAvailableCscBuffers.begin());
+    // no upscaling exists, so don't try
+    if (scaleWidth > composeTask->videoMetadata.width)
+        scaleWidth = composeTask->videoMetadata.width;
+    if (scaleHeight > composeTask->videoMetadata.height)
+        scaleHeight = composeTask->videoMetadata.height;
 
-            heldBuffer = new HeldCscBuffer(this, grallocHandle);
-            mBlitDestHandle = grallocHandle;
-            mBlitSrcHandle = handle;
-            mBlitCropWidth = mCurrentConfig.policy.scaledWidth;
-            mBlitCropHeight = mCurrentConfig.policy.scaledHeight;
-            mDoBlit = true;
-            mRequestQueued.signal();
+    scaleWidth &= ~1;
+    scaleHeight &= ~1;
+
+    if (mFirstVideoFrame || scaleWidth != mLastScaleWidth || scaleHeight != mLastScaleHeight) {
+        int sessionID = mHwc.getDisplayAnalyzer()->getFirstVideoInstanceSessionID();
+        if (sessionID >= 0) {
+            MultiDisplayObserver* mds = mHwc.getMultiDisplayObserver();
+            status_t ret = mds->setDecoderOutputResolution(sessionID, scaleWidth, scaleHeight, 0, 0, scaleWidth, scaleHeight);
+            if (ret == NO_ERROR) {
+                mLastScaleWidth = scaleWidth;
+                mLastScaleHeight = scaleHeight;
+                mFirstVideoFrame = false;
+                ITRACE("Set scaling to %ux%u", scaleWidth, scaleHeight);
+            }
+            else
+                ETRACE("Failed to set scaling to %ux%u: %x", scaleWidth, scaleHeight, ret);
         }
-        handle = grallocHandle;
-        outputFrameInfo.contentWidth = mCurrentConfig.policy.scaledWidth;
-        outputFrameInfo.contentHeight = mCurrentConfig.policy.scaledHeight;
+    }
 
-        DataBuffer* dataBuf = mgr->lockDataBuffer(handle);
+    composeTask->rgbAcquireFenceFd = display->hwLayers[mRgbLayer].acquireFenceFd;
+    display->hwLayers[mRgbLayer].acquireFenceFd = -1;
+    int retireFd = sw_sync_fence_create(mSyncTimelineFd, "widi_compose_retire", mNextSyncPoint);
+    display->hwLayers[mRgbLayer].releaseFenceFd = retireFd;
+    display->hwLayers[mYuvLayer].releaseFenceFd = dup(retireFd);
+    display->retireFenceFd = dup(retireFd);
+    mNextSyncPoint++;
+    composeTask->syncTimelineFd = mSyncTimelineFd;
+
+    mTasks.push_back(composeTask);
+    mRequestQueued.signal();
+
+    if (mCurrentConfig.frameServerActive) {
+        hwc_layer_1_t& layer = display->hwLayers[mRgbLayer];
+        FrameInfo inputFrameInfo;
+        memset(&inputFrameInfo, 0, sizeof(inputFrameInfo));
+        inputFrameInfo.isProtected = mProtectedMode;
+        inputFrameInfo.frameType = HWC_FRAMETYPE_FRAME_BUFFER;
+        inputFrameInfo.contentWidth = layer.sourceCropf.right - layer.sourceCropf.left;
+        inputFrameInfo.contentHeight = layer.sourceCropf.bottom - layer.sourceCropf.top;
+        inputFrameInfo.contentFrameRateN = 0;
+        inputFrameInfo.contentFrameRateD = 0;
+        FrameInfo outputFrameInfo = inputFrameInfo;
+
+        BufferManager* mgr = mHwc.getBufferManager();
+        DataBuffer* dataBuf = mgr->lockDataBuffer((uint32_t) composeTask->outputHandle);
         outputFrameInfo.bufferWidth = dataBuf->getWidth();
         outputFrameInfo.bufferHeight = dataBuf->getHeight();
         outputFrameInfo.lumaUStride = dataBuf->getWidth();
         outputFrameInfo.chromaUStride = dataBuf->getWidth();
         outputFrameInfo.chromaVStride = dataBuf->getWidth();
         mgr->unlockDataBuffer(dataBuf);
-        queueOnFrameReady = true;
+
+        queueFrameTypeInfo(inputFrameInfo);
+        if (mCurrentConfig.policy.scaledWidth == 0 || mCurrentConfig.policy.scaledHeight == 0)
+            return false;
+        queueBufferInfo(outputFrameInfo);
+
+        sp<OnFrameReadyTask> frameReadyTask = new OnFrameReadyTask();
+        frameReadyTask->renderTask = composeTask;
+        frameReadyTask->heldBuffer = heldBuffer;
+        frameReadyTask->frameListener = mCurrentConfig.frameListener;
+        frameReadyTask->handle = (uint32_t) composeTask->outputHandle;
+        frameReadyTask->handleType = HWC_HANDLE_TYPE_GRALLOC;
+        frameReadyTask->renderTimestamp = mRenderTimestamp;
+        frameReadyTask->mediaTimestamp = -1;
+        if (frameReadyTask->frameListener != NULL)
+            mTasks.push_back(frameReadyTask);
     }
 
-    {
-        Mutex::Autolock _l(mCscLock);
-        while (mDoOnFrameReady) {
-            mRequestProcessed.wait(mCscLock);
+    return true;
+}
+
+bool VirtualDevice::queueColorConvert(hwc_display_contents_1_t *display)
+{
+    sp<RefBase> heldBuffer;
+
+    hwc_layer_1_t& layer = display->hwLayers[mRgbLayer];
+    if (layer.handle == NULL) {
+        ETRACE("RGB layer has no handle set");
+        return false;
+    }
+
+    sp<BlitTask> blitTask = new BlitTask();
+    blitTask->cropInfo.x = 0;
+    blitTask->cropInfo.y = 0;
+    blitTask->cropInfo.w = layer.sourceCropf.right - layer.sourceCropf.left;
+    blitTask->cropInfo.h = layer.sourceCropf.bottom - layer.sourceCropf.top;
+    blitTask->srcHandle = layer.handle;
+
+    Mutex::Autolock _l(mCscLock);
+
+    if (mCurrentConfig.frameServerActive) {
+        blitTask->destHandle = (buffer_handle_t)getCscBuffer(blitTask->cropInfo.w, blitTask->cropInfo.h);
+        blitTask->acquireFenceFd = -1;
+        blitTask->syncTimelineFd = -1;
+    }
+    else {
+        blitTask->destHandle = display->outbuf;
+        blitTask->acquireFenceFd = display->outbufAcquireFenceFd;
+        blitTask->syncTimelineFd = mSyncTimelineFd;
+        // don't let TngDisplayContext::commitEnd() close this
+        display->outbufAcquireFenceFd = -1;
+        // create fence which will signal when BlitTask::run() calls sw_sync_timeline_inc(),
+        // give it to SurfaceFlinger
+        display->retireFenceFd = sw_sync_fence_create(mSyncTimelineFd, "widi_blit_retire", mNextSyncPoint);
+        mNextSyncPoint++;
+    }
+
+    if (blitTask->destHandle == NULL)
+        return false;
+
+    if (mCurrentConfig.frameServerActive)
+        heldBuffer = new HeldCscBuffer(this, (uint32_t)blitTask->destHandle);
+
+    mTasks.push_back(blitTask);
+    mRequestQueued.signal();
+
+    if (mCurrentConfig.frameServerActive) {
+        FrameInfo inputFrameInfo;
+        memset(&inputFrameInfo, 0, sizeof(inputFrameInfo));
+        inputFrameInfo.isProtected = mProtectedMode;
+        FrameInfo outputFrameInfo;
+
+        inputFrameInfo.frameType = HWC_FRAMETYPE_FRAME_BUFFER;
+        inputFrameInfo.contentWidth = blitTask->cropInfo.w;
+        inputFrameInfo.contentHeight = blitTask->cropInfo.h;
+        inputFrameInfo.contentFrameRateN = 0;
+        inputFrameInfo.contentFrameRateD = 0;
+        outputFrameInfo = inputFrameInfo;
+
+        BufferManager* mgr = mHwc.getBufferManager();
+        DataBuffer* dataBuf = mgr->lockDataBuffer((uint32_t)blitTask->destHandle);
+        outputFrameInfo.bufferWidth = dataBuf->getWidth();
+        outputFrameInfo.bufferHeight = dataBuf->getHeight();
+        outputFrameInfo.lumaUStride = dataBuf->getWidth();
+        outputFrameInfo.chromaUStride = dataBuf->getWidth();
+        outputFrameInfo.chromaVStride = dataBuf->getWidth();
+        mgr->unlockDataBuffer(dataBuf);
+
+        queueFrameTypeInfo(inputFrameInfo);
+        if (mCurrentConfig.policy.scaledWidth == 0 || mCurrentConfig.policy.scaledHeight == 0)
+            return false;
+        queueBufferInfo(outputFrameInfo);
+
+        sp<OnFrameReadyTask> frameReadyTask = new OnFrameReadyTask();
+        frameReadyTask->renderTask = blitTask;
+        frameReadyTask->heldBuffer = heldBuffer;
+        frameReadyTask->frameListener = mCurrentConfig.frameListener;
+        frameReadyTask->handle = (uint32_t) blitTask->destHandle;
+        frameReadyTask->handleType = HWC_HANDLE_TYPE_GRALLOC;
+        frameReadyTask->renderTimestamp = mRenderTimestamp;
+        frameReadyTask->mediaTimestamp = -1;
+        if (frameReadyTask->frameListener != NULL)
+            mTasks.push_back(frameReadyTask);
+    }
+
+    return true;
+}
+
+bool VirtualDevice::handleExtendedMode(hwc_display_contents_1_t *display)
+{
+    FrameInfo inputFrameInfo;
+    memset(&inputFrameInfo, 0, sizeof(inputFrameInfo));
+    inputFrameInfo.isProtected = mProtectedMode;
+    FrameInfo outputFrameInfo;
+
+    hwc_layer_1_t& layer = display->hwLayers[mYuvLayer];
+    uint32_t handle = (uint32_t)layer.handle;
+    if (handle == 0) {
+        ETRACE("video layer has no handle set");
+        return false;
+    }
+    sp<CachedBuffer> cachedBuffer;
+    if ((cachedBuffer = getMappedBuffer(handle)) == NULL) {
+        ETRACE("Failed to map display buffer");
+        return false;
+    }
+
+    inputFrameInfo.frameType = HWC_FRAMETYPE_VIDEO;
+    // for video mode let 30 fps be the default value.
+    inputFrameInfo.contentFrameRateN = 30;
+    inputFrameInfo.contentFrameRateD = 1;
+    //handleType = HWC_HANDLE_TYPE_KBUF;
+
+    IVideoPayloadManager::MetaData metadata;
+    if (!mPayloadManager->getMetaData(cachedBuffer->mapper, &metadata)) {
+        ETRACE("Failed to get metadata");
+        return false;
+    }
+
+    sp<RefBase> heldBuffer = new HeldDecoderBuffer(this, cachedBuffer);
+    int64_t mediaTimestamp = metadata.timestamp;
+    inputFrameInfo.contentWidth = metadata.crop_width;
+    inputFrameInfo.contentHeight = metadata.crop_height;
+    // Use the crop size if something changed derive it again..
+    // Only get video source info if frame rate has not been initialized.
+    // getVideoSourceInfo() is a fairly expensive operation. This optimization
+    // will save us a few milliseconds per frame
+    if (mFirstVideoFrame || (mOrigContentWidth != inputFrameInfo.contentWidth) ||
+        (mOrigContentHeight != inputFrameInfo.contentHeight)) {
+        mVideoFramerate = inputFrameInfo.contentFrameRateN;
+        VTRACE("VideoWidth = %d, VideoHeight = %d", metadata.crop_width, metadata.crop_height);
+        mOrigContentWidth = inputFrameInfo.contentWidth;
+        mOrigContentHeight = inputFrameInfo.contentHeight;
+
+        // For the first video session by default
+        int sessionID = Hwcomposer::getInstance().getDisplayAnalyzer()->getFirstVideoInstanceSessionID();
+        if (sessionID >= 0) {
+            ITRACE("Session id = %d", sessionID);
+            VideoSourceInfo videoInfo;
+            memset(&videoInfo, 0, sizeof(videoInfo));
+            status_t ret = mHwc.getMultiDisplayObserver()->getVideoSourceInfo(sessionID, &videoInfo);
+            if (ret == NO_ERROR) {
+                ITRACE("width = %d, height = %d, fps = %d", videoInfo.width, videoInfo.height,
+                        videoInfo.frameRate);
+                if (videoInfo.frameRate > 0) {
+                    mVideoFramerate = videoInfo.frameRate;
+                }
+            }
         }
+        mFirstVideoFrame = false;
+    }
+    inputFrameInfo.contentFrameRateN = mVideoFramerate;
+    inputFrameInfo.contentFrameRateD = 1;
+
+
+    // skip pading bytes in rotate buffer
+    switch (metadata.transform) {
+        case HAL_TRANSFORM_ROT_90: {
+            VTRACE("HAL_TRANSFORM_ROT_90");
+            int contentWidth = inputFrameInfo.contentWidth;
+            inputFrameInfo.contentWidth = (contentWidth + 0xf) & ~0xf;
+            inputFrameInfo.cropLeft = inputFrameInfo.contentWidth - contentWidth;
+        } break;
+        case HAL_TRANSFORM_ROT_180: {
+            VTRACE("HAL_TRANSFORM_ROT_180");
+            int contentWidth = inputFrameInfo.contentWidth;
+            int contentHeight = inputFrameInfo.contentHeight;
+            inputFrameInfo.contentWidth = (contentWidth + 0xf) & ~0xf;
+            inputFrameInfo.contentHeight = (contentHeight + 0xf) & ~0xf;
+            inputFrameInfo.cropLeft = inputFrameInfo.contentWidth - contentWidth;
+            inputFrameInfo.cropTop = inputFrameInfo.contentHeight - contentHeight;
+        } break;
+        case HAL_TRANSFORM_ROT_270: {
+            VTRACE("HAL_TRANSFORM_ROT_270");
+            int contentHeight = inputFrameInfo.contentHeight;
+            inputFrameInfo.contentHeight = (contentHeight + 0xf) & ~0xf;
+            inputFrameInfo.cropTop = inputFrameInfo.contentHeight - contentHeight;
+        } break;
+        default:
+            break;
+    }
+    outputFrameInfo = inputFrameInfo;
+    outputFrameInfo.bufferFormat = metadata.format;
+
+    if (metadata.kHandle == 0) {
+        ETRACE("Couldn't get any khandle");
+        return false;
+    }
+    handle = metadata.kHandle;
+    outputFrameInfo.bufferWidth = metadata.width;
+    outputFrameInfo.bufferHeight = ((metadata.height + 0x1f) & (~0x1f));
+    outputFrameInfo.lumaUStride = metadata.lumaStride;
+    outputFrameInfo.chromaUStride = metadata.chromaUStride;
+    outputFrameInfo.chromaVStride = metadata.chromaVStride;
+    if (outputFrameInfo.bufferFormat == 0 ||
+        outputFrameInfo.bufferWidth < outputFrameInfo.contentWidth ||
+        outputFrameInfo.bufferHeight < outputFrameInfo.contentHeight ||
+        outputFrameInfo.contentWidth <= 0 || outputFrameInfo.contentHeight <= 0 ||
+        outputFrameInfo.lumaUStride <= 0 ||
+        outputFrameInfo.chromaUStride <= 0 || outputFrameInfo.chromaVStride <= 0) {
+        ITRACE("Payload cleared or inconsistent info, not sending frame");
+        ITRACE("outputFrameInfo.bufferFormat  = %d ", outputFrameInfo.bufferFormat);
+        ITRACE("outputFrameInfo.bufferWidth   = %d ", outputFrameInfo.bufferWidth);
+        ITRACE("outputFrameInfo.contentWidth  = %d ", outputFrameInfo.contentWidth);
+        ITRACE("outputFrameInfo.bufferHeight  = %d ", outputFrameInfo.bufferHeight);
+        ITRACE("outputFrameInfo.contentHeight = %d ", outputFrameInfo.contentHeight);
+        ITRACE("outputFrameInfo.lumaUStride   = %d ", outputFrameInfo.lumaUStride);
+        ITRACE("outputFrameInfo.chromaUStride = %d ", outputFrameInfo.chromaUStride);
+        ITRACE("outputFrameInfo.chromaVStride = %d ", outputFrameInfo.chromaVStride);
+        return false;
     }
 
+    queueFrameTypeInfo(inputFrameInfo);
+    if (mCurrentConfig.policy.scaledWidth == 0 || mCurrentConfig.policy.scaledHeight == 0)
+        return false;
+    queueBufferInfo(outputFrameInfo);
+
+    if (handle == mExtLastKhandle && mediaTimestamp == mExtLastTimestamp) {
+        // Same frame again. We don't send a frame, but we return true because
+        // this isn't an error.
+        return true;
+    }
+    mExtLastKhandle = handle;
+    mExtLastTimestamp = mediaTimestamp;
+
+    sp<OnFrameReadyTask> frameReadyTask = new OnFrameReadyTask;
+    frameReadyTask->renderTask = NULL;
+    frameReadyTask->heldBuffer = heldBuffer;
+    frameReadyTask->frameListener = mCurrentConfig.frameListener;
+    frameReadyTask->handle = handle;
+    frameReadyTask->handleType = HWC_HANDLE_TYPE_KBUF;
+    frameReadyTask->renderTimestamp = mRenderTimestamp;
+    frameReadyTask->mediaTimestamp = mediaTimestamp;
+
+    Mutex::Autolock _l(mCscLock);
+    if (frameReadyTask->frameListener != NULL)
+        mTasks.push_back(frameReadyTask);
+    mRequestQueued.signal();
+
+    return true;
+}
+
+bool VirtualDevice::queueVideoCopy(hwc_display_contents_1_t *display)
+{
+    // TODO: Add path for video but no RGB layer and make this reachable
+    //       Could compose with a blank RGB layer, or copy the video to
+    //       outbuf using the CPU.
+    return true;
+}
+
+void VirtualDevice::queueFrameTypeInfo(const FrameInfo& inputFrameInfo)
+{
     if (mCurrentConfig.forceNotifyFrameType ||
         memcmp(&inputFrameInfo, &mLastInputFrameInfo, sizeof(inputFrameInfo)) != 0) {
         // something changed, notify type change listener
         mNextConfig.forceNotifyFrameType = false;
-        mCurrentConfig.typeChangeListener->frameTypeChanged(inputFrameInfo);
-        ITRACE("Notify frameTypeChanged: %dx%d in %dx%d @ %d fps",
-            inputFrameInfo.contentWidth, inputFrameInfo.contentHeight,
-            inputFrameInfo.bufferWidth, inputFrameInfo.bufferHeight,
-            inputFrameInfo.contentFrameRateN);
         mLastInputFrameInfo = inputFrameInfo;
-    }
 
-    if (mCurrentConfig.policy.scaledWidth == 0 || mCurrentConfig.policy.scaledHeight == 0) {
-        Mutex::Autolock _l(mCscLock);
-        mDoOnFrameReady = true;
-        mAsyncFrameListener = mCurrentConfig.frameListener;
-        mCancelOnFrameReady = true;
-        mRequestQueued.signal();
-        return false;
+        sp<FrameTypeChangedTask> notifyTask = new FrameTypeChangedTask;
+        notifyTask->typeChangeListener = mCurrentConfig.typeChangeListener;
+        notifyTask->inputFrameInfo = inputFrameInfo;
+        mTasks.push_back(notifyTask);
     }
+}
 
+void VirtualDevice::queueBufferInfo(const FrameInfo& outputFrameInfo)
+{
     if (mCurrentConfig.forceNotifyBufferInfo ||
         memcmp(&outputFrameInfo, &mLastOutputFrameInfo, sizeof(outputFrameInfo)) != 0) {
-
         mNextConfig.forceNotifyBufferInfo = false;
-        mCurrentConfig.typeChangeListener->bufferInfoChanged(outputFrameInfo);
-        ITRACE("Notify bufferInfoChanged: %dx%d in %dx%d @ %d fps",
-            outputFrameInfo.contentWidth, outputFrameInfo.contentHeight,
-            outputFrameInfo.bufferWidth, outputFrameInfo.bufferHeight,
-            outputFrameInfo.contentFrameRateN);
         mLastOutputFrameInfo = outputFrameInfo;
 
-        if (handleType == HWC_HANDLE_TYPE_GRALLOC)
-            mMappedBufferCache.clear();
-    }
-    if (handleType == HWC_HANDLE_TYPE_KBUF &&
-        handle == mExtLastKhandle && mediaTimestamp == mExtLastTimestamp) {
-        return true; // Do not switch to clone mode here.
-    }
+        sp<BufferInfoChangedTask> notifyTask = new BufferInfoChangedTask;
+        notifyTask->typeChangeListener = mCurrentConfig.typeChangeListener;
+        notifyTask->outputFrameInfo = outputFrameInfo;
 
-    {
-        Mutex::Autolock _l(mHeldBuffersLock);
-        //Add the heldbuffer to the vector before calling onFrameReady, so that the buffer will be removed
-        //from the vector properly even if the notifyBufferReturned call acquires mHeldBuffersLock first.
-        mHeldBuffers.add(handle, heldBuffer);
+        //if (handleType == HWC_HANDLE_TYPE_GRALLOC)
+        //    mMappedBufferCache.clear(); // !
+        mTasks.push_back(notifyTask);
     }
-    if (queueOnFrameReady) {
-        Mutex::Autolock _l(mCscLock);
-        mFrameReadyRenderTs = mRenderTimestamp;
-        mDoOnFrameReady = true;
-        mAsyncFrameListener = mCurrentConfig.frameListener;
-        mRequestQueued.signal();
-    }
-    else {
-        status_t result = UNKNOWN_ERROR;
-        if (mCurrentConfig.frameListener != NULL)
-            result = mCurrentConfig.frameListener->onFrameReady((int32_t)handle, handleType, mRenderTimestamp, mediaTimestamp);
-
-        if (result != OK) {
-            Mutex::Autolock _l(mHeldBuffersLock);
-            mHeldBuffers.removeItem(handle);
-        }
-    }
-    if (handleType == HWC_HANDLE_TYPE_KBUF) {
-        mExtLastKhandle = handle;
-        mExtLastTimestamp = mediaTimestamp;
-    }
-    return true;
 }
 
 void VirtualDevice::fill(uint8_t* ptr, const ied_block& data, size_t len) {
@@ -781,142 +1243,89 @@ void VirtualDevice::fill(uint8_t* ptr, const ied_block& data, size_t len) {
     }
 }
 
-void VirtualDevice::copyVideo(buffer_handle_t videoHandle, uint8_t* destPtr, uint32_t destWidth, uint32_t destHeight)
+void VirtualDevice::copyVideo(uint8_t* srcPtr, uint32_t srcWidth, uint32_t srcHeight, uint32_t srcStride,
+                              uint8_t* destPtr, uint32_t destWidth, uint32_t destHeight,
+                              uint32_t blitX, uint32_t blitY, uint32_t blitWidth, uint32_t blitHeight)
 {
-    sp<CachedBuffer> videoCachedBuffer = getMappedBuffer((uint32_t) videoHandle);
-    if (videoCachedBuffer == NULL) {
-        ETRACE("Couldn't map video handle %p", videoHandle);
-        return;
-    }
-    if (videoCachedBuffer->mapper == NULL) {
-        ETRACE("Src mapper gone");
-        return;
-    }
-    IVideoPayloadManager::MetaData metadata;
-    if (!mPayloadManager->getMetaData(videoCachedBuffer->mapper, &metadata)) {
-        ETRACE("Failed to map video payload info");
-        return;
-    }
-    uint8_t* srcPtr = (uint8_t*)videoCachedBuffer->mapper->getCpuAddress(0);
-
     if (srcPtr == NULL || destPtr == NULL) {
-        ETRACE("Unable to map a buffer");
+        ETRACE("copyVideo: a pointer is NULL");
         return;
     }
 
-    uint32_t srcWidth = metadata.lumaStride;
-    uint32_t srcHeight = metadata.height;
-    uint32_t blitWidth = metadata.crop_width;
-    uint32_t blitHeight = metadata.crop_height;
+    if (blitWidth > srcWidth) {
+        // no upscaling yet, so center it instead
+        blitX += (blitWidth - srcWidth)/2;
+        blitWidth = srcWidth;
+    }
+    if (blitHeight > srcHeight) {
+        // no upscaling yet, so center it instead
+        blitY += (blitHeight - srcHeight)/2;
+        blitHeight = srcHeight;
+    }
 
-    if (blitWidth > destWidth)
-        blitWidth = destWidth;
-    if (blitHeight > destHeight)
-        blitHeight = destHeight;
+    blitX = (blitX+8) & ~15;
+    blitY = (blitY+1) & ~1;
+    blitWidth = blitWidth & ~15;
 
-    uint32_t outY = (destHeight - blitHeight)/2;
-    outY = (outY+1) & ~1;
+    if (blitX + blitWidth > destWidth)
+        blitWidth = destWidth - blitX;
+    if (blitY + blitHeight > destHeight)
+        blitHeight = destHeight - blitY;
 
+    VTRACE("Copy %p (%ux%u stride=%u) -> %p (%ux%u), @%ux%u %ux%u",
+          srcPtr, srcWidth, srcHeight, srcStride,
+          destPtr, destWidth, destHeight,
+          blitX, blitY, blitWidth, blitHeight);
     // clear top bar
-    fill(destPtr, mBlackY, outY*destWidth);
-    fill(destPtr + destWidth*destHeight, mBlackUV, outY*destWidth/2);
+    fill(destPtr, mBlackY, blitY*destWidth);
+    fill(destPtr + destWidth*destHeight, mBlackUV, blitY*destWidth/2);
 
     // clear bottom bar
-    fill(destPtr + (outY+blitHeight)*destWidth, mBlackY, (destHeight-outY-blitHeight)*destWidth);
-    fill(destPtr + destWidth*destHeight + (outY+blitHeight)*destWidth/2, mBlackUV, (destHeight-outY-blitHeight)*destWidth/2);
+    fill(destPtr + (blitY+blitHeight)*destWidth, mBlackY, (destHeight-blitY-blitHeight)*destWidth);
+    fill(destPtr + destWidth*destHeight + (blitY+blitHeight)*destWidth/2, mBlackUV, (destHeight-blitY-blitHeight)*destWidth/2);
 
-    if (srcWidth == destWidth) {
+    if (blitX == 0 && srcStride == destWidth) {
         // copy whole Y plane
-        memcpy(destPtr+outY*destWidth, srcPtr, srcWidth*blitHeight);
+        memcpy(destPtr+blitY*destWidth, srcPtr, srcStride*blitHeight);
         // copy whole UV plane
-        memcpy(destPtr+(destHeight+outY/2)*destWidth, srcPtr+srcWidth*srcHeight, srcWidth*blitHeight/2);
+        memcpy(destPtr+(destHeight+blitY/2)*destWidth, srcPtr+srcStride*srcHeight, srcStride*blitHeight/2);
     } else {
-        uint32_t outX = (destWidth - blitWidth)/2;
-        outX = (outX+8) & ~15;
-        blitWidth = blitWidth & ~15;
-
         // clear left and right bars, Y plane
         for (uint32_t y = 0; y < blitHeight; y++) {
-            fill(destPtr + (outY + y)*destWidth, mBlackY, outX);
-            fill(destPtr + (outY + y)*destWidth+outX+blitWidth, mBlackY, destWidth-outX-blitWidth);
+            fill(destPtr + (blitY + y)*destWidth, mBlackY, blitX);
+            fill(destPtr + (blitY + y)*destWidth+blitX+blitWidth, mBlackY, destWidth-blitX-blitWidth);
         }
 
         // clear left and right bars, UV plane
         for (uint32_t y = 0; y < blitHeight/2; y++) {
-            fill(destPtr + (destHeight + outY/2 + y)*destWidth, mBlackUV, outX);
-            fill(destPtr + (destHeight + outY/2 + y)*destWidth+outX+blitWidth, mBlackUV, destWidth-outX-blitWidth);
+            fill(destPtr + (destHeight + blitY/2 + y)*destWidth, mBlackUV, blitX);
+            fill(destPtr + (destHeight + blitY/2 + y)*destWidth+blitX+blitWidth, mBlackUV, destWidth-blitX-blitWidth);
         }
 
         // copy Y plane one row at a time
         for (uint32_t row = 0; row < blitHeight; row++)
-            memcpy(destPtr+(row+outY)*destWidth+outX, srcPtr + row*srcWidth, blitWidth);
+            memcpy(destPtr+(row+blitY)*destWidth+blitX, srcPtr + row*srcStride, blitWidth);
         // copy UV plane one row at a time
         for (uint32_t row = 0; row < blitHeight/2; row++)
-            memcpy(destPtr+(destHeight+row+outY/2)*destWidth+outX, srcPtr+(srcHeight+row)*srcWidth, blitWidth);
+            memcpy(destPtr+(destHeight+row+blitY/2)*destWidth+blitX, srcPtr+(srcHeight+row)*srcStride, blitWidth);
     }
-}
-
-bool VirtualDevice::vanillaPrepare(hwc_display_contents_1_t *display)
-{
-    DisplayAnalyzer *analyzer = mHwc.getDisplayAnalyzer();
-
-    // by default send the FRAMEBUFFER_TARGET layer (composited image)
-    mLayerToSend = display->numHwLayers-1;
-    mProtectedMode = false;
-
-    for (size_t i = 0; i < display->numHwLayers-1; i++) {
-        hwc_layer_1_t& layer = display->hwLayers[i];
-        if (analyzer->isVideoLayer(layer) && analyzer->isProtectedLayer(layer)) {
-            // can't support something below QCIF resolution
-            uint32_t vidContentWidth = layer.sourceCropf.right - layer.sourceCropf.left;
-            uint32_t vidContentHeight = layer.sourceCropf.bottom - layer.sourceCropf.top;
-            if (vidContentWidth >= QCIF_WIDTH && vidContentHeight >= QCIF_HEIGHT) {
-                layer.compositionType = HWC_OVERLAY;
-                mLayerToSend = i;
-                mProtectedMode = true;
-                break;
-            }
-        }
-    }
-
-    int32_t compositionType = mProtectedMode ? HWC_OVERLAY : HWC_FRAMEBUFFER;
-    for (size_t i = 0; i < display->numHwLayers-1; i++)
-        display->hwLayers[i].compositionType = compositionType;
-
-    if (mProtectedMode) {
-        // protected content
-        sp<CachedBuffer> destCachedBuffer = getMappedBuffer((uint32_t) display->outbuf);
-        if (destCachedBuffer == NULL) {
-            ETRACE("Couldn't map dest handle %x", (uint32_t) display->outbuf);
-            return false;
-        }
-        if (destCachedBuffer->mapper == NULL) {
-            ETRACE("Dest mapper gone");
-            return false;
-        }
-        uint8_t* destPtr = (uint8_t*)destCachedBuffer->mapper->getCpuAddress(0);
-
-        hwc_layer_1_t& targetFb = display->hwLayers[display->numHwLayers-1];
-        uint32_t outWidth = targetFb.sourceCropf.right - targetFb.sourceCropf.left;
-        uint32_t outHeight = targetFb.sourceCropf.bottom - targetFb.sourceCropf.top;
-        copyVideo(display->hwLayers[mLayerToSend].handle, destPtr, outWidth, outHeight);
-    } else {
-        // We map buffers for protected content.
-        // We don't need them anymore when back in clone mode.
-        mMappedBufferCache.clear();
-    }
-
-    return true;
 }
 
 void VirtualDevice::colorSwap(buffer_handle_t src, buffer_handle_t dest, uint32_t pixelCount)
 {
-    sp<CachedBuffer> srcCachedBuffer = getMappedBuffer((uint32_t)src);
-    if (srcCachedBuffer == NULL || srcCachedBuffer->mapper == NULL)
-        return;
-    sp<CachedBuffer> destCachedBuffer = getMappedBuffer((uint32_t)dest);
-    if (destCachedBuffer == NULL || destCachedBuffer->mapper == NULL)
-        return;
+    sp<CachedBuffer> srcCachedBuffer;
+    sp<CachedBuffer> destCachedBuffer;
+
+    {
+        Mutex::Autolock _l(mCscLock);
+        srcCachedBuffer = getMappedBuffer((uint32_t)src);
+        if (srcCachedBuffer == NULL || srcCachedBuffer->mapper == NULL)
+            return;
+        destCachedBuffer = getMappedBuffer((uint32_t)dest);
+        if (destCachedBuffer == NULL || destCachedBuffer->mapper == NULL)
+            return;
+    }
+
     uint8_t* srcPtr = static_cast<uint8_t*>(srcCachedBuffer->mapper->getCpuAddress(0));
     uint8_t* destPtr = static_cast<uint8_t*>(destCachedBuffer->mapper->getCpuAddress(0));
     if (srcPtr == NULL || destPtr == NULL)
@@ -932,40 +1341,133 @@ void VirtualDevice::colorSwap(buffer_handle_t src, buffer_handle_t dest, uint32_
     }
 }
 
-bool VirtualDevice::vanillaCommit(hwc_display_contents_1_t *display)
+void VirtualDevice::vspEnable(uint32_t width, uint32_t height)
 {
-    if (mProtectedMode)
-        return true;
+    ITRACE("Start VSP");
 
-    // clone mode
-    hwc_layer_1_t& layer = display->hwLayers[mLayerToSend];
-    crop_t cropInfo;
-    cropInfo.x = 0;
-    cropInfo.y = 0;
-    cropInfo.w = layer.sourceCropf.right - layer.sourceCropf.left;
-    cropInfo.h = layer.sourceCropf.bottom - layer.sourceCropf.top;
-    BufferManager* mgr = mHwc.getBufferManager();
-    uint32_t srcHandle = (uint32_t) layer.handle;
-    uint32_t destHandle = (uint32_t) display->outbuf;
-    if (srcHandle == 0 || destHandle == 0)
-        return false;
+    VAStatus va_status;
+    va_status = vaCreateSurfaces(
+                va_dpy,
+                VA_RT_FORMAT_YUV420,
+                width,
+                height,
+                &va_video_in,
+                1,
+                NULL,
+                0);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaCreateSurfaces (video in) returns %08x", va_status);
 
-    const IMG_native_handle_t* nativeSrcHandle = reinterpret_cast<const IMG_native_handle_t*>(layer.handle);
-    const IMG_native_handle_t* nativeDestHandle = reinterpret_cast<const IMG_native_handle_t*>(display->outbuf);
+    va_status = vaCreateContext(
+                va_dpy,
+                va_config,
+                width,
+                height,
+                0,
+                &va_video_in /* not used by VSP, but libva checks for it */,
+                1,
+                &va_context);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaCreateContext returns %08x", va_status);
+}
 
-    if ((nativeSrcHandle->iFormat == HAL_PIXEL_FORMAT_RGBA_8888 &&
-         nativeDestHandle->iFormat == HAL_PIXEL_FORMAT_BGRA_8888) ||
-        (nativeSrcHandle->iFormat == HAL_PIXEL_FORMAT_BGRA_8888 &&
-         nativeDestHandle->iFormat == HAL_PIXEL_FORMAT_RGBA_8888)) {
-        colorSwap(layer.handle, display->outbuf, nativeSrcHandle->iWidth*nativeSrcHandle->iHeight);
+void VirtualDevice::vspDisable()
+{
+    ITRACE("Shut down VSP");
+
+    if (va_context == 0 && va_video_in == 0) {
+        ITRACE("Already shut down");
+        return;
     }
-    else {
-        if (!(mgr->convertRGBToNV12(srcHandle, destHandle, cropInfo, 0))) {
-            ETRACE("color space conversion from RGB to NV12 failed");
-            return false;
-        }
-    }
-    return true;
+
+    VABufferID pipeline_param_id;
+    VAStatus va_status;
+    va_status = vaCreateBuffer(va_dpy,
+                va_context,
+                VAProcPipelineParameterBufferType,
+                sizeof(VAProcPipelineParameterBuffer),
+                1,
+                NULL,
+                &pipeline_param_id);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaCreateBuffer returns %08x", va_status);
+
+    VABlendState blend_state;
+    VAProcPipelineParameterBuffer *pipeline_param;
+    va_status = vaMapBuffer(va_dpy,
+                pipeline_param_id,
+                (void **)&pipeline_param);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaMapBuffer returns %08x", va_status);
+
+    memset(pipeline_param, 0, sizeof(VAProcPipelineParameterBuffer));
+    pipeline_param->pipeline_flags = VA_PIPELINE_FLAG_END;
+    pipeline_param->num_filters = 0;
+    pipeline_param->blend_state = &blend_state;
+
+    va_status = vaUnmapBuffer(va_dpy, pipeline_param_id);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaUnmapBuffer returns %08x", va_status);
+
+    va_status = vaBeginPicture(va_dpy, va_context, va_video_in /* just need some valid surface */);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaBeginPicture returns %08x", va_status);
+
+    va_status = vaRenderPicture(va_dpy, va_context, &pipeline_param_id, 1);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaRenderPicture returns %08x", va_status);
+
+    va_status = vaEndPicture(va_dpy, va_context);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaEndPicture returns %08x", va_status);
+
+    va_status = vaDestroyContext(va_dpy, va_context);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaDestroyContext returns %08x", va_status);
+    va_context = 0;
+
+    va_status = vaDestroySurfaces(va_dpy, &va_video_in, 1);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaDestroySurfaces returns %08x", va_status);
+    va_video_in = 0;
+}
+
+void VirtualDevice::vspCompose(VASurfaceID videoIn, VASurfaceID rgbIn, VASurfaceID videoOut)
+{
+    VAStatus va_status;
+
+    VABufferID pipeline_param_id;
+    va_status = vaCreateBuffer(va_dpy,
+                va_context,
+                VAProcPipelineParameterBufferType,
+                sizeof(VAProcPipelineParameterBuffer),
+                1,
+                NULL,
+                &pipeline_param_id);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaCreateBuffer returns %08x", va_status);
+
+    VABlendState blend_state;
+
+    VAProcPipelineParameterBuffer *pipeline_param;
+    va_status = vaMapBuffer(va_dpy,
+                pipeline_param_id,
+                (void **)&pipeline_param);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaMapBuffer returns %08x", va_status);
+
+    memset(pipeline_param, 0, sizeof(VAProcPipelineParameterBuffer));
+    pipeline_param->surface = videoIn;
+    pipeline_param->pipeline_flags = 0;
+    pipeline_param->num_filters = 0;
+    pipeline_param->blend_state = &blend_state;
+    pipeline_param->num_additional_outputs = 1;
+    pipeline_param->additional_outputs = &rgbIn;
+    pipeline_param->surface_region = NULL;
+    pipeline_param->output_region = NULL;
+
+    va_status = vaUnmapBuffer(va_dpy, pipeline_param_id);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaUnmapBuffer returns %08x", va_status);
+
+    va_status = vaBeginPicture(va_dpy, va_context, videoOut);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaBeginPicture returns %08x", va_status);
+
+    va_status = vaRenderPicture(va_dpy, va_context, &pipeline_param_id, 1);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaRenderPicture returns %08x", va_status);
+
+    va_status = vaEndPicture(va_dpy, va_context);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaEndPicture returns %08x", va_status);
+
+    va_status = vaSyncSurface(va_dpy, videoOut);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaSyncSurface returns %08x", va_status);
 }
 
 bool VirtualDevice::vsyncControl(bool enabled)
@@ -1067,7 +1569,8 @@ bool VirtualDevice::initialize()
     mNextConfig.forceNotifyFrameType = false;
     mNextConfig.forceNotifyBufferInfo = false;
     mCurrentConfig = mNextConfig;
-    mLayerToSend = 0;
+    mRgbLayer = -1;
+    mYuvLayer = -1;
 
     mCscBuffersToCreate = NUM_CSC_BUFFERS;
     mCscWidth = 0;
@@ -1086,6 +1589,12 @@ bool VirtualDevice::initialize()
         DEINIT_AND_RETURN_FALSE("Failed to create Soft Vsync Observer");
     }
 
+    mSyncTimelineFd = sw_sync_timeline_create();
+    mNextSyncPoint = 1;
+
+    mThread = new WidiBlitThread(this);
+    mThread->run("WidiBlit", PRIORITY_URGENT_DISPLAY);
+
     // Publish frame server service with service manager
     status_t ret = defaultServiceManager()->addService(String16("hwc.widi"), this);
     if (ret == NO_ERROR) {
@@ -1095,6 +1604,51 @@ bool VirtualDevice::initialize()
         ETRACE("Could not register hwc.widi with service manager, error = %d", ret);
         deinitialize();
     }
+
+    mLastScaleWidth = 0;
+    mLastScaleHeight = 0;
+
+    mVspEnabled = false;
+    mVspInUse = false;
+    int display = 0;
+    int major_ver, minor_ver;
+    va_dpy = vaGetDisplay(&display);
+    VAStatus va_status = vaInitialize(va_dpy, &major_ver, &minor_ver);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaInitialize returns %08x", va_status);
+
+    VAConfigAttrib va_attr;
+    va_attr.type = VAConfigAttribRTFormat;
+    va_status = vaGetConfigAttributes(va_dpy,
+                VAProfileNone,
+                VAEntrypointVideoProc,
+                &va_attr,
+                1);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaGetConfigAttributes returns %08x", va_status);
+
+    va_status = vaCreateConfig(
+                va_dpy,
+                VAProfileNone,
+                VAEntrypointVideoProc,
+                &(va_attr),
+                1,
+                &va_config
+                );
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaCreateConfig returns %08x", va_status);
+
+    VADisplayAttribute attr;
+    attr.type = VADisplayAttribRenderMode;
+    attr.value = VA_RENDER_MODE_LOCAL_OVERLAY;
+    va_status = vaSetDisplayAttributes(va_dpy, &attr, 1);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaSetDisplayAttributes returns %08x", va_status);
+
+    va_context = 0;
+    va_video_in = 0;
+
+    // TODO: get encrypted black when IED is armed
+    memset(mBlackY.data, 0, sizeof(mBlackY.data));
+    memset(mBlackUV.data, 0, sizeof(mBlackUV.data));
+
+    ITRACE("Init done.");
 
     return mInitialized;
 }
@@ -1125,38 +1679,20 @@ void VirtualDevice::dump(Dump& d)
 
 void VirtualDevice::deinitialize()
 {
+    VAStatus va_status;
+    va_status = vaDestroyConfig(va_dpy, va_config);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaDestroyConfig returns %08x", va_status);
+    va_config = 0;
+
+    va_status = vaTerminate(va_dpy);
+    va_dpy = 0;
+
     if (mPayloadManager) {
         delete mPayloadManager;
         mPayloadManager = NULL;
     }
     DEINIT_AND_DELETE_OBJ(mVsyncObserver);
     mInitialized = false;
-}
-
-// Shold make sure below 4 conditions are met,
-// 1: only for video playback case
-// 2: only be called ONE time
-// 3: is called before video driver begin to decode
-// 4: offX & offY are 64 aligned
-status_t VirtualDevice::setDownScaling(
-        int dswidth, int dsheight,
-        int offX, int offY,
-        int bufWidth, int bufHeight) {
-    status_t ret = UNKNOWN_ERROR;
-    if (!mDScalingEnabled)
-        return ret;
-    int sessionID = mHwc.getDisplayAnalyzer()->getFirstVideoInstanceSessionID();
-    if (sessionID >= 0 && mFirstVideoFrame) {
-        MultiDisplayObserver* mds = mHwc.getMultiDisplayObserver();
-        ret = mds->setDecoderOutputResolution(sessionID, dswidth, dsheight, offX, offY, bufWidth, bufHeight);
-        if (ret == NO_ERROR) {
-            ITRACE("set video down scaling: %dx%d, %dx%d, %dx%d",
-                    dswidth, dsheight, offX, offY, bufWidth, bufHeight);
-        } else {
-            WTRACE("Failed to set video down scaling");
-        }
-    }
-    return ret;
 }
 
 } // namespace intel

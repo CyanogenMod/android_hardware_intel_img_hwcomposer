@@ -222,14 +222,6 @@ bool TngDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t *
             continue;
         }
 
-        // For virtual display, simply set releasefence to be -1
-        if (i == IDisplayDevice::DEVICE_VIRTUAL) {
-            for (size_t j = 0; j < displays[i]->numHwLayers; j++) {
-                if (displays[i]->hwLayers[j].compositionType != HWC_FRAMEBUFFER)
-                    displays[i]->hwLayers[j].releaseFenceFd = -1;
-            }
-        }
-
         // log for layer fence status
         for (size_t j = 0; j < displays[i]->numHwLayers; j++) {
             VTRACE("handle %#x, acquiredFD %d, releaseFD %d",
@@ -239,16 +231,13 @@ bool TngDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t *
         }
 
         // retireFence is used for SurfaceFlinger to do DispSync;
-        // dup releaseFenceFd for physical displays and assign -1 for virtual
+        // dup releaseFenceFd for physical displays and ignore virtual
         // display; we don't distinguish between release and retire, and all
         // physical displays are using a single releaseFence; for virtual
-        // display, we are using sync mode to do NV12 bliting, and composition
-        // is always completed after commit.
+        // display, fencing is handled by the VirtualDisplay class
         if (i < IDisplayDevice::DEVICE_VIRTUAL) {
             displays[i]->retireFenceFd =
                 (releaseFenceFd != -1) ? dup(releaseFenceFd) : -1;
-        } else {
-            displays[i]->retireFenceFd = -1;
         }
     }
 
