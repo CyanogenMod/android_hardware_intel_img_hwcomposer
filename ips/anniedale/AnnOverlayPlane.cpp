@@ -324,6 +324,7 @@ bool AnnOverlayPlane::scalingSetup(BufferMapper& mapper)
     bool scaleChanged = false;
     int x, y, w, h;
     int deinterlace_factor = 1;
+    drmModeModeInfoPtr mode = &mModeInfo;
 
     OverlayBackBufferBlk *backBuffer = mBackBuffer[mCurrent]->buf;
     if (!backBuffer) {
@@ -331,8 +332,20 @@ bool AnnOverlayPlane::scalingSetup(BufferMapper& mapper)
         return false;
     }
 
-    x = mPosition.x;
-    y = mPosition.y;
+    if (mPanelOrientation == PANEL_ORIENTATION_180) {
+        if (mode->hdisplay)
+            x = mode->hdisplay - mPosition.x - mPosition.w;
+        else
+            x = mPosition.x;
+        if (mode->vdisplay)
+            y = mode->vdisplay - mPosition.y - mPosition.h;
+        else
+            y = mPosition.y;
+    } else {
+        x = mPosition.x;
+        y = mPosition.y;
+    }
+
     w = mPosition.w;
     h = mPosition.h;
 
@@ -516,23 +529,44 @@ void AnnOverlayPlane::setTransform(int transform)
     DisplayPlane::setTransform(transform);
 
     // setup transform config
-    switch (mTransform) {
-    case HWC_TRANSFORM_ROT_90:
-        mRotationConfig = (0x1 << 10);
-        break;
-    case HWC_TRANSFORM_ROT_180:
-        mRotationConfig = (0x2 << 10);
-        break;
-    case HWC_TRANSFORM_ROT_270:
-        mRotationConfig = (0x3 << 10);
-        break;
-    case 0:
-        mRotationConfig = 0;
-        break;
-    default:
-        ETRACE("Invalid transform %d", mTransform);
-        mRotationConfig = 0;
-        break;
+    if (mPanelOrientation == PANEL_ORIENTATION_180) {
+        switch (mTransform) {
+        case HWC_TRANSFORM_ROT_90:
+            mRotationConfig = (0x3 << 10);
+            break;
+        case HWC_TRANSFORM_ROT_180:
+            mRotationConfig = 0;
+            break;
+        case HWC_TRANSFORM_ROT_270:
+            mRotationConfig = (0x1 << 10);
+            break;
+        case 0:
+            mRotationConfig = (0x2 << 10);
+            break;
+        default:
+            ETRACE("Invalid transform %d", mTransform);
+            mRotationConfig = (0x2 << 10);
+            break;
+        }
+    } else {
+        switch (mTransform) {
+        case HWC_TRANSFORM_ROT_90:
+            mRotationConfig = (0x1 << 10);
+            break;
+        case HWC_TRANSFORM_ROT_180:
+            mRotationConfig = (0x2 << 10);
+            break;
+        case HWC_TRANSFORM_ROT_270:
+            mRotationConfig = (0x3 << 10);
+            break;
+        case 0:
+            mRotationConfig = 0;
+            break;
+        default:
+            ETRACE("Invalid transform %d", mTransform);
+            mRotationConfig = 0;
+            break;
+        }
     }
 }
 

@@ -106,6 +106,7 @@ bool AnnRGBPlane::setDataBuffer(BufferMapper& mapper)
     uint32_t stride;
     uint32_t linoff;
     uint32_t planeAlpha;
+    drmModeModeInfoPtr mode = &mModeInfo;
 
     CTRACE();
 
@@ -129,7 +130,11 @@ bool AnnRGBPlane::setDataBuffer(BufferMapper& mapper)
     srcW = mapper.getWidth();
     srcH = mapper.getHeight();
     stride = mapper.getStride().rgb.stride;
-    linoff = srcY * stride + srcX * bpp;
+
+    if (mPanelOrientation == PANEL_ORIENTATION_180)
+        linoff = srcY * stride + srcX * bpp + (mapper.getCrop().h  - 1) * stride + (mapper.getCrop().w - 1) * bpp;
+    else
+        linoff = srcY * stride + srcX * bpp;
 
     // unlikely happen, but still we need make sure linoff is valid
     if (linoff > (stride * mapper.getHeight())) {
@@ -162,6 +167,9 @@ bool AnnRGBPlane::setDataBuffer(BufferMapper& mapper)
         mContext.ctx.sp_ctx.cntr |= (0x1 << 23);
     }
 
+    if (mPanelOrientation == PANEL_ORIENTATION_180)
+        mContext.ctx.sp_ctx.cntr |= (0x1 << 15);
+
     if (mapper.isCompression()) {
         mContext.ctx.sp_ctx.stride = align_to(srcW, 32) * 4;
         mContext.ctx.sp_ctx.linoff = (align_to(srcW, 32) * srcH / 64) - 1;
@@ -170,7 +178,16 @@ bool AnnRGBPlane::setDataBuffer(BufferMapper& mapper)
     }
 
     mContext.ctx.sp_ctx.surf = mapper.getGttOffsetInPage(0) << 12;
-    mContext.ctx.sp_ctx.pos = (dstY & 0xfff) << 16 | (dstX & 0xfff);
+
+    if (mPanelOrientation == PANEL_ORIENTATION_180) {
+        if (mode->vdisplay && mode->hdisplay)
+            mContext.ctx.sp_ctx.pos = ((mode->vdisplay - dstY - dstH) & 0xfff) << 16 | ((mode->hdisplay - dstX - dstW) & 0xfff);
+        else
+            mContext.ctx.sp_ctx.pos = (dstY & 0xfff) << 16 | (dstX & 0xfff);
+    } else {
+        mContext.ctx.sp_ctx.pos = (dstY & 0xfff) << 16 | (dstX & 0xfff);
+    }
+
     mContext.ctx.sp_ctx.size =
         ((dstH - 1) & 0xfff) << 16 | ((dstW - 1) & 0xfff);
     mContext.ctx.sp_ctx.contalpa = planeAlpha;
@@ -288,7 +305,12 @@ void AnnRGBPlane::setFramebufferTarget(uint32_t handle)
     mContext.ctx.prim_ctx.update_mask = SPRITE_UPDATE_ALL;
     mContext.ctx.prim_ctx.index = mIndex;
     mContext.ctx.prim_ctx.pipe = mDevice;
-    mContext.ctx.prim_ctx.linoff = 0;
+
+    if (mPanelOrientation == PANEL_ORIENTATION_180)
+        mContext.ctx.prim_ctx.linoff = (mPosition.h  - 1) * stride + (mPosition.w - 1) * 4;
+    else
+        mContext.ctx.prim_ctx.linoff = 0;
+
     mContext.ctx.prim_ctx.stride = stride;
     mContext.ctx.prim_ctx.tileoff = 0;
     mContext.ctx.prim_ctx.pos = 0;
@@ -303,6 +325,9 @@ void AnnRGBPlane::setFramebufferTarget(uint32_t handle)
     if (mBlending == HWC_BLENDING_COVERAGE) {
         mContext.ctx.prim_ctx.cntr |= (0x1 << 23);
     }
+
+    if (mPanelOrientation == PANEL_ORIENTATION_180)
+        mContext.ctx.prim_ctx.cntr |= (0x1 << 15);
 
     VTRACE("type = %d, index = %d, cntr = %#x, linoff = %#x, stride = %#x,"
           "surf = %#x, pos = %#x, size = %#x, contalpa = %#x", mType, mIndex,

@@ -41,6 +41,11 @@ extern "C" {
 namespace android {
 namespace intel {
 
+enum {
+    PANEL_ORIENTATION_0 = 0,
+    PANEL_ORIENTATION_180
+};
+
 class Drm {
 public:
     Drm();
@@ -64,6 +69,7 @@ public:
     bool getModeInfo(int device, drmModeModeInfo& mode);
     bool getPhysicalSize(int device, uint32_t& width, uint32_t& height);
     bool isSameDrmMode(drmModeModeInfoPtr mode, drmModeModeInfoPtr base) const;
+    int getPanelOrientation(int device);
 
 private:
     bool initDrmMode(int index);
@@ -89,6 +95,7 @@ private:
         uint32_t fbHandle;
         uint32_t fbId;
         int connected;
+        int panelOrientation;
     } mOutputs[OUTPUT_MAX];
 
     int mDrmFd;

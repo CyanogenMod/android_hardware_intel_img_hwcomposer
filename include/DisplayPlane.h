@@ -30,6 +30,7 @@
 
 #include <utils/KeyedVector.h>
 #include <BufferMapper.h>
+#include <Drm.h>
 
 namespace android {
 namespace intel {
@@ -154,6 +155,8 @@ protected:
     uint32_t mBlending;
     uint32_t mCurrentDataBuffer;
     uint32_t mUpdateMasks;
+    drmModeModeInfo mModeInfo;
+    int mPanelOrientation;
 };
 
 } // namespace intel
