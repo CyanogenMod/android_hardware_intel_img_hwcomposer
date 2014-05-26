@@ -49,7 +49,8 @@ OverlayPlaneBase::OverlayPlaneBase(int index, int disp)
       mActiveTTMBuffers(),
       mCurrent(0),
       mWsbm(0),
-      mPipeConfig(0)
+      mPipeConfig(0),
+      mBobDeinterlace(0)
 {
     CTRACE();
     for (int i = 0; i < OVERLAY_BACK_BUFFER_COUNT; i++) {
@@ -633,6 +634,10 @@ void OverlayPlaneBase::checkCrop(int& srcX, int& srcY, int& srcW, int& srcH,
                                int coded_width, int coded_height)
 {
     int tmp;
+
+    if (mTransform)
+        srcH >>= mBobDeinterlace;
+
     if (mTransform == HWC_TRANSFORM_ROT_90 || mTransform == HWC_TRANSFORM_ROT_270) {
         tmp = srcH;
         srcH = srcW;
@@ -650,11 +655,11 @@ void OverlayPlaneBase::checkCrop(int& srcX, int& srcY, int& srcW, int& srcH,
     // skip pading bytes in rotate buffer
     switch(mTransform) {
     case HWC_TRANSFORM_ROT_90:
-        srcX = coded_width - srcW - srcX;
+        srcX = (coded_width >> mBobDeinterlace) - srcW - srcX;
         break;
     case HWC_TRANSFORM_ROT_180:
         srcX = coded_width - srcW - srcX;
-        srcY = coded_height - srcH - srcY;
+        srcY = (coded_height >> mBobDeinterlace) - srcH - srcY;
         break;
     case HWC_TRANSFORM_ROT_270:
         srcY = coded_height - srcH - srcY;
@@ -1132,11 +1137,25 @@ bool OverlayPlaneBase::setDataBuffer(BufferMapper& grallocMapper)
     BufferMapper *mapper;
     BufferMapper *rotatedMapper = 0;
     bool ret;
+    uint32_t format;
 
     RETURN_FALSE_IF_NOT_INIT();
 
     // get gralloc mapper
     mapper = &grallocMapper;
+    format = grallocMapper.getFormat();
+    if (format == OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar ||
+        format == OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled) {
+        struct VideoPayloadBuffer *payload;
+        payload = (struct VideoPayloadBuffer *)grallocMapper.getCpuAddress(SUB_BUFFER1);
+        if (!payload) {
+            ETRACE("invalid payload buffer");
+            return 0;
+        }
+
+        mBobDeinterlace = payload->bob_deinterlace;
+    }
+
     if (mTransform && !useOverlayRotation(grallocMapper)) {
         if (!rotatedBufferReady(grallocMapper, rotatedMapper)) {
             DTRACE("rotated buffer is not ready");
@@ -1175,6 +1194,14 @@ bool OverlayPlaneBase::setDataBuffer(BufferMapper& grallocMapper)
     }
 
     backBuffer->OCMD |= 0x1;
+
+    if (mBobDeinterlace && !mTransform) {
+        backBuffer->OCMD |= BUF_TYPE_FIELD;
+        backBuffer->OCMD &= ~FIELD_SELECT;
+        backBuffer->OCMD |= FIELD0;
+        backBuffer->OCMD &= ~(BUFFER_SELECT);
+        backBuffer->OCMD |= BUFFER0;
+    }
 
     // add to active ttm buffers if it's a rotated buffer
     if (rotatedMapper) {

@@ -63,7 +63,8 @@ RotationBufferProvider::RotationBufferProvider(Wsbm* wsbm)
       mRotatedHeight(0),
       mRotatedStride(0),
       mTargetIndex(0),
-      mTTMWrappers()
+      mTTMWrappers(),
+      mBobDeinterlace(0)
 {
     for (int i = 0; i < MAX_SURFACE_NUM; i++) {
         mKhandles[i] = 0;
@@ -195,6 +196,13 @@ bool RotationBufferProvider::createVaSurface(VideoPayloadBuffer *payload, int tr
         return false;
     }
 
+    // adjust source target for Bob deinterlace
+    if (!isTarget && mBobDeinterlace) {
+        height >>= 1;
+        bufferHeight >>= 1;
+        stride <<= 1;
+    }
+
     vaSurfaceAttrib->count = 1;
     vaSurfaceAttrib->width = width;
     vaSurfaceAttrib->height = height;
@@ -227,7 +235,7 @@ bool RotationBufferProvider::createVaSurface(VideoPayloadBuffer *payload, int tr
         /* set src surface width/height to video crop size */
         if (payload->crop_width && payload->crop_height) {
             width = payload->crop_width;
-            height = payload->crop_height;
+            height = (payload->crop_height >> mBobDeinterlace);
         } else {
             VTRACE("Invalid cropping width or height");
             payload->crop_width = width;
@@ -372,6 +380,7 @@ bool RotationBufferProvider::startVA(VideoPayloadBuffer *payload, int transform)
         return false;
     }
 
+    mBobDeinterlace = payload->bob_deinterlace;
     mVaInitialized = true;
 
     return true;

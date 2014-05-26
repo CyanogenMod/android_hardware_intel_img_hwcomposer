@@ -323,6 +323,7 @@ bool AnnOverlayPlane::scalingSetup(BufferMapper& mapper)
     int i, j, pos;
     bool scaleChanged = false;
     int x, y, w, h;
+    int deinterlace_factor = 1;
 
     OverlayBackBufferBlk *backBuffer = mBackBuffer[mCurrent]->buf;
     if (!backBuffer) {
@@ -353,6 +354,9 @@ bool AnnOverlayPlane::scalingSetup(BufferMapper& mapper)
     uint32_t dstWidth = w;
     uint32_t dstHeight = h;
 
+    if (mBobDeinterlace && !mTransform)
+        deinterlace_factor = 2;
+
     VTRACE("src (%dx%d), dst (%dx%d), transform %d",
           srcWidth, srcHeight,
           dstWidth, dstHeight,
@@ -370,10 +374,10 @@ bool AnnOverlayPlane::scalingSetup(BufferMapper& mapper)
      // Y down-scale factor as a multiple of 4096
     if (srcWidth == dstWidth && srcHeight == dstHeight) {
         xscaleFract = (1 << 12);
-        yscaleFract = (1 << 12);
+        yscaleFract = (1 << 12) / deinterlace_factor;
     } else {
         xscaleFract = ((srcWidth - 1) << 12) / dstWidth;
-        yscaleFract = ((srcHeight - 1) << 12) / dstHeight;
+        yscaleFract = ((srcHeight - 1) << 12) / (dstHeight * deinterlace_factor);
     }
 
     // Calculate the UV scaling factor
@@ -644,7 +648,8 @@ bool AnnOverlayPlane::rotatedBufferReady(BufferMapper& mapper, BufferMapper* &ro
         return false;
     }
 
-    if (payload->client_transform != mTransform) {
+    if (payload->client_transform != mTransform ||
+        mBobDeinterlace) {
         payload->hwc_timestamp = systemTime();
         payload->layer_transform = mTransform;
         if (!mRotationBufProvider->setupRotationBuffer(payload, mTransform)) {
@@ -687,7 +692,7 @@ bool AnnOverlayPlane::useOverlayRotation(BufferMapper& mapper)
         fallback = true;
     }
 
-    if (fallback) {
+    if (fallback || mBobDeinterlace) {
         mUseOverlayRotation = false;
         mRotationConfig = 0;
     } else {

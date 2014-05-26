@@ -103,6 +103,8 @@ private:
     };
 
     KeyedVector<uint64_t, void*> mTTMWrappers; /* userPt/wsbmBuffer  */
+
+    int mBobDeinterlace;
 };
 
 } // name space intel
