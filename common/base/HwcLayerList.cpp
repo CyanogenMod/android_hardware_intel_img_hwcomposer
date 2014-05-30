@@ -627,6 +627,19 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
         deinitialize();
         mList = list;
         initialize();
+
+        // update all layers again after plane re-allocation
+        for (int i = 0; i < mLayerCount; i++) {
+            HwcLayer *hwcLayer = mLayers.itemAt(i);
+            if (!hwcLayer) {
+                ETRACE("no HWC layer for layer %d", i);
+                continue;
+            }
+
+            if (!hwcLayer->update(&list->hwLayers[i])) {
+                DTRACE("fallback to GLES update failed on layer[%d]!\n", i);
+            }
+        }
     }
 
     setupSmartComposition();
