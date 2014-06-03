@@ -339,8 +339,8 @@ struct VirtualDevice::ComposeTask : public VirtualDevice::RenderTask {
         }
         else {
             videoKhandle = videoMetadata.kHandle;
-            videoWidth = videoMetadata.crop_width;
-            videoHeight = videoMetadata.crop_height;
+            videoWidth = videoMetadata.width;
+            videoHeight = videoMetadata.height;
             videoStride = videoMetadata.lumaStride;
             videoBufHeight = videoMetadata.height;
         }
