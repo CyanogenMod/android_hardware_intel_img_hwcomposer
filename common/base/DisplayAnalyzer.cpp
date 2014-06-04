@@ -166,7 +166,6 @@ void DisplayAnalyzer::checkVideoExtMode()
         return;
     }
 #endif
-
     // reset eligibility of video extended mode
     mVideoExtModeEligible = false;
 
@@ -179,17 +178,14 @@ void DisplayAnalyzer::checkVideoExtMode()
     uint32_t videoHandle = 0;
     bool videoLayerExist = false;
     bool videoFullScreenOnPrimary = false;
-    bool videoLayerSkippedOnExtMode = false;
+    bool isVideoLayerSkipped = false;
 
     // exclude the frame buffer target layer
     for (int j = 0; j < (int)content->numHwLayers - 1; j++) {
         videoLayerExist = isVideoLayer(content->hwLayers[j]);
         if (videoLayerExist) {
-            videoLayerSkippedOnExtMode = false;
             if ((content->hwLayers[j].flags & HWC_SKIP_LAYER)) {
-                if (isVideoExtModeActive()) {
-                    videoLayerSkippedOnExtMode = true;
-                }
+                isVideoLayerSkipped = true;
             }
             videoHandle = (uint32_t)content->hwLayers[j].handle;
             videoFullScreenOnPrimary = isVideoFullScreen(0, content->hwLayers[j]);
@@ -214,8 +210,11 @@ void DisplayAnalyzer::checkVideoExtMode()
         // exclude the frame buffer target layer
         for (int j = 0; j < (int)content->numHwLayers - 1; j++) {
             if ((uint32_t)content->hwLayers[j].handle == videoHandle) {
+                isVideoLayerSkipped |= (content->hwLayers[j].flags & HWC_SKIP_LAYER);
                 VTRACE("video layer exists in device %d", i);
-                if (videoFullScreenOnPrimary || videoLayerSkippedOnExtMode) {
+                if (isVideoLayerSkipped || videoFullScreenOnPrimary){
+                    VTRACE("Video ext mode eligible, %d, %d",
+                            isVideoLayerSkipped, videoFullScreenOnPrimary);
                     mVideoExtModeEligible = true;
                 } else {
                     mVideoExtModeEligible = isVideoFullScreen(i, content->hwLayers[j]);
@@ -286,8 +285,8 @@ bool DisplayAnalyzer::isVideoFullScreen(int device, hwc_layer_1_t &layer)
     int dstW = layer.displayFrame.right - layer.displayFrame.left;
     int dstH = layer.displayFrame.bottom - layer.displayFrame.top;
 
-    if (dstW < width - 1 &&
-        dstH < height - 1 &&
+    if (abs(dstW - width) <= 1 &&
+        abs(dstH - height) <= 1 &&
         dstW * dstH * 10 < width * height * 9) {
         VTRACE("video is not full-screen");
         return false;
