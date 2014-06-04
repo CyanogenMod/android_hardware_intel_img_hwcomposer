@@ -196,7 +196,7 @@ bool PlaneCapabilities::isScalingSupported(int planeType, HwcLayer *hwcLayer)
             return false;
         }
 
-        if (dstW <= 1 || dstH <= 1) {
+        if (dstW <= 1 || dstH <= 1 || srcW <= 1 || srcH <= 1) {
             // Workaround: Overlay flip when height is 1 causes MIPI stall on TNG
             DTRACE("invalid destination size: %dx%d, fall back to GLES", dstW, dstH);
             return false;
