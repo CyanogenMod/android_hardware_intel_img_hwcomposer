@@ -59,6 +59,8 @@ public:
     virtual bool rotatedBufferReady(BufferMapper& mapper, BufferMapper* &rotatedMapper);
     virtual bool useOverlayRotation(BufferMapper& mapper);
 
+private:
+    void signalVideoRotation(BufferMapper& mapper);
 protected:
     virtual bool setDataBuffer(BufferMapper& mapper);
     virtual bool flush(uint32_t flags);

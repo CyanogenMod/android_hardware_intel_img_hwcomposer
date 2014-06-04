@@ -628,6 +628,8 @@ bool AnnOverlayPlane::setDataBuffer(BufferMapper& mapper)
         return false;
     }
 
+    signalVideoRotation(mapper);
+
     if (mIsProtectedBuffer) {
         // Bit 0: Decryption request, only allowed to change on a synchronous flip
         // This request will be qualified with the separate decryption enable bit for OV
@@ -684,8 +686,6 @@ bool AnnOverlayPlane::rotatedBufferReady(BufferMapper& mapper, BufferMapper* &ro
 
     if (payload->client_transform != mTransform ||
         mBobDeinterlace) {
-        payload->hwc_timestamp = systemTime();
-        payload->layer_transform = mTransform;
         if (!mRotationBufProvider->setupRotationBuffer(payload, mTransform)) {
             DTRACE("failed to setup rotation buffer");
             return false;
@@ -694,6 +694,41 @@ bool AnnOverlayPlane::rotatedBufferReady(BufferMapper& mapper, BufferMapper* &ro
 
     rotatedMapper = getTTMMapper(mapper, payload);
     return true;
+}
+
+void AnnOverlayPlane::signalVideoRotation(BufferMapper& mapper)
+{
+    struct VideoPayloadBuffer *payload;
+    uint32_t format;
+
+    // check if it's video layer
+    format = mapper.getFormat();
+    if (format != OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar &&
+        format != OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled) {
+        return;
+    }
+
+    payload = (struct VideoPayloadBuffer *)mapper.getCpuAddress(SUB_BUFFER1);
+    if (!payload) {
+        ETRACE("no payload found");
+        return;
+    }
+
+    /* if use overlay rotation, signal decoder to stop rotation */
+    if (mUseOverlayRotation) {
+        if (payload->client_transform) {
+            WTRACE("signal decoder to stop generate rotation buffer");
+            payload->hwc_timestamp = systemTime();
+            payload->layer_transform = 0;
+        }
+    } else {
+        /* if overlay rotation cannot be used, signal decoder to start rotation */
+        if (payload->client_transform != mTransform) {
+            WTRACE("signal decoder to generate rotation buffer with transform %d", mTransform);
+            payload->hwc_timestamp = systemTime();
+            payload->layer_transform = mTransform;
+        }
+    }
 }
 
 bool AnnOverlayPlane::useOverlayRotation(BufferMapper& mapper)
