@@ -1470,8 +1470,40 @@ void VirtualDevice::colorSwap(buffer_handle_t src, buffer_handle_t dest, uint32_
 void VirtualDevice::vspEnable(uint32_t width, uint32_t height)
 {
     ITRACE("Start VSP");
-
     VAStatus va_status;
+
+    int display = 0;
+    int major_ver, minor_ver;
+    va_dpy = vaGetDisplay(&display);
+    va_status = vaInitialize(va_dpy, &major_ver, &minor_ver);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaInitialize returns %08x", va_status);
+
+    VAConfigAttrib va_attr;
+    va_attr.type = VAConfigAttribRTFormat;
+    va_status = vaGetConfigAttributes(va_dpy,
+                VAProfileNone,
+                VAEntrypointVideoProc,
+                &va_attr,
+                1);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaGetConfigAttributes returns %08x", va_status);
+
+    va_status = vaCreateConfig(
+                va_dpy,
+                VAProfileNone,
+                VAEntrypointVideoProc,
+                &(va_attr),
+                1,
+                &va_config
+                );
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaCreateConfig returns %08x", va_status);
+
+    VADisplayAttribute attr;
+    attr.type = VADisplayAttribRenderMode;
+    attr.value = VA_RENDER_MODE_LOCAL_OVERLAY;
+    va_status = vaSetDisplayAttributes(va_dpy, &attr, 1);
+    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaSetDisplayAttributes returns %08x", va_status);
+
+
     va_status = vaCreateSurfaces(
                 va_dpy,
                 VA_RT_FORMAT_YUV420,
@@ -1546,6 +1578,15 @@ void VirtualDevice::vspDisable()
     va_status = vaDestroySurfaces(va_dpy, &va_video_in, 1);
     if (va_status != VA_STATUS_SUCCESS) ETRACE("vaDestroySurfaces returns %08x", va_status);
     va_video_in = 0;
+
+    if (va_config) {
+        vaDestroyConfig(va_dpy, va_config);
+        va_config = 0;
+    }
+    if (va_dpy) {
+        vaTerminate(va_dpy);
+        va_dpy = NULL;
+    }
 }
 
 void VirtualDevice::vspCompose(VASurfaceID videoIn, VASurfaceID rgbIn, VASurfaceID videoOut)
@@ -1737,37 +1778,8 @@ bool VirtualDevice::initialize()
 
     mVspEnabled = false;
     mVspInUse = false;
-    int display = 0;
-    int major_ver, minor_ver;
-    va_dpy = vaGetDisplay(&display);
-    VAStatus va_status = vaInitialize(va_dpy, &major_ver, &minor_ver);
-    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaInitialize returns %08x", va_status);
-
-    VAConfigAttrib va_attr;
-    va_attr.type = VAConfigAttribRTFormat;
-    va_status = vaGetConfigAttributes(va_dpy,
-                VAProfileNone,
-                VAEntrypointVideoProc,
-                &va_attr,
-                1);
-    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaGetConfigAttributes returns %08x", va_status);
-
-    va_status = vaCreateConfig(
-                va_dpy,
-                VAProfileNone,
-                VAEntrypointVideoProc,
-                &(va_attr),
-                1,
-                &va_config
-                );
-    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaCreateConfig returns %08x", va_status);
-
-    VADisplayAttribute attr;
-    attr.type = VADisplayAttribRenderMode;
-    attr.value = VA_RENDER_MODE_LOCAL_OVERLAY;
-    va_status = vaSetDisplayAttributes(va_dpy, &attr, 1);
-    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaSetDisplayAttributes returns %08x", va_status);
-
+    va_dpy = NULL;
+    va_config = 0;
     va_context = 0;
     va_video_in = 0;
 
@@ -1807,12 +1819,6 @@ void VirtualDevice::dump(Dump& d)
 void VirtualDevice::deinitialize()
 {
     VAStatus va_status;
-    va_status = vaDestroyConfig(va_dpy, va_config);
-    if (va_status != VA_STATUS_SUCCESS) ETRACE("vaDestroyConfig returns %08x", va_status);
-    va_config = 0;
-
-    va_status = vaTerminate(va_dpy);
-    va_dpy = 0;
 
     if (mPayloadManager) {
         delete mPayloadManager;
