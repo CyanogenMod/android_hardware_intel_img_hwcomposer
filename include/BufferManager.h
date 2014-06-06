@@ -91,6 +91,7 @@ private:
     BufferCache *mBufferPool;
     DataBuffer *mDataBuffer;
     Mutex mDataBufferLock;
+    Mutex mLock;
     bool mInitialized;
 };
 

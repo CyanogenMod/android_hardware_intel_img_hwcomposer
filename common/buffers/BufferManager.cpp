@@ -168,7 +168,7 @@ BufferMapper* BufferManager::map(DataBuffer& buffer)
     BufferMapper* mapper;
 
     CTRACE();
-
+    Mutex::Autolock _l(mLock);
     //try to get mapper from pool
     mapper = mBufferPool->getMapper(buffer.getKey());
     if (mapper) {
@@ -212,6 +212,7 @@ BufferMapper* BufferManager::map(DataBuffer& buffer)
 
 void BufferManager::unmap(BufferMapper *mapper)
 {
+    Mutex::Autolock _l(mLock);
     if (!mapper) {
         ETRACE("invalid mapper");
         return;
