@@ -543,13 +543,9 @@ void DisplayAnalyzer::handleVideoEvent(int instanceID, int state)
          hwc->getPowerManager()->enableIdleControl();
     }
 
-    // delay changing timing as it is a lengthy operation
-    if (state == VIDEO_PLAYBACK_STARTED ||
-        state == VIDEO_PLAYBACK_STOPPED) {
-        Event e;
-        e.type = TIMING_EVENT;
-        postEvent(e);
-    }
+    // Setting timing immediately,
+    // Don't posthone to next circle
+    handleTimingEvent();
 }
 
 void DisplayAnalyzer::blankSecondaryDevice()
