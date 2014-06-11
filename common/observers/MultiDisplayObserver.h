@@ -39,9 +39,13 @@ namespace android {
 namespace intel {
 
 struct VideoSourceInfo {
+    VideoSourceInfo() {
+        memset(this, 0, sizeof(VideoSourceInfo));
+    }
     int width;
     int height;
     int frameRate;
+    bool isProtected;
 };
 
 

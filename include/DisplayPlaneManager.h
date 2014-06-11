@@ -82,7 +82,7 @@ public:
     virtual int getFreePlanes(int dsp, int type);
     virtual void reclaimPlane(int dsp, DisplayPlane& plane);
     virtual void disableReclaimedPlanes();
-    virtual void disableOverlayPlanes();
+    virtual bool isOverlayPlanesDisabled();
     // dump interface
     virtual void dump(Dump& d);
 

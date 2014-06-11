@@ -145,6 +145,7 @@ private:
     // workaround HWC_SKIP_LAYER set during rotation for extended video mode
     // by default if layer has HWC_SKIP_LAYER flag it should not be processed by HWC
     bool mIgnoreVideoSkipFlag;
+    bool mProtectedVideoSession;
     // map video instance ID to video state
     KeyedVector<int, int> mVideoStateMap;
     int mCachedNumDisplays;

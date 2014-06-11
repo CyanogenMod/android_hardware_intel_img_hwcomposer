@@ -49,6 +49,7 @@ DisplayAnalyzer::DisplayAnalyzer()
       mOverlayAllowed(true),
       mActiveInputState(true),
       mIgnoreVideoSkipFlag(false),
+      mProtectedVideoSession(false),
       mCachedNumDisplays(0),
       mCachedDisplays(0),
       mPendingEvents(),
@@ -74,6 +75,7 @@ bool DisplayAnalyzer::initialize()
     mOverlayAllowed = true;
     mActiveInputState = true;
     mIgnoreVideoSkipFlag = false;
+    mProtectedVideoSession = false;
     mCachedNumDisplays = 0;
     mCachedDisplays = 0;
     mPendingEvents.clear();
@@ -330,16 +332,17 @@ void DisplayAnalyzer::postVideoEvent(int instanceID, int state)
     postEvent(e);
 
     if ((state == VIDEO_PLAYBACK_STARTING) ||
-        (state == VIDEO_PLAYBACK_STOPPING && hasProtectedLayer())) {
+        (state == VIDEO_PLAYBACK_STOPPING && mProtectedVideoSession)) {
         Hwcomposer::getInstance().invalidate();
-        Mutex::Autolock lock(mEventMutex);
-        // ideally overlay should be disabled in the surface flinger thread, if it is not processed
-        // in close to one vsync cycle (50ms)  it will be safely disabled in this thread context
-        // there is no threading issue
-        status_t err = mEventHandledCondition.waitRelative(mEventMutex, milliseconds(50));
-        if (err == -ETIMEDOUT) {
-            WTRACE("timeout waiting for event handling");
-            Hwcomposer::getInstance().getPlaneManager()->disableOverlayPlanes();
+        // wait for up to 100ms until overlay is disabled.
+        int loop = 0;
+        while (loop++ < 6) {
+            if (Hwcomposer::getInstance().getPlaneManager()->isOverlayPlanesDisabled())
+                break;
+            usleep(16700);
+        }
+        if (loop == 6) {
+            WTRACE("timeout disabling overlay ");
         }
     }
 }
@@ -514,15 +517,11 @@ void DisplayAnalyzer::handleVideoEvent(int instanceID, int state)
     // check if composition type needs to be reset
     bool reset = false;
     if ((state == VIDEO_PLAYBACK_STARTING) ||
-        (state == VIDEO_PLAYBACK_STOPPING && hasProtectedLayer())) {
+        (state == VIDEO_PLAYBACK_STOPPING && mProtectedVideoSession)) {
         // if video is in starting or stopping stage, overlay use is temporarily not allowed to
         // avoid scrambed RGB overlay if video is protected.
         mOverlayAllowed = false;
         reset = true;
-
-        // disable overlay plane and acknolwdge the waiting thread
-        hwc->getPlaneManager()->disableOverlayPlanes();
-        mEventHandledCondition.signal();
     } else {
         reset = !mOverlayAllowed;
         mOverlayAllowed = true;
@@ -545,6 +544,14 @@ void DisplayAnalyzer::handleVideoEvent(int instanceID, int state)
         hwc->getPowerManager()->disableIdleControl();
     } else if (!hwc->getDrm()->isConnected(IDisplayDevice::DEVICE_EXTERNAL)) {
          hwc->getPowerManager()->enableIdleControl();
+    }
+
+    mProtectedVideoSession = false;
+    if (state == VIDEO_PLAYBACK_STARTED) {
+        VideoSourceInfo info;
+        hwc->getMultiDisplayObserver()->getVideoSourceInfo(
+                getFirstVideoInstanceSessionID(), &info);
+        mProtectedVideoSession = info.isProtected;
     }
 
     // Setting timing immediately,

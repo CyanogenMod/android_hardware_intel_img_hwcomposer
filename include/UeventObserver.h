@@ -59,13 +59,13 @@ private:
 
     char mUeventMessage[UEVENT_MSG_LEN];
     int mUeventFd;
+    int mExitRDFd;
+    int mExitWDFd;
     struct UeventListener {
         UeventListenerFunc func;
         void *data;
     };
     KeyedVector<String8, UeventListener*> mListeners;
-    int mExitRDFd;
-    int mExitWDFd;
 };
 
 } // namespace intel
