@@ -59,6 +59,7 @@ public:
     void postIdleEntryEvent();
     bool isPresentationLayer(hwc_layer_1_t &layer);
     bool isProtectedLayer(hwc_layer_1_t &layer);
+    bool ignoreVideoSkipFlag();
     int  getFirstVideoInstanceSessionID();
 
 private:
@@ -71,6 +72,7 @@ private:
         DPMS_EVENT,
         IDLE_ENTRY_EVENT,
         IDLE_EXIT_EVENT,
+        VIDEO_CHECK_EVENT,
     };
 
     struct Event {
@@ -98,6 +100,7 @@ private:
     void handleDpmsEvent(int delayCount);
     void handleIdleEntryEvent(int count);
     void handleIdleExitEvent();
+    void handleVideoCheckEvent();
 
     void blankSecondaryDevice();
     void handleVideoExtMode();
@@ -139,6 +142,9 @@ private:
     bool mBlankDevice;
     bool mOverlayAllowed;
     bool mActiveInputState;
+    // workaround HWC_SKIP_LAYER set during rotation for extended video mode
+    // by default if layer has HWC_SKIP_LAYER flag it should not be processed by HWC
+    bool mIgnoreVideoSkipFlag;
     // map video instance ID to video state
     KeyedVector<int, int> mVideoStateMap;
     int mCachedNumDisplays;
