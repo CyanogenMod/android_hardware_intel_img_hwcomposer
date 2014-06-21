@@ -97,13 +97,14 @@ static ZOrderDescription PIPE_A_ZORDER_DESC[] =
 };
 
 // use overlay C over overlay A if possible on pipe B
+// workaround: use only overlay C on pipe B
 static ZOrderDescription PIPE_B_ZORDER_DESC[] =
 {
     {0, "BD"},    // no overlay
     {1, "HBD"},   // overlay C at bottom (1 << 0)
-    {1, "GBD"},   // overlay A at bottom (1 << 0)
+//    {1, "GBD"},   // overlay A at bottom (1 << 0)
     {2, "BHD"},   // overlay C at middle (1 << 1)
-    {2, "BGD"},   // overlay A at middle (1 << 1)
+//   {2, "BGD"},   // overlay A at middle (1 << 1)
     {3, "GHBD"},  // overlay A and C at bottom ( 1 << 0 + 1 << 1)
     {4, "BDH"},   // overlay C at top (1 << 2)
     {4, "BDG"},   // overlay A at top (1 << 2)
