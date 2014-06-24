@@ -101,6 +101,21 @@ void DisplayAnalyzer::analyzeContents(
 
     handlePendingEvents();
 
+    // FIXME: WA for ASUS Face unlock screen flicker issue
+    // If layer count exceeds plane max number, force GLES
+    hwc_display_contents_1_t *content = NULL;
+    for (int i = 0; i < (int)mCachedNumDisplays; i++) {
+        content = mCachedDisplays[i];
+        if (content == NULL) {
+            continue;
+        }
+
+        if ((content->flags & HWC_GEOMETRY_CHANGED) &&
+            (content->numHwLayers > 5) &&
+            !hasVideoLayer(i))
+            setCompositionType(i, HWC_FORCE_FRAMEBUFFER, true);
+    }
+
     if (mVideoExtModeEnabled) {
         handleVideoExtMode();
     }
@@ -809,6 +824,28 @@ bool DisplayAnalyzer::isPresentationLayer(hwc_layer_1_t &layer)
         }
     }
     return true;
+}
+
+bool DisplayAnalyzer::hasVideoLayer(int device)
+{
+    DataBuffer * buffer = NULL;
+    hwc_display_contents_1_t *content = NULL;
+
+    if (mCachedDisplays == NULL) {
+        return false;
+    }
+
+    content = mCachedDisplays[device];
+    if (content == NULL) {
+        return false;
+    }
+
+    for (size_t i = 0; i < content->numHwLayers - 1; i++) {
+        if (isVideoLayer(content->hwLayers[i]))
+            return true;
+    }
+
+    return false;
 }
 
 bool DisplayAnalyzer::hasProtectedLayer()

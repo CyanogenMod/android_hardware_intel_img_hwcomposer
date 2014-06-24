@@ -108,6 +108,7 @@ private:
     void enterVideoExtMode();
     void exitVideoExtMode();
     bool hasProtectedLayer();
+    bool hasVideoLayer(int device);
     inline void setCompositionType(hwc_display_contents_1_t *content, int type);
     inline void setCompositionType(int device, int type, bool reset);
 
