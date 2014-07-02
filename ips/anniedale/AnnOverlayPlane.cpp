@@ -736,6 +736,14 @@ bool AnnOverlayPlane::useOverlayRotation(BufferMapper& /* mapper */)
     }
 #endif
 
+    // per DC spec, if video is 1080(H)x1920(V), the buffer
+    // need 1920 of 64-pixel strip if using hw rotation.
+    // fallback to video ration buffer in such case.
+    if (mSrcCrop.w == 1080 && mSrcCrop.h == 1920 && mTransform != 0) {
+        DTRACE("1080(H)x1920(V) cannot use hw rotation, use VA rotated buffer");
+        fallback = true;
+    }
+
     if (fallback || mBobDeinterlace) {
         mUseOverlayRotation = false;
         mRotationConfig = 0;
