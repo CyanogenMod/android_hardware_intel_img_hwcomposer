@@ -85,22 +85,26 @@ bool Hwcomposer::prepare(size_t numDisplays,
 
     // reclaim all allocated planes if possible
     for (size_t i = 0; i < numDisplays; i++) {
+        if (i >= mDisplayDevices.size()) {
+            continue;
+        }
         IDisplayDevice *device = mDisplayDevices.itemAt(i);
         if (!device) {
             VTRACE("device %d doesn't exist", i);
             continue;
         }
-
         device->prePrepare(displays[i]);
     }
 
     for (size_t i = 0; i < numDisplays; i++) {
+        if (i >= mDisplayDevices.size()) {
+            continue;
+        }
         IDisplayDevice *device = mDisplayDevices.itemAt(i);
         if (!device) {
             VTRACE("device %d doesn't exist", i);
             continue;
         }
-
         ret = device->prepare(displays[i]);
         if (ret == false) {
             ETRACE("failed to do prepare for device %d", i);
@@ -127,6 +131,9 @@ bool Hwcomposer::commit(size_t numDisplays,
     mDisplayContext->commitBegin(numDisplays, displays);
 
     for (size_t i = 0; i < numDisplays; i++) {
+        if (i >= mDisplayDevices.size()) {
+            continue;
+        }
         IDisplayDevice *device = mDisplayDevices.itemAt(i);
         if (!device) {
             VTRACE("device %d doesn't exist", i);
@@ -166,7 +173,9 @@ bool Hwcomposer::blank(int disp, int blank)
         ETRACE("invalid disp %d", disp);
         return false;
     }
-
+    if (disp >= mDisplayDevices.size()) {
+        return false;
+    }
     IDisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
         ETRACE("no device found");
@@ -186,7 +195,9 @@ bool Hwcomposer::getDisplayConfigs(int disp,
         ETRACE("invalid disp %d", disp);
         return false;
     }
-
+    if (disp >= mDisplayDevices.size()) {
+        return false;
+    }
     IDisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
         ETRACE("no device %d found", disp);
@@ -207,7 +218,9 @@ bool Hwcomposer::getDisplayAttributes(int disp,
         ETRACE("invalid disp %d", disp);
         return false;
     }
-
+    if (disp >= mDisplayDevices.size()) {
+        return false;
+    }
     IDisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
         ETRACE("no device found");
@@ -227,6 +240,9 @@ bool Hwcomposer::compositionComplete(int disp)
     }
 
     mDisplayContext->compositionComplete();
+    if (disp >= mDisplayDevices.size()) {
+        return false;
+    }
 
     IDisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
@@ -446,6 +462,9 @@ IDisplayDevice* Hwcomposer::getDisplayDevice(int disp)
 {
     if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
         ETRACE("invalid disp %d", disp);
+        return NULL;
+    }
+    if (disp >= mDisplayDevices.size()) {
         return NULL;
     }
     return mDisplayDevices.itemAt(disp);
