@@ -21,6 +21,7 @@
 #include <IDisplayDevice.h>
 #include <PlaneCapabilities.h>
 #include <DisplayQuery.h>
+#include <hal_public.h>
 
 namespace android {
 namespace intel {
@@ -111,6 +112,69 @@ bool HwcLayerList::checkSupported(int planeType, HwcLayer *hwcLayer)
     return true;
 }
 
+bool HwcLayerList::checkRgbOverlaySupported(HwcLayer *hwcLayer)
+{
+    bool valid = false;
+    hwc_layer_1_t& layer = *(hwcLayer->getLayer());
+
+    // if layer was forced to use FB
+    if (hwcLayer->getType() == HwcLayer::LAYER_FORCE_FB) {
+        VTRACE("layer was forced to use HWC_FRAMEBUFFER");
+        return false;
+    }
+
+    // check layer flags
+    if (layer.flags & HWC_SKIP_LAYER) {
+        VTRACE("skip layer flag was set");
+        return false;
+    }
+
+    if (layer.handle == 0) {
+        WTRACE("invalid buffer handle");
+        return false;
+    }
+
+    // check usage
+    if (!hwcLayer->getUsage() & GRALLOC_USAGE_HW_COMPOSER) {
+        WTRACE("not a composer layer");
+        return false;
+    }
+
+    uint32_t format = hwcLayer->getFormat();
+    if (format != HAL_PIXEL_FORMAT_BGRA_8888 &&
+        format != HAL_PIXEL_FORMAT_BGRX_8888) {
+        return false;
+    }
+
+    uint32_t h = hwcLayer->getBufferHeight();
+    const stride_t& stride = hwcLayer->getBufferStride();
+    if (stride.rgb.stride > 4096) {
+        return false;
+    }
+
+    uint32_t blending = (uint32_t)hwcLayer->getLayer()->blending;
+    if (blending != HWC_BLENDING_NONE) {
+        return false;
+    }
+
+    uint32_t trans = hwcLayer->getLayer()->transform;
+    if (trans != 0) {
+        return false;
+    }
+
+    hwc_frect_t& src = hwcLayer->getLayer()->sourceCropf;
+    hwc_rect_t& dest = hwcLayer->getLayer()->displayFrame;
+    int srcW = (int)src.right - (int)src.left;
+    int srcH = (int)src.bottom - (int)src.top;
+    int dstW = dest.right - dest.left;
+    int dstH = dest.bottom - dest.top;
+    if (srcW != dstW || srcH != dstH) {
+        return false;
+    }
+    return true;
+}
+
+
 bool HwcLayerList::initialize()
 {
     if (!mList || mList->numHwLayers == 0) {
@@ -125,6 +189,9 @@ bool HwcLayerList::initialize()
     mOverlayCandidates.setCapacity(mLayerCount);
     mZOrderConfig.setCapacity(mLayerCount);
     Hwcomposer& hwc = Hwcomposer::getInstance();
+
+    PriorityVector rgbOverlayLayers;
+    rgbOverlayLayers.setCapacity(mLayerCount);
 
     for (int i = 0; i < mLayerCount; i++) {
         hwc_layer_1_t *layer = &mList->hwLayers[i];
@@ -152,7 +219,9 @@ bool HwcLayerList::initialize()
             // by default use GPU composition
             hwcLayer->setType(HwcLayer::LAYER_FB);
             mFBLayers.add(hwcLayer);
-            if (checkSupported(DisplayPlane::PLANE_SPRITE, hwcLayer)) {
+            if (checkRgbOverlaySupported(hwcLayer)) {
+                rgbOverlayLayers.add(hwcLayer);
+            } else if (checkSupported(DisplayPlane::PLANE_SPRITE, hwcLayer)) {
                 mSpriteCandidates.add(hwcLayer);
             } else if (checkSupported(DisplayPlane::PLANE_OVERLAY, hwcLayer)) {
                 mOverlayCandidates.add(hwcLayer);
@@ -179,6 +248,17 @@ bool HwcLayerList::initialize()
     if ((mFBLayers.size() == 0) && (mLayers.size() > 1)) {
         VTRACE("no FB layers, skip plane allocation");
         return true;
+    }
+
+    bool hasOverlay = mOverlayCandidates.size() != 0;
+    while (rgbOverlayLayers.size()) {
+        HwcLayer *hwcLayer = rgbOverlayLayers.top();
+        if (hasOverlay) {
+            mSpriteCandidates.add(hwcLayer);
+        } else {
+            mOverlayCandidates.add(hwcLayer);
+        }
+        rgbOverlayLayers.removeItemsAt(0);
     }
 
     allocatePlanes();

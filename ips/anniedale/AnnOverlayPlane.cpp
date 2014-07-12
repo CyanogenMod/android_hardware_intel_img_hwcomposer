@@ -164,6 +164,19 @@ bool AnnOverlayPlane::bufferOffsetSetup(BufferMapper& mapper)
 
     uint32_t format = mapper.getFormat();
     uint32_t gttOffsetInBytes = (mapper.getGttOffsetInPage(0) << 12);
+
+    if (format == HAL_PIXEL_FORMAT_BGRX_8888 ||
+        format == HAL_PIXEL_FORMAT_BGRA_8888) {
+        backBuffer->OCMD = 1 << 10;
+        // by pass YUV->RGB conversion, 8-bit output
+        backBuffer->OCONFIG |= (0x1 << 4) | (0x1 << 3);
+        backBuffer->OSTART_0Y = gttOffsetInBytes;
+        backBuffer->OSTART_1Y = gttOffsetInBytes;
+        backBuffer->OBUF_0Y = 0;
+        backBuffer->OBUF_1Y = 0;
+        return true;
+    }
+
     uint32_t yStride = mapper.getStride().yuv.yStride;
     uint32_t uvStride = mapper.getStride().yuv.uvStride;
     uint32_t w = mapper.getWidth();
@@ -298,6 +311,29 @@ bool AnnOverlayPlane::bufferOffsetSetup(BufferMapper& mapper)
     return true;
 }
 
+bool AnnOverlayPlane::coordinateSetup(BufferMapper& mapper)
+{
+    CTRACE();
+
+    uint32_t format = mapper.getFormat();
+    if (format != HAL_PIXEL_FORMAT_BGRX_8888 &&
+        format != HAL_PIXEL_FORMAT_BGRA_8888) {
+        return OverlayPlaneBase::coordinateSetup(mapper);
+    }
+
+    OverlayBackBufferBlk *backBuffer = mBackBuffer[mCurrent]->buf;
+    if (!backBuffer) {
+        ETRACE("invalid back buffer");
+        return false;
+    }
+
+    backBuffer->SWIDTH = mapper.getCrop().w;
+    backBuffer->SHEIGHT = mapper.getCrop().h;
+    backBuffer->SWIDTHSW = calculateSWidthSW(0, mapper.getCrop().w) << 2;
+    backBuffer->OSTRIDE = mapper.getStride().rgb.stride & (~0x3f);
+    return true;
+};
+
 bool AnnOverlayPlane::scalingSetup(BufferMapper& mapper)
 {
     int xscaleInt, xscaleFract, yscaleInt, yscaleFract;
@@ -356,6 +392,14 @@ bool AnnOverlayPlane::scalingSetup(BufferMapper& mapper)
     uint32_t srcHeight = mapper.getCrop().h;
     uint32_t dstWidth = w;
     uint32_t dstHeight = h;
+    uint32_t format = mapper.getFormat();
+
+    if (format == HAL_PIXEL_FORMAT_BGRX_8888 ||
+        format == HAL_PIXEL_FORMAT_BGRA_8888) {
+        backBuffer->YRGBSCALE = 1 << 15 | 0 << 3 || 0 << 20;
+        backBuffer->UVSCALEV = (1 << 16);
+        return true;
+    }
 
     if (mBobDeinterlace && !mTransform)
         deinterlace_factor = 2;
