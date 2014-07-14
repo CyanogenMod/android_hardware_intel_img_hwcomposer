@@ -30,7 +30,7 @@
 
 #include <PhysicalDevice.h>
 #include <IHdcpControl.h>
-#include <SimpleThread.h>
+#include <common/base/SimpleThread.h>
 
 namespace android {
 namespace intel {

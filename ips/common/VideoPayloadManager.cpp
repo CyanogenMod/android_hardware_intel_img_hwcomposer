@@ -26,11 +26,11 @@
  *
  */
 
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <BufferMapper.h>
-#include <common/GrallocSubBuffer.h>
-#include <common/VideoPayloadManager.h>
-#include <common/VideoPayloadBuffer.h>
+#include <ips/common/GrallocSubBuffer.h>
+#include <ips/common/VideoPayloadManager.h>
+#include <ips/common/VideoPayloadBuffer.h>
 
 namespace android {
 namespace intel {

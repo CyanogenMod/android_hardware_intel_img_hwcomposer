@@ -29,7 +29,7 @@
 #define VIRTUAL_DEVICE_H
 
 #include <IDisplayDevice.h>
-#include <SimpleThread.h>
+#include <common/base/SimpleThread.h>
 #include <IVideoPayloadManager.h>
 #include <utils/Condition.h>
 #include <utils/Mutex.h>

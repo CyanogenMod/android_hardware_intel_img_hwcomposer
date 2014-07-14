@@ -28,7 +28,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include <Dump.h>
+#include <common/utils/Dump.h>
 
 namespace android {
 namespace intel {

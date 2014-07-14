@@ -25,12 +25,12 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
-#include <PlatfExternalDevice.h>
-#include <common/VsyncControl.h>
-#include <common/BlankControl.h>
-#include <common/HdcpControl.h>
-#include <common/PrepareListener.h>
+#include <common/utils/HwcTrace.h>
+#include <platforms/merrifield_plus/PlatfExternalDevice.h>
+#include <ips/common/VsyncControl.h>
+#include <ips/common/BlankControl.h>
+#include <ips/common/HdcpControl.h>
+#include <ips/common/PrepareListener.h>
 
 
 namespace android {

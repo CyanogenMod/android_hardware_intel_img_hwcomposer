@@ -25,12 +25,12 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <DrmConfig.h>
 #include <Hwcomposer.h>
 #include <DisplayQuery.h>
-#include <common/DrmControl.h>
-#include <common/HdcpControl.h>
+#include <ips/common/DrmControl.h>
+#include <ips/common/HdcpControl.h>
 #include <cutils/properties.h>
 
 

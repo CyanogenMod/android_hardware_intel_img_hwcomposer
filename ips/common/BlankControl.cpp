@@ -26,9 +26,9 @@
  *
  */
 
-#include <HwcTrace.h>
-#include <Drm.h>
-#include <common/BlankControl.h>
+#include <common/utils/HwcTrace.h>
+#include <common/base/Drm.h>
+#include <ips/common/BlankControl.h>
 #include <Hwcomposer.h>
 
 namespace android {

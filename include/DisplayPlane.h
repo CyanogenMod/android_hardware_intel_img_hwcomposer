@@ -30,7 +30,7 @@
 
 #include <utils/KeyedVector.h>
 #include <BufferMapper.h>
-#include <Drm.h>
+#include <common/base/Drm.h>
 
 namespace android {
 namespace intel {

@@ -25,10 +25,10 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
-#include <PlatfBufferManager.h>
-#include <tangier/TngGrallocBuffer.h>
-#include <tangier/TngGrallocBufferMapper.h>
+#include <common/utils/HwcTrace.h>
+#include <platforms/merrifield_plus/PlatfBufferManager.h>
+#include <ips/tangier/TngGrallocBuffer.h>
+#include <ips/tangier/TngGrallocBufferMapper.h>
 
 namespace android {
 namespace intel {
@@ -54,8 +54,8 @@ void PlatfBufferManager::deinitialize()
     BufferManager::deinitialize();
 }
 
-DataBuffer* PlatfBufferManager::createDataBuffer(gralloc_module_t *module,
-                                                 uint32_t handle)
+DataBuffer* PlatfBufferManager::createDataBuffer(gralloc_module_t * /* module */,
+        uint32_t handle)
 {
     return new TngGrallocBuffer(handle);
 }

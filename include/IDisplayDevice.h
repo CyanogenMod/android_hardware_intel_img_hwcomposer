@@ -28,7 +28,7 @@
 #ifndef IDISPLAY_DEVICE_H
 #define IDISPLAY_DEVICE_H
 
-#include <Dump.h>
+#include <common/utils/Dump.h>
 #include <IDisplayContext.h>
 #include <DisplayPlane.h>
 

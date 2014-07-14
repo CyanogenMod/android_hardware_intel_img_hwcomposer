@@ -25,8 +25,8 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
-#include <Drm.h>
+#include <common/utils/HwcTrace.h>
+#include <common/base/Drm.h>
 #include <Hwcomposer.h>
 #include <penwell/PnwGrallocBufferMapper.h>
 

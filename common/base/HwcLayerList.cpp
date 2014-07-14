@@ -25,9 +25,9 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
-#include <Drm.h>
-#include <HwcLayerList.h>
+#include <common/utils/HwcTrace.h>
+#include <common/base/Drm.h>
+#include <common/base/HwcLayerList.h>
 #include <Hwcomposer.h>
 #include <GraphicBuffer.h>
 #include <IDisplayDevice.h>
@@ -478,12 +478,12 @@ bool HwcLayerList::useAsFrameBufferTarget(HwcLayer *target)
     }
 
     // check candidate and noncandidate layers above this candidate does not overlap
-    for (int above = targetLayerIndex + 1; above < mFBLayers.size() - 1; above++) {
+    for (unsigned int above = targetLayerIndex + 1; above < mFBLayers.size() - 1; above++) {
         if (mFBLayers[above]->mPlaneCandidate) {
             continue;
         } else {
             // check candidate layer below this noncandidate layer does not overlap
-            for (int below = targetLayerIndex + 1; below < above; below++) {
+            for (unsigned int below = targetLayerIndex + 1; below < above; below++) {
                 if (mFBLayers[below]->mPlaneCandidate == false) {
                     continue;
                 }

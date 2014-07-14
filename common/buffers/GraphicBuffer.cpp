@@ -25,7 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <GraphicBuffer.h>
 
 namespace android {
@@ -79,7 +79,7 @@ bool GraphicBuffer::isCompressionBuffer(GraphicBuffer *buffer)
     return isCompressionUsage(buffer->mUsage);
 }
 
-void GraphicBuffer::initBuffer(uint32_t handle)
+void GraphicBuffer::initBuffer(uint32_t /*handle*/)
 {
     mUsage = USAGE_INVALID;
     mBpp = 0;

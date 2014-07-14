@@ -33,7 +33,7 @@
 #include <ttm/ttm_placement.h>
 #include <linux/psb_drm.h>
 #include <xf86drm.h>
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 
 struct _WsbmBufferPool * mainPool = NULL;
 

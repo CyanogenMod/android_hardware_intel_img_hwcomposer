@@ -25,7 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  */
 
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <DisplayPlane.h>
 #include <hal_public.h>
 #include <OMX_IVCommon.h>

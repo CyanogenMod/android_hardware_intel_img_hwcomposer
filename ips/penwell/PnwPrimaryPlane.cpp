@@ -25,11 +25,11 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
-#include <Drm.h>
+#include <common/utils/HwcTrace.h>
+#include <common/base/Drm.h>
 #include <penwell/PnwPrimaryPlane.h>
 #include <penwell/PnwGrallocBuffer.h>
-#include <common/PixelFormat.h>
+#include <ips/common/PixelFormat.h>
 
 namespace android {
 namespace intel {

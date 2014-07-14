@@ -30,7 +30,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <Hwcomposer.h>
 
 #define GET_HWC_RETURN_X_IF_NULL(X) \
@@ -90,17 +90,17 @@ void hwc_registerProcs(struct hwc_composer_device_1 *dev,
     hwc->registerProcs(procs);
 }
 
-static int hwc_device_close(struct hw_device_t *dev)
+static int hwc_device_close(struct hw_device_t * /* dev */)
 {
     CTRACE();
     Hwcomposer::releaseInstance();
     return 0;
 }
 
-static int hwc_query(struct hwc_composer_device_1 *dev,
-                       int what,
-                       int* value)
+static int hwc_query(struct hwc_composer_device_1 * /* dev */,
+        int what, int* /* value */)
 {
+    (void) what;
     ATRACE("what = %d", what);
     return -EINVAL;
 }
@@ -252,5 +252,7 @@ hwc_module_t HAL_MODULE_INFO_SYM = {
         name: "Intel Hardware Composer",
         author: "Intel",
         methods: &hwc_module_methods,
+        dso: 0,
+        reserved: { 0 },
     }
 };

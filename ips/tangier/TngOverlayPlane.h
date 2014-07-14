@@ -32,9 +32,9 @@
 #include <hal_public.h>
 #include <DisplayPlane.h>
 #include <BufferMapper.h>
-#include <common/Wsbm.h>
-#include <common/OverlayPlaneBase.h>
-#include <common/RotationBufferProvider.h>
+#include <ips/common/Wsbm.h>
+#include <ips/common/OverlayPlaneBase.h>
+#include <ips/common/RotationBufferProvider.h>
 
 namespace android {
 namespace intel {

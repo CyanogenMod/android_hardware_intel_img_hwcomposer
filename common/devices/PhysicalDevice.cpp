@@ -25,8 +25,8 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
-#include <Drm.h>
+#include <common/utils/HwcTrace.h>
+#include <common/base/Drm.h>
 #include <Hwcomposer.h>
 #include <PhysicalDevice.h>
 
@@ -211,9 +211,9 @@ bool PhysicalDevice::getDisplayConfigs(uint32_t *configs,
     return true;
 }
 
-bool PhysicalDevice::getDisplayAttributes(uint32_t configs,
-                                            const uint32_t *attributes,
-                                            int32_t *values)
+bool PhysicalDevice::getDisplayAttributes(uint32_t /* configs */,
+        const uint32_t *attributes,
+        int32_t *values)
 {
     RETURN_FALSE_IF_NOT_INIT();
 

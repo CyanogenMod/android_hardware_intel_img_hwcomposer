@@ -25,8 +25,8 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
-#include <BufferCache.h>
+#include <common/utils/HwcTrace.h>
+#include <common/buffers/BufferCache.h>
 
 namespace android {
 namespace intel {

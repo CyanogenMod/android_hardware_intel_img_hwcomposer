@@ -25,7 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <tangier/TngPlaneManager.h>
 #include <tangier/TngPrimaryPlane.h>
 #include <tangier/TngSpritePlane.h>

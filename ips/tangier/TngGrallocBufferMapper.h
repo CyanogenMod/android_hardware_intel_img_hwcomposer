@@ -30,8 +30,8 @@
 
 #include <BufferMapper.h>
 #include <hal_public.h>
-#include <common/GrallocBufferMapperBase.h>
-#include <tangier/TngGrallocBuffer.h>
+#include <ips/common/GrallocBufferMapperBase.h>
+#include <ips/tangier/TngGrallocBuffer.h>
 
 namespace android {
 namespace intel {

@@ -26,8 +26,8 @@
  *    Jian Sun <jianx.sun@intel.com>
  */
 
-#include <HwcTrace.h>
-#include <common/RotationBufferProvider.h>
+#include <common/utils/HwcTrace.h>
+#include <ips/common/RotationBufferProvider.h>
 
 namespace android {
 namespace intel {

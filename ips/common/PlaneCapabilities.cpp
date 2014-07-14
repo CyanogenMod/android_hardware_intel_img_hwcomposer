@@ -25,13 +25,13 @@
  *    Jackie Li <yaodong.li@intel.com>
  */
 
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <DisplayPlane.h>
 #include <hal_public.h>
 #include <OMX_IVCommon.h>
 #include <PlaneCapabilities.h>
 #include "OverlayHardware.h"
-#include <HwcLayer.h>
+#include <common/base/HwcLayer.h>
 
 #define SPRITE_PLANE_MAX_STRIDE_TILED      16384
 //FIXME: need confirmation about this stride

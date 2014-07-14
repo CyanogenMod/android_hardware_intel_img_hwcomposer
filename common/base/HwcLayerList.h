@@ -28,13 +28,13 @@
 #ifndef HWC_LAYER_LIST_H
 #define HWC_LAYER_LIST_H
 
-#include <Dump.h>
+#include <common/utils/Dump.h>
 #include <hardware/hwcomposer.h>
 #include <utils/SortedVector.h>
 #include <DataBuffer.h>
 #include <DisplayPlane.h>
 #include <DisplayPlaneManager.h>
-#include <HwcLayer.h>
+#include <common/base/HwcLayer.h>
 
 namespace android {
 namespace intel {

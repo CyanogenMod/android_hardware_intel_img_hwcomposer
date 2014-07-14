@@ -25,11 +25,11 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <Hwcomposer.h>
 #include <DisplayPlaneManager.h>
-#include <PlatfVirtualDevice.h>
-#include <common/VideoPayloadManager.h>
+#include <platforms/merrifield/PlatfVirtualDevice.h>
+#include <ips/common/VideoPayloadManager.h>
 
 namespace android {
 namespace intel {

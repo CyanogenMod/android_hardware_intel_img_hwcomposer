@@ -29,7 +29,7 @@
 
 #include <utils/KeyedVector.h>
 #include <utils/String8.h>
-#include <SimpleThread.h>
+#include <common/base/SimpleThread.h>
 
 namespace android {
 namespace intel {

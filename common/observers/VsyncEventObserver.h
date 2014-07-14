@@ -28,7 +28,7 @@
 #ifndef __VSYNC_EVENT_OBSERVER_H__
 #define __VSYNC_EVENT_OBSERVER_H__
 
-#include <SimpleThread.h>
+#include <common/base/SimpleThread.h>
 #include <IVsyncControl.h>
 
 namespace android {

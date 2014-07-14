@@ -25,9 +25,9 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
-#include <common/SpritePlaneBase.h>
-#include <common/PixelFormat.h>
+#include <common/utils/HwcTrace.h>
+#include <ips/common/SpritePlaneBase.h>
+#include <ips/common/PixelFormat.h>
 
 namespace android {
 namespace intel {

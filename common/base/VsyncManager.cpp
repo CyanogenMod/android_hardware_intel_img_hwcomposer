@@ -26,13 +26,13 @@
  *
  */
 
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <IDisplayDevice.h>
 #include <DisplayQuery.h>
 #include <BufferManager.h>
 #include <DisplayPlaneManager.h>
 #include <Hwcomposer.h>
-#include <VsyncManager.h>
+#include <common/base/VsyncManager.h>
 
 
 namespace android {

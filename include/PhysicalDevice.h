@@ -32,9 +32,9 @@
 #include <IVsyncControl.h>
 #include <IBlankControl.h>
 #include <IPrepareListener.h>
-#include <VsyncEventObserver.h>
-#include <HwcLayerList.h>
-#include <Drm.h>
+#include <common/observers/VsyncEventObserver.h>
+#include <common/base/HwcLayerList.h>
+#include <common/base/Drm.h>
 #include <IDisplayDevice.h>
 
 namespace android {

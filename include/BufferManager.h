@@ -28,10 +28,10 @@
 #ifndef BUFFERMANAGER_H_
 #define BUFFERMANAGER_H_
 
-#include <Dump.h>
+#include <common/utils/Dump.h>
 #include <DataBuffer.h>
 #include <BufferMapper.h>
-#include <BufferCache.h>
+#include <common/buffers/BufferCache.h>
 #include <utils/Mutex.h>
 
 namespace android {

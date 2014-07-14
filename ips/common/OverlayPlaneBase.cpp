@@ -27,13 +27,13 @@
  */
 
 #include <math.h>
-#include <HwcTrace.h>
-#include <Drm.h>
+#include <common/utils/HwcTrace.h>
+#include <common/base/Drm.h>
 #include <Hwcomposer.h>
 #include <PhysicalDevice.h>
-#include <common/OverlayPlaneBase.h>
-#include <common/TTMBufferMapper.h>
-#include <common/GrallocSubBuffer.h>
+#include <ips/common/OverlayPlaneBase.h>
+#include <ips/common/TTMBufferMapper.h>
+#include <ips/common/GrallocSubBuffer.h>
 #include <DisplayQuery.h>
 
 
@@ -192,7 +192,7 @@ bool OverlayPlaneBase::assignToDevice(int disp)
 }
 
 void OverlayPlaneBase::setZOrderConfig(ZOrderConfig& zorderConfig,
-                                            void *nativeConfig)
+        void * /*nativeConfig*/)
 {
     CTRACE();
 
@@ -604,7 +604,7 @@ bool OverlayPlaneBase::rotatedBufferReady(BufferMapper& mapper, BufferMapper* &r
 }
 
 
-bool OverlayPlaneBase::useOverlayRotation(BufferMapper& mapper)
+bool OverlayPlaneBase::useOverlayRotation(BufferMapper& /* mapper */)
 {
     // by default overlay plane does not support rotation.
     return false;

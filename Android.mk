@@ -17,10 +17,10 @@ LOCAL_PATH := $(call my-dir)
 LOCAL_ROOT_PATH := $(call my-dir)
 
 ifeq ($(INTEL_HWC_MERRIFIELD),true)
-include $(LOCAL_PATH)/platforms/merrifield/Android.mk
+include $(LOCAL_PATH)/merrifield.mk
 endif
 
 ifeq ($(INTEL_HWC_MOOREFIELD),true)
-include $(LOCAL_PATH)/platforms/merrifield_plus/Android.mk
+include $(LOCAL_PATH)/merrifield_plus.mk
 endif
 

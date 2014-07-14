@@ -25,7 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <IDisplayDevice.h>
 #include <DisplayPlaneManager.h>
 
@@ -202,7 +202,7 @@ DisplayPlane* DisplayPlaneManager::getAnyPlane(int type)
     return 0;
 }
 
-void DisplayPlaneManager::putPlane(int dsp, DisplayPlane& plane)
+void DisplayPlaneManager::putPlane(int /* dsp */, DisplayPlane& plane)
 {
     int index;
     int type;
@@ -264,7 +264,7 @@ int DisplayPlaneManager::getFreePlanes(int dsp, int type)
     return 0;
 }
 
-void DisplayPlaneManager::reclaimPlane(int dsp, DisplayPlane& plane)
+void DisplayPlaneManager::reclaimPlane(int /* dsp */, DisplayPlane& plane)
 {
     RETURN_VOID_IF_NOT_INIT();
 

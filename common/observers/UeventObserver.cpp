@@ -32,7 +32,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <DrmConfig.h>
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <UeventObserver.h>
 
 namespace android {

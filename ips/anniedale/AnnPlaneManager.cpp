@@ -25,11 +25,11 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <utils/String8.h>
-#include <anniedale/AnnPlaneManager.h>
-#include <anniedale/AnnRGBPlane.h>
-#include <anniedale/AnnOverlayPlane.h>
+#include <ips/anniedale/AnnPlaneManager.h>
+#include <ips/anniedale/AnnRGBPlane.h>
+#include <ips/anniedale/AnnOverlayPlane.h>
 #include <PlaneCapabilities.h>
 
 namespace android {
@@ -249,7 +249,7 @@ bool AnnPlaneManager::assignPlanes(int dsp, ZOrderConfig& config)
     return false;
 }
 
-bool AnnPlaneManager::assignPlanes(int dsp, ZOrderConfig& config, const char *zorder)
+bool AnnPlaneManager::assignPlanes(int /* dsp */, ZOrderConfig& config, const char *zorder)
 {
     int size = (int)config.size();
 

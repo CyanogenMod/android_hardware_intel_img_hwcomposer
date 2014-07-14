@@ -25,9 +25,9 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <Hwcomposer.h>
-#include <Dump.h>
+#include <common/utils/Dump.h>
 #include <UeventObserver.h>
 
 namespace android {
@@ -173,7 +173,7 @@ bool Hwcomposer::blank(int disp, int blank)
         ETRACE("invalid disp %d", disp);
         return false;
     }
-    if (disp >= mDisplayDevices.size()) {
+    if (disp >= (int) mDisplayDevices.size()) {
         return false;
     }
     IDisplayDevice *device = mDisplayDevices.itemAt(disp);
@@ -195,7 +195,7 @@ bool Hwcomposer::getDisplayConfigs(int disp,
         ETRACE("invalid disp %d", disp);
         return false;
     }
-    if (disp >= mDisplayDevices.size()) {
+    if (disp >= (int) mDisplayDevices.size()) {
         return false;
     }
     IDisplayDevice *device = mDisplayDevices.itemAt(disp);
@@ -218,7 +218,7 @@ bool Hwcomposer::getDisplayAttributes(int disp,
         ETRACE("invalid disp %d", disp);
         return false;
     }
-    if (disp >= mDisplayDevices.size()) {
+    if (disp >= (int) mDisplayDevices.size()) {
         return false;
     }
     IDisplayDevice *device = mDisplayDevices.itemAt(disp);
@@ -240,7 +240,7 @@ bool Hwcomposer::compositionComplete(int disp)
     }
 
     mDisplayContext->compositionComplete();
-    if (disp >= mDisplayDevices.size()) {
+    if (disp >= (int) mDisplayDevices.size()) {
         return false;
     }
 
@@ -299,7 +299,7 @@ bool Hwcomposer::release()
     return true;
 }
 
-bool Hwcomposer::dump(char *buff, int buff_len, int *cur_len)
+bool Hwcomposer::dump(char *buff, int buff_len, int * /* cur_len */)
 {
     RETURN_FALSE_IF_NOT_INIT();
 
@@ -464,7 +464,7 @@ IDisplayDevice* Hwcomposer::getDisplayDevice(int disp)
         ETRACE("invalid disp %d", disp);
         return NULL;
     }
-    if (disp >= mDisplayDevices.size()) {
+    if (disp >= (int) mDisplayDevices.size()) {
         return NULL;
     }
     return mDisplayDevices.itemAt(disp);
