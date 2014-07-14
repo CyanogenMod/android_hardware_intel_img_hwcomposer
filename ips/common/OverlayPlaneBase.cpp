@@ -35,10 +35,8 @@
 #include <ips/common/TTMBufferMapper.h>
 #include <ips/common/GrallocSubBuffer.h>
 #include <DisplayQuery.h>
-
-
-// FIXME: remove it
-#include <OMX_IVCommon.h>
+#include <OMX_IntelVideoExt.h>
+#include <hal_public.h>
 
 namespace android {
 namespace intel {

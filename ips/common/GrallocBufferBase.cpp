@@ -28,7 +28,8 @@
 #include <common/utils/HwcTrace.h>
 #include <ips/common/GrallocBufferBase.h>
 #include <DisplayQuery.h>
-
+#include <OMX_IntelVideoExt.h>
+#include <hal_public.h>
 
 namespace android {
 namespace intel {

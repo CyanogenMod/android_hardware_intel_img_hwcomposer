@@ -28,8 +28,8 @@
 #include <common/utils/HwcTrace.h>
 #include <DisplayPlane.h>
 #include <hal_public.h>
-#include <OMX_IVCommon.h>
 #include <DisplayQuery.h>
+#include <OMX_IntelVideoExt.h>
 
 
 namespace android {

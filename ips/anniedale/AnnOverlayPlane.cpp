@@ -32,9 +32,7 @@
 #include <Hwcomposer.h>
 #include <ips/anniedale/AnnOverlayPlane.h>
 #include <ips/tangier/TngGrallocBuffer.h>
-
-// FIXME: remove it
-#include <OMX_IVCommon.h>
+#include <OMX_IntelVideoExt.h>
 
 namespace android {
 namespace intel {

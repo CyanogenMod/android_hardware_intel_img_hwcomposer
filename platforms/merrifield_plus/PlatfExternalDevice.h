@@ -28,7 +28,6 @@
 #ifndef PLATF_EXTERNAL_DEVICE_H
 #define PLATF_EXTERNAL_DEVICE_H
 
-#include <hal_public.h>
 #include <ExternalDevice.h>
 
 namespace android {

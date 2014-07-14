@@ -88,24 +88,15 @@ LOCAL_SRC_FILES += \
     platforms/merrifield/PlatfVirtualDevice.cpp \
     platforms/merrifield/PlatfHwcomposer.cpp
 
-LOCAL_C_INCLUDES := $(addprefix $(LOCAL_PATH)/../, $(SGX_INCLUDES)) \
-    $(call include-path-for, frameworks-native)/media/openmax \
-    $(call include-path-for, opengl) \
-    $(call include-path-for, libhardware_legacy)/hardware_legacy \
-    vendor/intel/hardware/PRIVATE/rgx/rogue/android/graphicshal \
-    vendor/intel/hardware/PRIVATE/rgx/rogue/include/ \
-    prebuilts/intel/vendor/intel/hardware/prebuilts/$(REF_DEVICE_NAME)/rgx \
-    prebuilts/intel/vendor/intel/hardware/prebuilts/$(REF_DEVICE_NAME)/rgx/include \
-    vendor/intel/hardware/PRIVATE/widi/libhwcwidi/ \
-    $(TARGET_OUT_HEADERS)/drm \
+LOCAL_C_INCLUDES := \
+    $(LOCAL_PATH)/include \
     $(TARGET_OUT_HEADERS)/libdrm \
-    $(TARGET_OUT_HEADERS)/libdrm/shared-core \
     $(TARGET_OUT_HEADERS)/libwsbm/wsbm \
     $(TARGET_OUT_HEADERS)/libttm \
-    $(TARGET_OUT_HEADERS)/libva
-
-LOCAL_C_INCLUDES += \
-    $(LOCAL_PATH)/include \
+    frameworks/native/include/media/openmax \
+    vendor/intel/hardware/wrs_omxil_core/core/inc/khronos/openmax/include \
+    vendor/intel/hardware/anniedale/rgx/include \
+    vendor/intel/hardware/PRIVATE/rgx/rogue/android/graphicshal
 
 ifeq ($(TARGET_HAS_MULTIPLE_DISPLAY),true)
    LOCAL_SHARED_LIBRARIES += libmultidisplay libbinder

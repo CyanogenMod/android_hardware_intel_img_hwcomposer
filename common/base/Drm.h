@@ -29,8 +29,6 @@
 #define __DRM_H__
 
 #include <utils/Mutex.h>
-
-// TODO: psb_drm.h is IP specific defintion
 #include <linux/psb_drm.h>
 
 extern "C" {

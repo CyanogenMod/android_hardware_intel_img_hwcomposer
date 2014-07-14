@@ -29,7 +29,6 @@
 #define SPRITE_PLANE_BASE_H
 
 #include <utils/KeyedVector.h>
-#include <hal_public.h>
 #include <common/buffers/BufferCache.h>
 #include <DisplayPlane.h>
 

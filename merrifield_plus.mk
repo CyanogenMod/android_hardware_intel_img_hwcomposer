@@ -88,7 +88,13 @@ LOCAL_SRC_FILES += \
 
 LOCAL_C_INCLUDES := \
     $(LOCAL_PATH)/include \
-    $(TARGET_OUT_HEADERS)/libdrm
+    $(TARGET_OUT_HEADERS)/libdrm \
+    $(TARGET_OUT_HEADERS)/libwsbm/wsbm \
+    $(TARGET_OUT_HEADERS)/libttm \
+    frameworks/native/include/media/openmax \
+    vendor/intel/hardware/wrs_omxil_core/core/inc/khronos/openmax/include \
+    vendor/intel/hardware/anniedale/rgx/include \
+    vendor/intel/hardware/PRIVATE/rgx/rogue/android/graphicshal
 
 ifeq ($(INTEL_WIDI_MERRIFIELD), true)
 LOCAL_SRC_FILES += \
