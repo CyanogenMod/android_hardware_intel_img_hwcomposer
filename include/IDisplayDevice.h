@@ -65,6 +65,7 @@ class IDisplayDevice {
 public:
     // display device type
     enum {
+        DEVICE_DUMMY = HWC_DISPLAY_PRIMARY,
         DEVICE_PRIMARY = HWC_DISPLAY_PRIMARY,
         DEVICE_EXTERNAL = HWC_DISPLAY_EXTERNAL,
 #ifdef INTEL_WIDI_MERRIFIELD
