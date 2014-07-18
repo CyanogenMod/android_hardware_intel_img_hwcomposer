@@ -100,7 +100,7 @@ static ZOrderDescription PIPE_B_ZORDER_DESC[] =
     {6, "BGHD"},  // overlay A/C at middle  1 << 1 + 1 << 2)
     {12, "BDGH"}  // overlay A/C at top (1 << 2 + 1 << 3)
 #else
-    {0, "B"},    // no overlay
+    {0, "BD"},    // no overlay
 #endif
 };
 
