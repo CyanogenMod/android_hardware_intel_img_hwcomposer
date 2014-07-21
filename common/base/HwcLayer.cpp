@@ -276,17 +276,6 @@ void HwcLayer::postFlip()
     mUpdated = false;
     if (mPlane) {
         mPlane->postFlip();
-
-        // flip frame buffer target once in video extended mode to refresh screen,
-        // then mark type as LAYER_SKIPPED so it will not be flipped again.
-        // by doing this pipe for primary device can enter idle state
-        if (mDevice == IDisplayDevice::DEVICE_PRIMARY &&
-            mType == LAYER_FRAMEBUFFER_TARGET &&
-            (Hwcomposer::getInstance().getDisplayAnalyzer()->isVideoExtModeActive() ||
-            Hwcomposer::getInstance().getPowerManager()->getIdleReady())) {
-            DTRACE("Skipping frame buffer target...");
-            mType = LAYER_SKIPPED;
-        }
     }
 }
 

@@ -27,7 +27,6 @@ PhysicalDevice::PhysicalDevice(uint32_t type, Hwcomposer& hwc, DisplayPlaneManag
       mDisplayPlaneManager(dpm),
       mActiveDisplayConfig(-1),
       mBlankControl(NULL),
-      mPrepareListener(NULL),
       mVsyncObserver(NULL),
       mLayerList(NULL),
       mConnected(false),
@@ -364,12 +363,6 @@ bool PhysicalDevice::initialize()
         DEINIT_AND_RETURN_FALSE("failed to create blank control");
     }
 
-    // create hwc prepare listener
-    mPrepareListener = createPrepareListener();
-    if (!mPrepareListener) {
-        DEINIT_AND_RETURN_FALSE("failed to create prepare listener");
-    }
-
     // create vsync event observer
     mVsyncObserver = new VsyncEventObserver(*this);
     if (!mVsyncObserver || !mVsyncObserver->initialize()) {
@@ -392,11 +385,6 @@ void PhysicalDevice::deinitialize()
     if (mBlankControl) {
         delete mBlankControl;
         mBlankControl = 0;
-    }
-
-    if (mPrepareListener) {
-        delete mPrepareListener;
-        mPrepareListener = 0;
     }
 
     // remove configs

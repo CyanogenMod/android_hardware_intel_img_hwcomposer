@@ -154,8 +154,7 @@ bool HwcLayerList::initialize()
             mFBLayers.add(hwcLayer);
             if (checkSupported(DisplayPlane::PLANE_SPRITE, hwcLayer)) {
                 mSpriteCandidates.add(hwcLayer);
-            } else if (hwc.getDisplayAnalyzer()->isOverlayAllowed() &&
-                checkSupported(DisplayPlane::PLANE_OVERLAY, hwcLayer)) {
+            } else if (checkSupported(DisplayPlane::PLANE_OVERLAY, hwcLayer)) {
                 mOverlayCandidates.add(hwcLayer);
             } else {
                 // noncandidate layer

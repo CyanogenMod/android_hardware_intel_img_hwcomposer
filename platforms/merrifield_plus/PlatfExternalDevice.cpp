@@ -18,7 +18,6 @@
 #include <ips/common/VsyncControl.h>
 #include <ips/common/BlankControl.h>
 #include <ips/common/HdcpControl.h>
-#include <ips/common/PrepareListener.h>
 
 
 namespace android {
@@ -44,11 +43,6 @@ IVsyncControl* PlatfExternalDevice::createVsyncControl()
 IBlankControl* PlatfExternalDevice::createBlankControl()
 {
     return new BlankControl();
-}
-
-IPrepareListener* PlatfExternalDevice::createPrepareListener()
-{
-    return new PrepareListener();
 }
 
 IHdcpControl* PlatfExternalDevice::createHdcpControl()
