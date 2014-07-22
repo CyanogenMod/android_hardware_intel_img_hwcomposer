@@ -110,7 +110,7 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH) \
 
 
 LOCAL_MODULE_TAGS := eng
-LOCAL_MODULE := hwcomposer.$(TARGET_DEVICE)
+LOCAL_MODULE := hwcomposer.x86
 LOCAL_CFLAGS:= -DLINUX
 
 #$(error local path is: $(LOCAL_C_INCLUDES))
