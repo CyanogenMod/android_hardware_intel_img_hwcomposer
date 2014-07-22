@@ -77,6 +77,7 @@ public:
 
     // z order config
     bool setZOrderConfig(ZOrderConfig& zorderConfig);
+    void* getZOrderConfig() const;
 
     // dump interface
     void dump(Dump& d);
@@ -95,6 +96,7 @@ protected:
                           int& primaryCount) = 0;
     virtual DisplayPlane* allocPlane(int index, int type) = 0;
     virtual bool isValidZOrderConfig(ZOrderConfig& zorderConfig) = 0;
+    virtual void* getNativeZOrderConfig() = 0;
 private:
     int mPlaneCount[DisplayPlane::PLANE_MAX];
     int mTotalPlaneCount;
@@ -105,6 +107,7 @@ private:
     uint32_t mFreePlanes[DisplayPlane::PLANE_MAX];
     uint32_t mReclaimedPlanes[DisplayPlane::PLANE_MAX];
 
+    void *mNativeZOrderConfig;
 protected:
     bool mInitialized;
 };

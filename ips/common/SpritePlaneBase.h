@@ -46,7 +46,6 @@ public:
     virtual bool enable();
     virtual bool disable();
 
-    virtual void setZOrderConfig(ZOrderConfig& config);
     // display device
     virtual void* getContext() const = 0;
 protected:

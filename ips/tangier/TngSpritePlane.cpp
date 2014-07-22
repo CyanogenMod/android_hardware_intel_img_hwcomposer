@@ -97,11 +97,6 @@ bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
         ((dstH - 1) & 0xfff) << 16 | ((dstW - 1) & 0xfff);
     mContext.ctx.sp_ctx.update_mask = SPRITE_UPDATE_ALL;
 
-    if (mForceBottom)
-        mContext.ctx.sp_ctx.cntr  |= 0x00000004;
-    if (mAbovePrimary)
-        mContext.ctx.sp_ctx.cntr  |= 0x00000002;
-
     VTRACE("cntr = %#x, linoff = %#x, stride = %#x,"
           "surf = %#x, pos = %#x, size = %#x",
           mContext.ctx.sp_ctx.cntr,
@@ -146,6 +141,37 @@ bool TngSpritePlane::enablePlane(bool enabled)
 
 }
 
+void TngSpritePlane::setZOrderConfig(ZOrderConfig& zorderConfig,
+                                          void *nativeConfig)
+{
+    if (!nativeConfig) {
+        ETRACE("invalid parameter, no native config");
+        return;
+    }
+
+    mAbovePrimary = true;
+
+    bool hasPrimaryPlane = false;
+    for (size_t i = 0; i < zorderConfig.size(); i++) {
+        DisplayPlane *plane = zorderConfig.itemAt(i);
+        // found sprite first, sprite is below primary
+        if (plane->getType() == DisplayPlane::PLANE_SPRITE)
+            break;
+        // found primary first, primary is below sprite
+        if (plane->getType() == DisplayPlane::PLANE_PRIMARY) {
+            hasPrimaryPlane = true;
+            break;
+        }
+    }
+
+    if (!hasPrimaryPlane) {
+        mAbovePrimary = false;
+    }
+
+    struct intel_dc_plane_zorder *zorder =
+        (struct intel_dc_plane_zorder *)nativeConfig;
+    zorder->abovePrimary = mAbovePrimary ? 1 : 0;
+}
 
 } // namespace intel
 } // namespace android

@@ -45,7 +45,8 @@ HwcLayer::HwcLayer(int index, hwc_layer_1_t *layer)
       mUsage(0),
       mHandle(0),
       mIsProtected(false),
-      mType(LAYER_FB)
+      mType(LAYER_FB),
+      mPriority(0)
 {
     setupAttributes();
 }
@@ -96,6 +97,7 @@ void HwcLayer::setType(uint32_t type)
 
     switch (type) {
     case LAYER_OVERLAY:
+    case LAYER_SKIPPED:
         mLayer->compositionType = HWC_OVERLAY;
         mLayer->hints |= HWC_HINT_CLEAR_FB;
         break;
@@ -151,6 +153,16 @@ hwc_layer_1_t* HwcLayer::getLayer() const
 DisplayPlane* HwcLayer::getPlane() const
 {
     return mPlane;
+}
+
+void HwcLayer::setPriority(uint32_t priority)
+{
+    mPriority = priority;
+}
+
+uint32_t HwcLayer::getPriority() const
+{
+    return mPriority;
 }
 
 bool HwcLayer::update(hwc_layer_1_t *layer, int disp)
@@ -218,9 +230,15 @@ void HwcLayer::setupAttributes()
          ETRACE("failed to get buffer");
      } else {
         mFormat = buffer->getFormat();
+        mPriority = buffer->getWidth() * buffer->getHeight();
+        mPriority <<= LAYER_PRIORITY_SIZE_OFFSET;
+        mPriority |= mIndex;
         GraphicBuffer *gBuffer = (GraphicBuffer*)buffer;
         mUsage = gBuffer->getUsage();
         mIsProtected = GraphicBuffer::isProtectedBuffer((GraphicBuffer*)buffer);
+        if (mIsProtected) {
+            mPriority |= LAYER_PRIORITY_PROTECTED;
+        }
         bm->unlockDataBuffer(buffer);
     }
 }
@@ -242,7 +260,12 @@ HwcLayerList::HwcLayerList(hwc_display_contents_1_t *list,
         VTRACE("layer count = %d", list->numHwLayers);
         mLayers.setCapacity(list->numHwLayers);
         mOverlayLayers.setCapacity(list->numHwLayers);
+        mSkippedLayers.setCapacity(list->numHwLayers);
         mFBLayers.setCapacity(list->numHwLayers);
+        mCandidates.setCapacity(list->numHwLayers);
+        mSpriteCandidates.setCapacity(list->numHwLayers);
+        mOverlayCandidates.setCapacity(list->numHwLayers);
+        mPossiblePrimaryLayers.setCapacity(list->numHwLayers);
         mLayerCount = list->numHwLayers;
         // analyze list from the top layer
         analyze();
@@ -270,6 +293,21 @@ int HwcLayerList::HwcLayerVector::do_compare(const void* lhs,
     // sorted from index 0 to n
     return l->getIndex() - r->getIndex();
 }
+
+HwcLayerList::PriorityVector::PriorityVector()
+{
+
+}
+
+int HwcLayerList::PriorityVector::do_compare(const void* lhs,
+                                              const void* rhs) const
+{
+    const HwcLayer* l = *(HwcLayer**)lhs;
+    const HwcLayer* r = *(HwcLayer**)rhs;
+
+    return r->getPriority() - l->getPriority();
+}
+
 //------------------------------------------------------------------------------
 bool HwcLayerList::checkSupported(int planeType, HwcLayer *hwcLayer)
 {
@@ -346,6 +384,9 @@ void HwcLayerList::analyze()
     // go through layer list from top to bottom
     preProccess();
 
+    // assign planes
+    assignPlanes();
+
     // revisit the plane assignments
     revisit();
 }
@@ -398,144 +439,234 @@ void HwcLayerList::deinitialize()
 
     mLayers.clear();
     mOverlayLayers.clear();
+    mSkippedLayers.clear();
     mFBLayers.clear();
+    mCandidates.clear();
+    mOverlayCandidates.clear();
+    mSpriteCandidates.clear();
+    mPossiblePrimaryLayers.clear();
 }
 
 void HwcLayerList::preProccess()
 {
     Hwcomposer& hwc = Hwcomposer::getInstance();
-    //Drm *drm = hwc.getDrm();
-    DisplayPlane *plane;
 
-    // skip frame buffer target
+    // go through layer list, settle down the candidate layers
     int topLayerIndex = mLayers.size() - 2;
-
     for (int i = topLayerIndex; i >= 0; i--) {
         HwcLayer *hwcLayer = mLayers.itemAt(i);
         hwc_layer_1_t *layer = hwcLayer->getLayer();
 
         if (layer->compositionType == HWC_OVERLAY) {
-            // layer has been preprocessed
-            hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
-            mOverlayLayers.add(hwcLayer);
+            hwcLayer->setType(HwcLayer::LAYER_SKIPPED);
+            mSkippedLayers.add(hwcLayer);
             continue;
         }
 
-        // go through the layer list from top to bottom
-        // assign a display planes to layers which can be blended by DC
-        // TODO: need further optimization.
+        // add layer to FB layer list anyways
+        mFBLayers.add(hwcLayer);
 
-        // check whether the layer can be handled by sprite plane
-        if (mDisplayPlaneManager.hasFreeSprite() &&
-            checkSupported(DisplayPlane::PLANE_SPRITE, hwcLayer)) {
-            VTRACE("sprite check passed for layer %d", i);
-            plane = mDisplayPlaneManager.getSpritePlane();
-            if (plane) {
-                // enable plane
-                if (!plane->enable()) {
-                    ETRACE("sprite plane is not ready");
-                    mDisplayPlaneManager.putPlane(*plane);
-                    mFBLayers.add(hwcLayer);
-                    continue;
-                }
-                // attach plane to hwc layer
-                hwcLayer->attachPlane(plane);
-                // set the layer type to overlay
-                hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
-                mOverlayLayers.add(hwcLayer);
-                continue;
-            } else {
-                VTRACE("sprite plane is not available for layer %d", i);
-            }
+        if (checkSupported(DisplayPlane::PLANE_SPRITE, hwcLayer)) {
+            // found a sprite candidate, add it to candidate & sprite
+            // candidate list
+            mCandidates.add(hwcLayer);
+            mSpriteCandidates.add(hwcLayer);
+            continue;
         }
 
-        // check whether the layer can be handled by overlay plane
-        // Have to go through this check even overlay plane may not be available
-        // as protected video layer needs to be skipped if overlay is not available
         if (checkSupported(DisplayPlane::PLANE_OVERLAY, hwcLayer)) {
-            VTRACE("overlay check passed for layer %d", i);
+            // video play back has 'special' cases, do more checks!!!
+
+            // use case #1: bypass overlay layers of primary device
+            // if in extend video mode
             if (mDisplayIndex == IDisplayDevice::DEVICE_PRIMARY) {
                 // check if HWC is in video extended mode
                 if (DisplayQuery::isVideoFormat(hwcLayer->getFormat()) &&
                     hwc.getDisplayAnalyzer()->checkVideoExtendedMode()) {
                     ITRACE("video is skipped in extended mode");
-                    hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
-                    mOverlayLayers.add(hwcLayer);
-
+                    // remove it from fb layer list first
+                    mFBLayers.remove(hwcLayer);
+                    // layer has been skipped
+                    hwcLayer->setType(HwcLayer::LAYER_SKIPPED);
+                    mSkippedLayers.add(hwcLayer);
                     continue;
                 }
             }
+
+            // use case #2: overlay is not allowed at the moment, use 3D for it
+            if (!(hwc.getDisplayAnalyzer()->isOverlayAllowed())) {
+                ITRACE("overlay is not allowed");
+                continue;
+            }
+
+            // use case #3: don't use overlay for video layer during rotation
+            // TODO: review this change for it's NOT AOSP compatible!!!
             if (mList->flags & HWC_ROTATION_IN_PROGRESS) {
-                // If device is rotated during video playback,
-                // Screenshot(RGB) and YUV layers are created at the same time.
-                // but the position, width or height of YUV layer may be calculated wrong by APP/SF,
-                // so skip these YUV layers
-                plane = NULL;
-            } else if (hwc.getDisplayAnalyzer()->isOverlayAllowed()) {
-                plane = mDisplayPlaneManager.getOverlayPlane(mDisplayIndex);
-            } else {
-                WTRACE("overlay use is not allowed.");
-                plane = NULL;
+                continue;
             }
 
-            if (plane) {
-                hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
-                hwcLayer->attachPlane(plane);
-                mOverlayLayers.add(hwcLayer);
-                continue;
-            } else if (hwcLayer->isProtected()) {
-                // TODO: detach overlay from non-protected layers
-                WTRACE("protected layer is skipped");
-                hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
-                mOverlayLayers.add(hwcLayer);
-                continue;
-            } else {
-                WTRACE("overlay plane is not available for video layer %d", i);
-            }
-        }
-
-        // if still FB layer
-        if (hwcLayer->getType() == HwcLayer::LAYER_FB) {
-            mFBLayers.add(hwcLayer);
+            // found a overlay candidate, add it to candidate & overlay
+            // candidate list
+            mCandidates.add(hwcLayer);
+            mOverlayCandidates.add(hwcLayer);
+            continue;
         }
     }
+}
+
+void HwcLayerList::assignPlanes()
+{
+    // assign overlay planes
+    for (size_t idx = 0; idx < mOverlayCandidates.size(); idx++) {
+        // break if no free overlay
+        if (!mDisplayPlaneManager.hasFreeOverlay()) {
+            VTRACE("no free overlay available");
+            break;
+        }
+
+        // attach plane
+        HwcLayer *hwcLayer = mOverlayCandidates.itemAt(idx);
+        DisplayPlane *plane = mDisplayPlaneManager.getOverlayPlane(mDisplayIndex);
+        if (!hwcLayer->attachPlane(plane)) {
+            WTRACE("failed to attach plane");
+            mDisplayPlaneManager.reclaimPlane(*plane);
+            continue;
+        }
+
+        mFBLayers.remove(hwcLayer);
+        hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
+        mOverlayLayers.add(hwcLayer);
+    }
+
+    for (size_t idx = 0; idx < mSpriteCandidates.size(); idx++) {
+        // break if no free sprite
+        if (!mDisplayPlaneManager.hasFreeSprite()) {
+            VTRACE("no free sprite available");
+            break;
+        }
+
+        HwcLayer *hwcLayer = mSpriteCandidates.itemAt(idx);
+        DisplayPlane *plane = mDisplayPlaneManager.getSpritePlane();
+        if (!plane->enable()) {
+            ETRACE("sprite plane is not ready");
+            mDisplayPlaneManager.putPlane(*plane);
+            continue;
+        }
+
+        // attach plane to hwc layer
+        if (!hwcLayer->attachPlane(plane)) {
+            WTRACE("failed to attach plane");
+            mDisplayPlaneManager.reclaimPlane(*plane);
+            continue;
+        }
+        mFBLayers.remove(hwcLayer);
+        hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
+        mOverlayLayers.add(hwcLayer);
+    }
+}
+
+void HwcLayerList::adjustAssignment()
+{
+    // find the least priority layer that has been attached a plane
+    HwcLayer *target = 0;
+    for (int i = mCandidates.size() - 1; i >= 0; i--) {
+        HwcLayer *hwcLayer = mCandidates.itemAt(i);
+        if (hwcLayer->getPlane() &&
+            hwcLayer->getType() == HwcLayer::LAYER_OVERLAY) {
+            target = hwcLayer;
+            break;
+        }
+    }
+
+    // it's impossible, print a warning message
+    if (!target) {
+        WTRACE("failed to find a HWC_OVERLAY layer");
+        return;
+    }
+
+    // if found a least priority layer detach plane from it and try to attach
+    // the reclaimed plane to the same type layer which has lower priority than
+    // the old layer
+
+    // set the layer type to LAYER_FORCE_FB
+    target->setType(HwcLayer::LAYER_FORCE_FB);
+    // remove layer from overlay layer list
+    mOverlayLayers.remove(target);
+    // add layer to FB layer list
+    mFBLayers.add(target);
+
+    // detach plane from the targeted layer
+    DisplayPlane *plane = target->detachPlane();
+    // try to find next candidate which we can attach the plane to it
+    HwcLayer *next = target;
+    ssize_t idx;
+    do {
+        // remove layer from candidates list
+        mCandidates.remove(next);
+
+        // remove layer from specific candidates list
+        switch (plane->getType()) {
+        case DisplayPlane::PLANE_OVERLAY:
+            idx = mOverlayCandidates.remove(next);
+            if (idx >= 0 && (size_t)idx < mOverlayCandidates.size()) {
+                next = mOverlayCandidates.itemAt(idx);
+            } else {
+                next = NULL;
+            }
+            break;
+        case DisplayPlane::PLANE_SPRITE:
+        case DisplayPlane::PLANE_PRIMARY:
+            idx = mSpriteCandidates.remove(next);
+            if (idx >= 0 && (size_t)idx < mSpriteCandidates.size()) {
+                next = mSpriteCandidates.itemAt(idx);
+            } else {
+                next = NULL;
+            }
+            break;
+        }
+    } while(next && !next->attachPlane(plane));
+
+    // if failed to get next candidate, reclaim this plane
+    if (!next) {
+        VTRACE("reclaimed plane type %d, index %d",
+               plane->getType(), plane->getIndex());
+        mDisplayPlaneManager.reclaimPlane(*plane);
+        return;
+    }
+
+    mFBLayers.remove(next);
+    next->setType(HwcLayer::LAYER_OVERLAY);
+    mOverlayLayers.add(next);
 }
 
 void HwcLayerList::revisit()
 {
     bool ret = false;
 
-    // try to attach primary plane & setup z order configuration
-    // till we can place primary plane to an appropriate layer in the
-    // layer list AND found a platform supported plane z order configure
-    // NOTE: we will eventually finish these two steps setting successfully
-    // since the worst situation is that we fall back all assigned overlay
-    // layers and use GPU composition completely.
-    //
     do {
         // detach primaryPlane
         detachPrimary();
 
-        // try to attach primary plane
-        ret = attachPrimary();
-        //if failed to attach primary plane, fall back an overlay layer
-        if (!ret && mOverlayLayers.size()) {
-            ITRACE("failed to attach primary plane");
-            fallbackOverlayLayer();
+        // calculate possible primary layers
+        updatePossiblePrimaryLayers();
+
+        // if failed to find target primary layers, adjust current assignment
+        if (mFBLayers.size() && !mPossiblePrimaryLayers.size() ) {
+            VTRACE("failed to find primary target layers");
+            adjustAssignment();
             continue;
         }
 
-        // try to set z order config
-        ret = setupZOrderConfig();
+        ret = updateZOrderConfig();
         //if failed to apply a z order configuration, fall back an overlay layer
         if (!ret && mOverlayLayers.size()) {
-           ITRACE("failed to set zorder config");
-           fallbackOverlayLayer();
+           VTRACE("failed to set zorder config, adjusting plane assigment...");
+           adjustAssignment();
            continue;
         }
     } while (!ret);
 
-    // blank protected layers if we cannot find an appropriate solution to
+    // skip protected layers if we cannot find an appropriate solution to
     // assign overlays.
     // This could barely happen. however, if it happened we want make sure
     // screen content is NOT messed up.
@@ -544,12 +675,88 @@ void HwcLayerList::revisit()
         // set a layer to layer overlay and add it back to overlay layer list
         if (layer->getType() != HwcLayer::LAYER_OVERLAY &&
             layer->isProtected()) {
-            layer->setType(HwcLayer::LAYER_OVERLAY);
+            ITRACE("skip protected layer %d", layer->getIndex());
+            layer->setType(HwcLayer::LAYER_SKIPPED);
             // move it from FB layer list to overlay layer list
             mFBLayers.remove(layer);
-            mOverlayLayers.add(layer);
+            mSkippedLayers.add(layer);
         }
     }
+}
+
+bool HwcLayerList::updateZOrderConfig()
+{
+    // acquire primary plane of this display device
+    DisplayPlane *primaryPlane =
+        mDisplayPlaneManager.getPrimaryPlane(mDisplayIndex);
+    if (!primaryPlane) {
+        // if primary allocation is failed, it should be a fatal error
+        ETRACE("failed to get primary plane for display %d", mDisplayIndex);
+        return false;
+    }
+
+    // primary can be used as sprite, setup Z order directly
+    if (usePrimaryAsSprite(primaryPlane)) {
+        VTRACE("primary was used as sprite");
+        return setupZOrderConfig();
+    }
+
+    // attach primary to frame buffer target
+    usePrimaryAsFramebufferTarget(primaryPlane);
+
+    int primaryZOrder = 0;
+    // if no possible primary layers, place it at bottom
+    if (!mPossiblePrimaryLayers.size()) {
+        primaryPlane->setZOrder(primaryZOrder);
+        return setupZOrderConfig();
+    }
+    // try to find out a suitable layer to place primary plane
+    bool success = false;
+    while (mPossiblePrimaryLayers.size()) {
+        HwcLayer *primaryLayer = mPossiblePrimaryLayers.itemAt(0);
+        // need update primary plane zorder
+        primaryZOrder = primaryLayer->getIndex() + 1;
+        primaryPlane->setZOrder(primaryZOrder);
+
+        // try to set z order config, return if setup z order successfully
+        success = setupZOrderConfig();
+        if (success) {
+            VTRACE("primary was attached to framebuffer target");
+            break;
+        }
+        // remove this layer from possible primary layer list
+        mPossiblePrimaryLayers.remove(primaryLayer);
+    }
+
+    return success;
+}
+
+bool HwcLayerList::usePrimaryAsSprite(DisplayPlane *primaryPlane)
+{
+    // only one FB layer left, it's possible to use primary as sprite
+    // if the assignment successes, we are done! update primary z order
+    // and attach primary plane to this layer.
+    if ((mFBLayers.size() == 1)) {
+        HwcLayer *layer = mFBLayers.itemAt(0);
+        if (checkSupported(DisplayPlane::PLANE_PRIMARY, layer)) {
+            VTRACE("primary check passed for primary layer");
+            // attach primary to layer
+            if (!layer->attachPlane(primaryPlane)) {
+                WTRACE("failed to attach plane");
+                mDisplayPlaneManager.reclaimPlane(*primaryPlane);
+                return false;
+            }
+            // set the layer type to overlay
+            layer->setType(HwcLayer::LAYER_OVERLAY);
+            // remove layer from FB layer list
+            mFBLayers.remove(layer);
+            // add layer to overlay layers
+            mOverlayLayers.add(layer);
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void HwcLayerList::detachPrimary()
@@ -588,58 +795,35 @@ void HwcLayerList::detachPrimary()
     }
 }
 
-bool HwcLayerList::attachPrimary()
+void HwcLayerList::updatePossiblePrimaryLayers()
 {
-    // acquire primary plane of this display device
-    DisplayPlane *primaryPlane =
-        mDisplayPlaneManager.getPrimaryPlane(mDisplayIndex);
-    if (!primaryPlane) {
-        // if primary allocation is failed, it should be a fatal error
-        ETRACE("failed to get primary plane for display %d", mDisplayIndex);
-        return false;
+    mPossiblePrimaryLayers.clear();
+
+    // if no FB layers, clear vector
+    if (!mFBLayers.size()) {
+        return;
     }
 
-    // only one FB layer left, it's possible to use primary as sprite
-    // if the assignment successes, we are done! update primary z order
-    // and attach primary plane to this layer.
-    if ((mFBLayers.size() == 1)) {
-        HwcLayer *layer = mFBLayers.itemAt(0);
-        if (checkSupported(DisplayPlane::PLANE_PRIMARY, layer)) {
-            VTRACE("primary check passed for primary layer");
-            // attach primary to layer
-            layer->attachPlane(primaryPlane);
-            // set the layer type to overlay
-            layer->setType(HwcLayer::LAYER_OVERLAY);
-            // remove layer from FB layer list
-            mFBLayers.remove(layer);
-            // add layer to overlay layers
-            mOverlayLayers.add(layer);
-            return true;
+    for (size_t i = 0; i < mFBLayers.size(); i++) {
+        HwcLayer *target = mFBLayers.itemAt(i);
+        if (mergeFBLayersToLayer(target, i)) {
+            mPossiblePrimaryLayers.add(target);
         }
     }
+}
 
+void HwcLayerList::usePrimaryAsFramebufferTarget(DisplayPlane *primaryPlane)
+{
     // attach primary to frame buffer target
     HwcLayer *layer = mLayers.itemAt(mLayers.size() - 1);
-    // need update primary plane zorder
-    int primaryZOrder = -1;
-    if (!calculatePrimaryZOrder(primaryZOrder)) {
-        ITRACE("failed to determine primary z order");
-        // reclaim primary plane
-        mDisplayPlaneManager.reclaimPlane(*primaryPlane);
-        return false;
-    }
 
     // invalidate primary plane's data buffer cache
     primaryPlane->invalidateBufferCache();
     // NOTE: calling setType again to trigger glClear() for
     // other overlay layers
     layer->setType(HwcLayer::LAYER_FRAMEBUFFER_TARGET);
-    // attach primary plane
+    // attach primary plane, it has to be successful
     layer->attachPlane(primaryPlane);
-    // update primary plane zorder
-    primaryPlane->setZOrder(primaryZOrder);
-
-    return true;
 }
 
 bool HwcLayerList::calculatePrimaryZOrder(int& zorder)
@@ -769,50 +953,6 @@ bool HwcLayerList::setupZOrderConfig()
     return mDisplayPlaneManager.setZOrderConfig(zorderConfig);
 }
 
-void HwcLayerList::fallbackOverlayLayer()
-{
-    if (!mOverlayLayers.size()) {
-        WTRACE("try to fallback overlay layer while there's no overlay layers");
-        return;
-    }
-
-    // TODO: more optimization is needed to kick back a HWC_OVERLAY layer
-    // e.g. select a layer based on its display frame size, whether it's
-    // a protected layer and then try to attach the reclaimed plane to other
-    // candidates if possible. This will requires more cpu time! currently,
-    // only select the HWC_OVERLAY which is on the top of the layer stack
-    // and force it back to GPU rendering.
-
-    // get the first overlay which has been attach a plane
-    HwcLayer *target = 0;
-    for (int i = mOverlayLayers.size() - 1; i >= 0; i--) {
-        HwcLayer *layer = mOverlayLayers.itemAt(i);
-        // detach assigned plane
-        DisplayPlane *plane = layer->detachPlane();
-        if (plane) {
-            VTRACE("falling back plane type = %d, index = %d",
-                   plane->getType(), plane->getIndex());
-            mDisplayPlaneManager.reclaimPlane(*plane);
-
-            // found the first overlay layer
-            target = layer;
-            break;
-        }
-    }
-
-    if (!target) {
-        WTRACE("Couldn't find overlay layer to be fell back");
-        return;
-    }
-
-    // set the layer type to LAYER_FORCE_FB
-    target->setType(HwcLayer::LAYER_FORCE_FB);
-    // remove layer from overlay layer list
-    mOverlayLayers.remove(target);
-    // add layer to FB layer list
-    mFBLayers.add(target);
-}
-
 bool HwcLayerList::update(hwc_display_contents_1_t *list)
 {
     bool ret;
@@ -893,7 +1033,8 @@ DisplayPlane* HwcLayerList::getPlane(uint32_t index) const
     }
 
     hwcLayer = mLayers.itemAt(index);
-    if (!hwcLayer || (hwcLayer->getType() == HwcLayer::LAYER_FB))
+    if (!hwcLayer || (hwcLayer->getType() == HwcLayer::LAYER_FB) ||
+        (hwcLayer->getType() ==  HwcLayer::LAYER_FORCE_FB))
         return 0;
 
     if (hwcLayer->getHandle() == 0) {
@@ -945,21 +1086,24 @@ bool HwcLayerList::hasVisibleLayer()
 void HwcLayerList::dump(Dump& d)
 {
     d.append("Layer list: (number of layers %d):\n", mLayers.size());
-    d.append(" LAYER |          TYPE          |   PLANE  | INDEX  \n");
-    d.append("-------+------------------------+------------------ \n");
+    d.append(" LAYER |          TYPE          |   PLANE  | INDEX | Z Order \n");
+    d.append("-------+------------------------+----------------------------\n");
     for (size_t i = 0; i < mLayers.size(); i++) {
         HwcLayer *hwcLayer = mLayers.itemAt(i);
         DisplayPlane *plane;
         int planeIndex = -1;
+        int zorder = -1;
         const char *type = "HWC_FB";
         const char *planeType = "N/A";
 
         if (hwcLayer) {
             switch (hwcLayer->getType()) {
             case HwcLayer::LAYER_FB:
+            case HwcLayer::LAYER_FORCE_FB:
                 type = "HWC_FB";
                 break;
             case HwcLayer::LAYER_OVERLAY:
+            case HwcLayer::LAYER_SKIPPED:
                 type = "HWC_OVERLAY";
                 break;
             case HwcLayer::LAYER_FRAMEBUFFER_TARGET:
@@ -972,7 +1116,7 @@ void HwcLayerList::dump(Dump& d)
             plane = hwcLayer->getPlane();
             if (plane) {
                 planeIndex = plane->getIndex();
-
+                zorder = plane->getZOrder();
                 switch (plane->getType()) {
                 case DisplayPlane::PLANE_OVERLAY:
                     planeType = "OVERLAY";
@@ -988,8 +1132,8 @@ void HwcLayerList::dump(Dump& d)
                 }
             }
 
-            d.append("  %2d   | %22s | %8s | %3D \n",
-                     i, type, planeType, planeIndex);
+            d.append("  %2d   | %22s | %8s | %3D   | %3D \n",
+                     i, type, planeType, planeIndex, zorder);
         }
     }
 }

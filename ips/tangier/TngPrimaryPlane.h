@@ -40,6 +40,7 @@ public:
     virtual ~TngPrimaryPlane();
 public:
     bool setDataBuffer(uint32_t handle);
+    void setZOrderConfig(ZOrderConfig& config, void *nativeConfig);
     bool assignToDevice(int disp);
     bool disable();
 private:

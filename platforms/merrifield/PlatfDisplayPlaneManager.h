@@ -29,6 +29,7 @@
 #define PLATF_DISPLAY_PLANE_MANAGER_H
 
 #include <DisplayPlaneManager.h>
+#include <displayclass_interface.h>
 
 namespace android {
 namespace intel {
@@ -41,6 +42,9 @@ protected:
     bool detect(int&spriteCount, int& overlayCount, int& primaryCount);
     DisplayPlane* allocPlane(int index, int type);
     bool isValidZOrderConfig(ZOrderConfig& zorderConfig);
+    void* getNativeZOrderConfig();
+private:
+    struct intel_dc_plane_zorder mZorder;
 };
 
 } // namespace intel
