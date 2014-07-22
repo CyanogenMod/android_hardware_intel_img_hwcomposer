@@ -187,7 +187,7 @@ void ExternalDevice::HdcpLinkStatusListener(bool success)
 {
     // TODO:  send hotplug event only if HDCP is authenticated?
     if (mHotplugEventPending) {
-        ITRACE("HDCP authentication status %d, sending hotplug event...", success);
+        DTRACE("HDCP authentication status %d, sending hotplug event...", success);
         mHwc.hotplug(mType, mConnected);
         mHotplugEventPending = false;
     }
@@ -206,21 +206,29 @@ void ExternalDevice::onHotplug()
     // abort mode settings if it is in the middle
     mAbortModeSettingCond.signal();
 
+    // remember the current connection status before detection
+    bool connected = mConnected;
+
     // detect display configs
     ret = detectDisplayConfigs();
     if (ret == false) {
-        DTRACE("failed to detect display config");
+        ETRACE("failed to detect display config");
         return;
     }
 
     ITRACE("hotpug event: %d", mConnected);
+
+    if (connected == mConnected) {
+        WTRACE("same connection status detected, hotplug event ignored");
+        return;
+    }
 
     if (mConnected == false) {
         mHotplugEventPending = false;
         mHdcpControl->stopHdcp();
         mHwc.hotplug(mType, mConnected);
     } else {
-        ITRACE("start HDCP asynchronously...");
+        DTRACE("start HDCP asynchronously...");
          // delay sending hotplug event till HDCP is authenticated.
         mHotplugEventPending = true;
         ret = mHdcpControl->startHdcpAsync(HdcpLinkStatusListener, this);
