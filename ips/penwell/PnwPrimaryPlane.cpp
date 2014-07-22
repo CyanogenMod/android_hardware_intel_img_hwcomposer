@@ -25,8 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <Drm.h>
 #include <penwell/PnwPrimaryPlane.h>
 #include <penwell/PnwGrallocBuffer.h>
@@ -38,18 +37,18 @@ namespace intel {
 PnwPrimaryPlane::PnwPrimaryPlane(int index, int disp)
     : PnwSpritePlane(index, disp)
 {
-    LOGV("PnwPrimaryPlane");
+    CTRACE();
     mType = PLANE_PRIMARY;
 }
 
 PnwPrimaryPlane::~PnwPrimaryPlane()
 {
-    LOGV("~PnwPrimaryPlane");
+    CTRACE();
 }
 
 void PnwPrimaryPlane::setFramebufferTarget(DataBuffer& buf)
 {
-    LOGV("PnwPrimaryPlane::setFramebufferTarget");
+    CTRACE();
     //TODO: implement penwell frame buffer target flip
 }
 
@@ -58,7 +57,7 @@ bool PnwPrimaryPlane::setDataBuffer(uint32_t handle)
     PnwGrallocBuffer tmpBuf(handle);
     uint32_t usage;
 
-    LOGV("PnwPrimaryPlane::setDataBuffer: handle = %d");
+    ATRACE("handle = %#x", handle);
 
     usage = tmpBuf.getUsage();
     if (!handle || (GRALLOC_USAGE_HW_FB & usage)) {

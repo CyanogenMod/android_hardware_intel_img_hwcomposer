@@ -25,7 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
+#include <HwcTrace.h>
 #include <DrmConfig.h>
 #include <Drm.h>
 

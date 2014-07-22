@@ -25,8 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <VsyncEventObserver.h>
 #include <PhysicalDevice.h>
 
@@ -39,7 +38,7 @@ VsyncEventObserver::VsyncEventObserver(PhysicalDevice& disp,
       mVsync(vsync),
       mEnabled(0)
 {
-    LOGV("VsyncEventObserver()");
+    CTRACE();
 }
 
 VsyncEventObserver::~VsyncEventObserver()
@@ -49,7 +48,7 @@ VsyncEventObserver::~VsyncEventObserver()
 
 void VsyncEventObserver::control(int enabled)
 {
-    LOGV("control: enabled %s", enabled ? "True" : "False");
+    ATRACE("enabled = %s", enabled ? "True" : "False");
 
     Mutex::Autolock _l(mLock);
     mEnabled = enabled;
@@ -69,7 +68,7 @@ bool VsyncEventObserver::threadLoop()
     bool ret = mVsync.wait(mDisplayDevice.getType(), timestamp);
 
     if (ret == false) {
-        LOGW("threadLoop: failed to wait for vsync, check vsync enabling...");
+        WTRACE("failed to wait for vsync, check vsync enabling...");
         return true;
     }
 
@@ -80,13 +79,13 @@ bool VsyncEventObserver::threadLoop()
 
 status_t VsyncEventObserver::readyToRun()
 {
-    LOGV("VsyncEventObserver: readyToRun. disp %d", mDisplayDevice.getType());
+    ATRACE("disp = %d", mDisplayDevice.getType());
     return NO_ERROR;
 }
 
 void VsyncEventObserver::onFirstRef()
 {
-    LOGV("VsyncEventObserver: onFirstRef. disp %d", mDisplayDevice.getType());
+    ATRACE("disp = %d", mDisplayDevice.getType());
     run("VsyncEventObserver", PRIORITY_URGENT_DISPLAY);
 }
 

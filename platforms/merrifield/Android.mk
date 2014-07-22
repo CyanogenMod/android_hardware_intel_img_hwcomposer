@@ -101,9 +101,7 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH) \
 
 LOCAL_MODULE_TAGS := eng
 LOCAL_MODULE := hwcomposer.$(TARGET_DEVICE)
-LOCAL_CFLAGS:= -DLINUX -DLOG_TAG=\"hwcomposer\"
-#NOTE: uncomment this to enble verbose logs
-#LOCAL_CFLAGS += -DLOG_NODEBUG
+LOCAL_CFLAGS:= -DLINUX
 
 #$(error local path is: $(LOCAL_C_INCLUDES))
 include $(BUILD_SHARED_LIBRARY)

@@ -25,12 +25,11 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
 
+#include <HwcTrace.h>
 #include <Drm.h>
 #include <Hwcomposer.h>
 #include <ExternalDevice.h>
-#include <HwcUtils.h>
 
 namespace android {
 namespace intel {
@@ -38,30 +37,30 @@ namespace intel {
 ExternalDevice::ExternalDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
     : PhysicalDevice(DEVICE_EXTERNAL, hwc, dpm)
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
 }
 
 ExternalDevice::~ExternalDevice()
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
     deinitialize();
 }
 
 bool ExternalDevice::initialize()
 {
     if (!PhysicalDevice::initialize()) {
-        DEINIT_AND_RETURN_FALSE("failed to initialize physical device.");
+        DEINIT_AND_RETURN_FALSE("failed to initialize physical device");
     }
 
     mHotplugControl = createHotplugControl();
     if (!mHotplugControl) {
-        DEINIT_AND_RETURN_FALSE("failed to create hotplug control.");
+        DEINIT_AND_RETURN_FALSE("failed to create hotplug control");
     }
 
     // create hotplug observer
     mHotplugObserver = new HotplugEventObserver(*this, *mHotplugControl);
     if (!mHotplugObserver.get()) {
-        DEINIT_AND_RETURN_FALSE("failed to create hotplug observer.");
+        DEINIT_AND_RETURN_FALSE("failed to create hotplug observer");
     }
     return true;
 }
@@ -87,12 +86,12 @@ void ExternalDevice::onHotplug()
 {
     bool ret;
 
-    LOGV("Entering %s", __func__);
+    CTRACE();
 
     // detect display configs
     ret = detectDisplayConfigs();
     if (ret == false) {
-        LOGD("%s: failed to detect display config", __func__);
+        DTRACE("failed to detect display config");
         return;
     }
 

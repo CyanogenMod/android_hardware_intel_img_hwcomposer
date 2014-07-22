@@ -27,11 +27,9 @@
  */
 #include <fcntl.h>
 #include <errno.h>
-
-#include <Drm.h>
-#include <Hwcomposer.h>
-#include <cutils/log.h>
+#include <HwcTrace.h>
 #include <DrmConfig.h>
+#include <Drm.h>
 
 namespace android {
 namespace intel {
@@ -41,13 +39,13 @@ Drm::Drm()
     const char *path = DrmConfig::getDrmPath();
     int fd = open(path, O_RDWR, 0);
     if (fd < 0) {
-        LOGE("Drm(): drmOpen failed. %s", strerror(errno));
+        ETRACE("drmOpen failed, error: %s", strerror(errno));
     }
 
     mDrmFd = fd;
     memset(&mOutputs, 0, sizeof(mOutputs));
 
-    LOGD("Drm(): successfully. mDrmFd %d", fd);
+    DTRACE("mDrmFd = %d", fd);
 }
 
 bool Drm::detect()
@@ -55,14 +53,14 @@ bool Drm::detect()
     Mutex::Autolock _l(mLock);
 
     if (mDrmFd < 0) {
-        LOGE("detect(): invalid Fd");
+        ETRACE("invalid Fd");
         return false;
     }
 
     // try to get drm resources
     drmModeResPtr resources = drmModeGetResources(mDrmFd);
     if (!resources) {
-        LOGE("detect(): fail to get drm resources. %s\n", strerror(errno));
+        ETRACE("fail to get drm resources, error: %s", strerror(errno));
         return false;
     }
 
@@ -80,16 +78,16 @@ bool Drm::detect()
     for (int i = 0; i < resources->count_connectors; i++) {
         connector = drmModeGetConnector(mDrmFd, resources->connectors[i]);
         if (!connector) {
-            LOGE("detect(): fail to get drm connector\n");
+            ETRACE("failed to get drm connector");
             continue;
         }
 
         int outputIndex = -1;
         if (connector->connector_type == primaryConnector) {
-            LOGV("detect(): got primary connector\n");
+            VTRACE("got primary connector");
             outputIndex = OUTPUT_PRIMARY;
         } else if (connector->connector_type == externalConnector) {
-            LOGV("detect(): got external connector\n");
+            VTRACE("got external connector");
             outputIndex = OUTPUT_EXTERNAL;
         }
 
@@ -125,7 +123,7 @@ bool Drm::detect()
         // get current encoder
         encoder = drmModeGetEncoder(mDrmFd, connector->encoder_id);
         if (!encoder) {
-            LOGE("detect(): fail to get drm encoder\n");
+            ETRACE("failed to get drm encoder");
             continue;
         }
 
@@ -134,7 +132,7 @@ bool Drm::detect()
         // get crtc
         crtc = drmModeGetCrtc(mDrmFd, encoder->crtc_id);
         if (!crtc) {
-            LOGE("detect(): fail to get drm crtc\n");
+            ETRACE("failed to get drm crtc");
             continue;
         }
 
@@ -143,7 +141,7 @@ bool Drm::detect()
         // get fb info
         fbInfo = drmModeGetFB(mDrmFd, crtc->buffer_id);
         if (!fbInfo) {
-            LOGE("detect(): fail to get fb info\n");
+            ETRACE("failed to get fb info");
             continue;
         }
 
@@ -169,18 +167,18 @@ bool Drm::writeReadIoctl(unsigned long cmd, void *data,
     Mutex::Autolock _l(mLock);
 
     if (mDrmFd <= 0) {
-        LOGE("Drm is not initialized");
+        ETRACE("drm is not initialized");
         return false;
     }
 
     if (!data || !size) {
-        LOGE("Invalid parameters");
+        ETRACE("invalid parameters");
         return false;
     }
 
     err = drmCommandWriteRead(mDrmFd, cmd, data, size);
     if (err) {
-        LOGE("Drm::Failed call 0x%lx ioct with failure %d", cmd, err);
+        ETRACE("failed to call %ld ioctl with failure %d", cmd, err);
         return false;
     }
 
@@ -195,18 +193,18 @@ bool Drm::writeIoctl(unsigned long cmd, void *data,
     Mutex::Autolock _l(mLock);
 
     if (mDrmFd <= 0) {
-        LOGE("Drm is not initialized");
+        ETRACE("drm is not initialized");
         return false;
     }
 
     if (!data || !size) {
-        LOGE("Invalid parameters");
+        ETRACE("invalid parameters");
         return false;
     }
 
     err = drmCommandWrite(mDrmFd, cmd, data, size);
     if (err) {
-        LOGE("Drm::Failed call 0x%lx ioct with failure %d", cmd, err);
+        ETRACE("failed to call %ld ioctl with failure %d", cmd, err);
         return false;
     }
 
@@ -223,7 +221,7 @@ struct Output* Drm::getOutput(int output)
     Mutex::Autolock _l(mLock);
 
     if (output < 0 || output >= OUTPUT_MAX) {
-        LOGE("getOutput(): invalid output %d", output);
+        ETRACE("invalid output %d", output);
         return 0;
     }
 
@@ -235,7 +233,7 @@ bool Drm::outputConnected(int output)
     Mutex::Autolock _l(mLock);
 
     if (output < 0 || output >= OUTPUT_MAX) {
-        LOGE("outputConnected(): invalid output %d", output);
+        ETRACE("invalid output %d", output);
         return false;
     }
 

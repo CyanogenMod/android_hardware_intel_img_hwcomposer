@@ -25,8 +25,8 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
 
+#include <HwcTrace.h>
 #include <Drm.h>
 #include <common/BlankControl.h>
 
@@ -41,7 +41,7 @@ BlankControl::BlankControl()
 
 bool BlankControl::blank(int disp, int blank)
 {
-    LOGV("PnwBlankControl::blank: disp %d, blank %d", disp, blank);
+    ATRACE("disp = %d, blank = %d", disp, blank);
     // current do nothing but return true
     // use PM to trigger screen blank/unblank
     return true;

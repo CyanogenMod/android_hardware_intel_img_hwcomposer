@@ -25,8 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <BufferCache.h>
 
 namespace android {
@@ -47,14 +46,14 @@ bool BufferCache::addMapper(uint64_t handle, BufferMapper* mapper)
 {
     ssize_t index = mBufferPool.indexOfKey(handle);
     if (index >= 0) {
-        LOGE("addMapper: buffer 0x%llx exists\n", handle);
+        ETRACE("buffer %#llx exists", handle);
         return false;
     }
 
     // add mapper
     index = mBufferPool.add(handle, mapper);
     if (index < 0) {
-        LOGE("addMapper: failed to add mapper. err = %ld", index);
+        ETRACE("failed to add mapper. err = %ld", index);
         return false;
     }
 
@@ -70,7 +69,7 @@ bool BufferCache::removeMapper(BufferMapper* mapper)
 
     index = mBufferPool.removeItem(mapper->getKey());
     if (index < 0) {
-        LOGW("removeMapper:: failed to remove mapper. err = %ld", index);
+        WTRACE("failed to remove mapper. err = %ld", index);
         return false;
     }
 

@@ -25,8 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <HotplugEventObserver.h>
 #include <ExternalDevice.h>
 
@@ -38,12 +37,12 @@ HotplugEventObserver::HotplugEventObserver(ExternalDevice& disp,
     : mDisplayDevice(disp),
       mHotplug(hotplug)
 {
-    LOGD("HotplugEventObserver");
+    CTRACE();
 }
 
 HotplugEventObserver::~HotplugEventObserver()
 {
-    LOGD("~HotplugEventObserver");
+    CTRACE();
 }
 
 bool HotplugEventObserver::threadLoop()
@@ -59,13 +58,13 @@ bool HotplugEventObserver::threadLoop()
 
 status_t HotplugEventObserver::readyToRun()
 {
-    LOGD("HotplugEventObserver::readyToRun");
+    CTRACE();
     return NO_ERROR;
 }
 
 void HotplugEventObserver::onFirstRef()
 {
-    LOGD("HotplugEventObserver::onFirstRef");
+    CTRACE();
     run("HotplugEventObserver", PRIORITY_URGENT_DISPLAY);
 }
 

@@ -25,10 +25,9 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
 
+#include <HwcTrace.h>
 #include <hardware/hwcomposer.h>
-
 #include <BufferManager.h>
 
 namespace android {
@@ -39,12 +38,12 @@ BufferManager::BufferManager()
       mBufferPool(0),
       mInitialized(false)
 {
-
+    CTRACE();
 }
 
 BufferManager::~BufferManager()
 {
-    LOGV("~BufferManager");
+    CTRACE();
     deinitialize();
 }
 
@@ -55,19 +54,19 @@ bool BufferManager::initCheck() const
 
 bool BufferManager::initialize()
 {
-    LOGV("BufferManager::initialize");
+    CTRACE();
 
     // create buffer pool
     mBufferPool = new BufferCache(DEFAULT_BUFFER_POOL_SIZE);
     if (!mBufferPool) {
-        LOGE("failed to create gralloc buffer cache\n");
+        ETRACE("failed to create gralloc buffer cache");
         return false;
     }
 
     // init gralloc module
     hw_module_t const* module;
     if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module)) {
-        LOGE("failed to get gralloc module\n");
+        ETRACE("failed to get gralloc module");
         goto gralloc_err;
     }
 
@@ -125,28 +124,28 @@ BufferMapper* BufferManager::map(DataBuffer& buffer)
     bool ret;
     BufferMapper* mapper;
 
-    LOGV("BufferManager::map");
+    CTRACE();
 
     //try to get mapper from pool
     mapper = mBufferPool->getMapper(buffer.getKey());
     if (!mapper) {
-        LOGV("BufferManager::map: new buffer, will add it");
+        VTRACE("new buffer, will add it");
         mapper = createBufferMapper(mGrallocModule, buffer);
         if (!mapper) {
-            LOGE("BufferManager::map: failed to allocate mapper");
+            ETRACE("failed to allocate mapper");
             goto mapper_err;
         }
         // map buffer
         ret = mapper->map();
         if (!ret) {
-            LOGE("BufferManager::map: failed to map");
+            ETRACE("failed to map");
             goto map_err;
         }
 
         // add mapper
         ret = mBufferPool->addMapper(buffer.getKey(), mapper);
         if (!ret) {
-            LOGE("BufferManager::map: failed to add mapper");
+            ETRACE("failed to add mapper");
             goto add_err;
         }
     }
@@ -167,12 +166,12 @@ void BufferManager::unmap(BufferMapper& mapper)
     BufferMapper* cachedMapper;
     int refCount;
 
-    LOGV("BufferManager::unmap");
+    CTRACE();
 
     // try to get mapper from pool
     cachedMapper = mBufferPool->getMapper(mapper.getKey());
     if (!cachedMapper) {
-        LOGE("BufferManager::unmap: invalid buffer mapper");
+        ETRACE("invalid buffer mapper");
         return;
     }
 

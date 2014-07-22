@@ -25,8 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <Hwcomposer.h>
 #include <BufferManager.h>
 #include <tangier/TngSpritePlane.h>
@@ -38,14 +37,14 @@ namespace intel {
 TngSpritePlane::TngSpritePlane(int index, int disp)
     : SpritePlaneBase(index, disp)
 {
-    LOGV("TngSpritePlane");
+    CTRACE();
 
     memset(&mContext, 0, sizeof(mContext));
 }
 
 TngSpritePlane::~TngSpritePlane()
 {
-    LOGV("~TngSpritePlane");
+    CTRACE();
 }
 
 bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
@@ -57,7 +56,7 @@ bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
     uint32_t stride;
     uint32_t linoff;
 
-    LOGV("TngSpritePlane::setDataBuffer");
+    CTRACE();
 
     // setup plane position
     dstX = mPosition.x;
@@ -69,8 +68,7 @@ bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
 
     // setup plane format
     if (!PixelFormat::convertFormat(mapper.getFormat(), spriteFormat, bpp)) {
-        LOGE("TngSpritePlane::setDataBuffer: unsupported format 0x%x",
-              mapper.getFormat());
+        ETRACE("unsupported format %#x", mapper.getFormat());
         return false;
     }
 
@@ -82,7 +80,7 @@ bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
 
     // unlikely happen, but still we need make sure linoff is valid
     if (linoff > (stride * mapper.getHeight())) {
-        LOGE("TngSpritePlane::setDataBuffer: invalid source crop");
+        ETRACE("invalid source crop");
         return false;
     }
 
@@ -101,8 +99,8 @@ bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
     if (mForceBottom)
         mContext.ctx.sp_ctx.cntr  |= 0x00000004;
 
-    LOGV("TngSpritePlane::setDataBuffer: cntr = 0x%x, linoff = 0x%x, stride = 0x%x,"
-          "surf = 0x%x, pos = 0x%x, size = 0x%x\n",
+    VTRACE("cntr = %#x, linoff = %#x, stride = %#x,"
+          "surf = %#x, pos = %#x, size = %#x",
           mContext.ctx.sp_ctx.cntr,
           mContext.ctx.sp_ctx.linoff,
           mContext.ctx.sp_ctx.stride,
@@ -114,7 +112,7 @@ bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
 
 void* TngSpritePlane::getContext() const
 {
-    LOGV("TngSpritePlane::getContext");
+    CTRACE();
     return (void *)&mContext;
 }
 

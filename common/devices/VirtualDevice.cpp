@@ -25,13 +25,11 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <Drm.h>
 #include <Hwcomposer.h>
 #include <DisplayPlaneManager.h>
 #include <VirtualDevice.h>
-#include <HwcUtils.h>
 
 
 namespace android {
@@ -42,57 +40,51 @@ VirtualDevice::VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
       mHwc(hwc),
       mDisplayPlaneManager(dpm)
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
 }
 
 VirtualDevice::~VirtualDevice()
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
     deinitialize();
 }
 
 bool VirtualDevice::prePrepare(hwc_display_contents_1_t *display)
 {
-    LOGV("Entering %s", __func__);
-    INIT_CHECK();
+    RETURN_FALSE_IF_NOT_INIT();
     return true;
 }
 
 bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
 {
-    LOGV("Entering %s", __func__);
-    INIT_CHECK();
+    RETURN_FALSE_IF_NOT_INIT();
     return true;
 }
 
 bool VirtualDevice::commit(hwc_display_contents_1_t *display, IDisplayContext *context)
 {
-    LOGV("Entering %s", __func__);
-    INIT_CHECK();
+    RETURN_FALSE_IF_NOT_INIT();
     return true;
 }
 
 bool VirtualDevice::vsyncControl(int enabled)
 {
-    LOGV("Entering %s", __func__);
-    INIT_CHECK();
+    RETURN_FALSE_IF_NOT_INIT();
     return true;
 }
 
 bool VirtualDevice::blank(int blank)
 {
-    LOGV("Entering %s", __func__);
-    INIT_CHECK();
+    RETURN_FALSE_IF_NOT_INIT();
     return true;
 }
 
 bool VirtualDevice::getDisplayConfigs(uint32_t *configs,
                                          size_t *numConfigs)
 {
-    LOGV("Entering %s", __func__);
-    INIT_CHECK();
+    RETURN_FALSE_IF_NOT_INIT();
     if (!configs || !numConfigs) {
-        LOGE("%s: invalid parameters", __func__);
+        ETRACE("invalid parameters");
         return false;
     }
 
@@ -106,11 +98,10 @@ bool VirtualDevice::getDisplayAttributes(uint32_t configs,
                                             const uint32_t *attributes,
                                             int32_t *values)
 {
-    LOGV("Entering %s", __func__);
-    INIT_CHECK();
+    RETURN_FALSE_IF_NOT_INIT();
 
     if (!attributes || !values) {
-        LOGE("%s: invalid parameters", __func__);
+        ETRACE("invalid parameters");
         return false;
     }
 
@@ -133,7 +124,7 @@ bool VirtualDevice::getDisplayAttributes(uint32_t configs,
             values[i] = 0;
             break;
         default:
-            LOGE("%s: unknown attribute %d", __func__, attributes[i]);
+            ETRACE("unknown attribute %d", attributes[i]);
             break;
         }
         i++;
@@ -144,8 +135,7 @@ bool VirtualDevice::getDisplayAttributes(uint32_t configs,
 
 bool VirtualDevice::compositionComplete()
 {
-    LOGV("Entering %s", __func__);
-    INIT_CHECK();
+    RETURN_FALSE_IF_NOT_INIT();
     return true;
 }
 

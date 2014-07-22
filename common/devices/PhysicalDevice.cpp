@@ -25,12 +25,10 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <Drm.h>
 #include <Hwcomposer.h>
 #include <PhysicalDevice.h>
-#include <HwcUtils.h>
 
 namespace android {
 namespace intel {
@@ -48,7 +46,7 @@ PhysicalDevice::PhysicalDevice(uint32_t type, Hwcomposer& hwc, DisplayPlaneManag
       mConnection(DEVICE_DISCONNECTED),
       mInitialized(false)
 {
-    LOGV("PhysicalDevice()");
+    CTRACE();
 
     switch (type) {
     case DEVICE_PRIMARY:
@@ -66,17 +64,22 @@ PhysicalDevice::PhysicalDevice(uint32_t type, Hwcomposer& hwc, DisplayPlaneManag
 
 PhysicalDevice::~PhysicalDevice()
 {
-    LOGV("~PhysicalDevice()");
+    CTRACE();
     deinitialize();
 }
 
 void PhysicalDevice::onGeometryChanged(hwc_display_contents_1_t *list)
 {
-    LOGV("%s: disp %d,layer number %d", __func__, mType, list->numHwLayers);
+    if (!list) {
+        ETRACE("list is NULL");
+        return;
+    }
+
+    ATRACE("disp = %d, layer number = %d", mType, list->numHwLayers);
 
     // NOTE: should NOT be here
     if (mLayerList) {
-        LOGW("PhysicalDevice::onGeometryChanged: mLayerList exists");
+        WTRACE("mLayerList exists");
         delete mLayerList;
     }
 
@@ -85,16 +88,14 @@ void PhysicalDevice::onGeometryChanged(hwc_display_contents_1_t *list)
                                   mDisplayPlaneManager,
                                   mPrimaryPlane,
                                   mType);
-    if (!mLayerList)
-        LOGW("onGeometryChanged: failed to create layer list");
+    if (!mLayerList) {
+        WTRACE("failed to create layer list");
+    }
 }
 
 bool PhysicalDevice::prePrepare(hwc_display_contents_1_t *display)
 {
-    LOGV("PhysicalDevice::prepare");
-
-    if (!initCheck())
-        return false;
+    RETURN_FALSE_IF_NOT_INIT();
 
     Mutex::Autolock _l(mLock);
 
@@ -118,12 +119,7 @@ bool PhysicalDevice::prePrepare(hwc_display_contents_1_t *display)
 
 bool PhysicalDevice::prepare(hwc_display_contents_1_t *display)
 {
-
-    LOGV("PhysicalDevice::prepare");
-
-    if (!initCheck())
-        return false;
-
+    RETURN_FALSE_IF_NOT_INIT();
     Mutex::Autolock _l(mLock);
 
     if (mConnection != DEVICE_CONNECTED)
@@ -137,7 +133,7 @@ bool PhysicalDevice::prepare(hwc_display_contents_1_t *display)
         onGeometryChanged(display);
 
     if (!mLayerList) {
-        LOGE("prepare: null HWC layer list");
+        ETRACE("null HWC layer list");
         return false;
     }
 
@@ -148,8 +144,7 @@ bool PhysicalDevice::prepare(hwc_display_contents_1_t *display)
 
 bool PhysicalDevice::commit(hwc_display_contents_1_t *display, IDisplayContext *context)
 {
-    LOGV("Entering %s", __func__);
-    INIT_CHECK();
+    RETURN_FALSE_IF_NOT_INIT();
 
     if (!display || !context) {
         return false;
@@ -159,20 +154,15 @@ bool PhysicalDevice::commit(hwc_display_contents_1_t *display, IDisplayContext *
 
 bool PhysicalDevice::vsyncControl(int enabled)
 {
-    bool ret;
-
-    LOGV("vsyncControl");
-
-    if (!initCheck())
-        return false;
+    RETURN_FALSE_IF_NOT_INIT();
 
     //Mutex::Autolock _l(mLock);
 
-    LOGV("PhysicalDevice::vsyncControl: disp %d, enabled %d", mType, enabled);
+    ATRACE("disp = %d, enabled = %d", mType, enabled);
 
-    ret = mVsyncControl->control(mType, enabled);
+    bool ret = mVsyncControl->control(mType, enabled);
     if (ret == false) {
-        LOGE("PhysicalDevice::vsyncControl: failed set vsync");
+        ETRACE("failed set vsync");
         return false;
     }
 
@@ -182,21 +172,16 @@ bool PhysicalDevice::vsyncControl(int enabled)
 
 bool PhysicalDevice::blank(int blank)
 {
-    bool ret;
-
-    LOGV("blank");
-
-    if (!initCheck())
-        return false;
+    RETURN_FALSE_IF_NOT_INIT();
 
     //Mutex::Autolock _l(mLock);
 
     if (mConnection != DEVICE_CONNECTED)
         return false;
 
-    ret = mBlankControl->blank(mType, blank);
+    bool ret = mBlankControl->blank(mType, blank);
     if (ret == false) {
-        LOGE("PhysicalDevice::blank: failed to blank device");
+        ETRACE("failed to blank device");
         return false;
     }
 
@@ -206,10 +191,7 @@ bool PhysicalDevice::blank(int blank)
 bool PhysicalDevice::getDisplayConfigs(uint32_t *configs,
                                          size_t *numConfigs)
 {
-    LOGV("getDisplayConfigs");
-
-    if (!initCheck())
-        return false;
+    RETURN_FALSE_IF_NOT_INIT();
 
     //Mutex::Autolock _l(mLock);
 
@@ -217,7 +199,7 @@ bool PhysicalDevice::getDisplayConfigs(uint32_t *configs,
         return false;
 
     if (!configs || !numConfigs) {
-        LOGE("getDisplayConfigs: invalid parameters");
+        ETRACE("invalid parameters");
         return false;
     }
 
@@ -231,10 +213,7 @@ bool PhysicalDevice::getDisplayAttributes(uint32_t configs,
                                             const uint32_t *attributes,
                                             int32_t *values)
 {
-    LOGV("getDisplayAttributes");
-
-    if (!initCheck())
-        return false;
+    RETURN_FALSE_IF_NOT_INIT();
 
     //Mutex::Autolock _l(mLock);
 
@@ -242,13 +221,13 @@ bool PhysicalDevice::getDisplayAttributes(uint32_t configs,
         return false;
 
     if (!attributes || !values) {
-        LOGE("getDisplayAttributes: invalid parameters");
+        ETRACE("invalid parameters");
         return false;
     }
 
     DisplayConfig *config = mDisplayConfigs.itemAt(mActiveDisplayConfig);
     if  (!config) {
-        LOGE("getDisplayAttributes: failed to get display config");
+        ETRACE("failed to get display config");
         return false;
     }
 
@@ -271,7 +250,7 @@ bool PhysicalDevice::getDisplayAttributes(uint32_t configs,
             values[i] = config->getDpiY() * 1000.0f;
             break;
         default:
-            LOGE("getDisplayAttributes: unknown attribute %d", attributes[i]);
+            ETRACE("unknown attribute %d", attributes[i]);
             break;
         }
         i++;
@@ -282,7 +261,7 @@ bool PhysicalDevice::getDisplayAttributes(uint32_t configs,
 
 bool PhysicalDevice::compositionComplete()
 {
-    LOGV("Entering %s", __func__);
+    CTRACE();
     // do nothing by default
     return true;
 }
@@ -310,13 +289,13 @@ bool PhysicalDevice::updateDisplayConfigs(struct Output *output)
     float physHeightInch;
     int dpiX, dpiY;
 
-    LOGD("updateDisplayConfigs()");
+    CTRACE();
 
     Mutex::Autolock _l(mLock);
 
     drmConnector = output->connector;
     if (!drmConnector) {
-        LOGE("PhysicalDevice::updateDisplayConfigs:Output has no connector");
+        ETRACE("output has no connector");
         return false;
     }
 
@@ -332,7 +311,7 @@ bool PhysicalDevice::updateDisplayConfigs(struct Output *output)
     // reset the number of display configs
     mDisplayConfigs.setCapacity(drmModeCount + 1);
 
-    LOGV("updateDisplayConfigs: mode count %d", drmModeCount);
+    VTRACE("mode count %d", drmModeCount);
 
     // find preferred mode of this display device
     for (int i = 0; i < drmModeCount; i++) {
@@ -345,7 +324,7 @@ bool PhysicalDevice::updateDisplayConfigs(struct Output *output)
             continue;
         }
 
-        LOGV("updateDisplayConfigs: adding new config %dx%d %d\n",
+        VTRACE("adding new config %dx%d@%d",
               drmMode->hdisplay,
               drmMode->vdisplay,
               drmMode->vrefresh);
@@ -369,7 +348,7 @@ bool PhysicalDevice::updateDisplayConfigs(struct Output *output)
         drmCrtc = output->crtc;
         drmFb = output->fb;
         if (!drmCrtc || !drmFb) {
-            LOGE("updateDisplayConfigs: impossible");
+            ETRACE("impossible");
             goto use_preferred_mode;
         }
 
@@ -377,7 +356,7 @@ bool PhysicalDevice::updateDisplayConfigs(struct Output *output)
         if (!drmCrtc->mode_valid)
             goto use_preferred_mode;
 
-        LOGV("updateDisplayConfigs: using current mode %dx%d %d\n",
+        VTRACE("using current mode %dx%d@%d",
               drmMode->hdisplay,
               drmMode->vdisplay,
               drmMode->vrefresh);
@@ -409,11 +388,11 @@ use_preferred_mode:
                                                   drmPreferredMode->vdisplay,
                                                   dpiX, dpiY);
         if (!config) {
-            LOGE("updateDisplayConfigs: failed to allocate display config");
+            ETRACE("failed to allocate display config");
             return false;
         }
 
-        LOGV("updateDisplayConfigs: using preferred mode %dx%d %d\n",
+        VTRACE("using preferred mode %dx%d@%d",
               drmPreferredMode->hdisplay,
               drmPreferredMode->vdisplay,
               drmPreferredMode->vrefresh);
@@ -434,10 +413,10 @@ bool PhysicalDevice::detectDisplayConfigs()
     bool ret;
     Drm *drm = Hwcomposer::getInstance().getDrm();
 
-    LOGD("detectDisplayConfigs");
+    CTRACE();
 
     if (!drm) {
-        LOGE("detectDisplayConfigs: failed to get drm");
+        ETRACE("failed to get drm");
         return false;
     }
 
@@ -450,26 +429,26 @@ bool PhysicalDevice::detectDisplayConfigs()
         outputIndex = Drm::OUTPUT_EXTERNAL;
         break;
     default:
-        LOGE("detectDisplayConfigs: invalid display device");
+        ETRACE("invalid display device");
         return false;
     }
 
     if (outputIndex < 0) {
-        LOGW("detectDisplayConfigs(): failed to detect Drm objects");
+        WTRACE("failed to detect Drm objects");
         return false;
     }
 
     // detect
     ret = drm->detect();
     if (ret == false) {
-        LOGE("detectDisplayConfigs(): Drm detection failed");
+        ETRACE("drm detection failed");
         return false;
     }
 
     // get output
     output = drm->getOutput(outputIndex);
     if (!output) {
-        LOGE("detectDisplayConfigs(): failed to get output");
+        ETRACE("failed to get output");
         return false;
     }
 
@@ -479,50 +458,40 @@ bool PhysicalDevice::detectDisplayConfigs()
 
 bool PhysicalDevice::initialize()
 {
-    bool ret;
-
-    LOGV("PhysicalDevice::initialize");
+    CTRACE();
 
     // detect display configs
-    ret = detectDisplayConfigs();
+    bool ret = detectDisplayConfigs();
     if (ret == false) {
-        LOGE("initialize(): failed to detect display config");
-        return false;
+        DEINIT_AND_RETURN_FALSE("failed to detect display config");
     }
 
     // get primary plane of this device
     mPrimaryPlane = mDisplayPlaneManager.getPrimaryPlane(mType);
     if (!mPrimaryPlane) {
-        LOGE("initialize(): failed to get primary plane");
-        goto init_err;
+        DEINIT_AND_RETURN_FALSE("failed to get primary plane");
     }
 
     // create vsync control
     mVsyncControl = createVsyncControl();
     if (!mVsyncControl) {
-        LOGE("initialize(): failed to create vsync control");
-        goto init_err;
+        DEINIT_AND_RETURN_FALSE("failed to create vsync control");
     }
 
     // create blank control
     mBlankControl = createBlankControl();
     if (!mBlankControl) {
-        LOGE("initialize(): failed to create blank control");
-        goto init_err;
+        DEINIT_AND_RETURN_FALSE("failed to create blank control");
     }
 
     // create vsync event observer
     mVsyncObserver = new VsyncEventObserver(*this, *mVsyncControl);
     if (!mVsyncObserver.get()) {
-        LOGE("initialize(): failed to create vsync observer");
-        goto init_err;
+        DEINIT_AND_RETURN_FALSE("failed to create vsync observer");
     }
 
     mInitialized = true;
     return true;
-init_err:
-    deinitialize();
-    return false;
 }
 
 void PhysicalDevice::deinitialize()
@@ -553,8 +522,7 @@ void PhysicalDevice::deinitialize()
 
 bool PhysicalDevice::isConnected() const
 {
-    if (!initCheck())
-        return false;
+    RETURN_FALSE_IF_NOT_INIT();
 
     return (mConnection == DEVICE_CONNECTED) ? true : false;
 }
@@ -571,10 +539,8 @@ int PhysicalDevice::getType() const
 
 void PhysicalDevice::onVsync(int64_t timestamp)
 {
-    LOGV("PhysicalDevice::timestamp");
-
-    if (!initCheck())
-        return;
+    RETURN_VOID_IF_NOT_INIT();
+    ATRACE("timestamp = %lld", timestamp);
 
     //Mutex::Autolock _l(mLock);
 

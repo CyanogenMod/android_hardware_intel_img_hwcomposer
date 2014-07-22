@@ -25,8 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
-
+#include <HwcTrace.h>
 #include <Drm.h>
 #include <Hwcomposer.h>
 #include <common/GrallocBufferMapperBase.h>
@@ -37,7 +36,7 @@ namespace intel {
 GrallocBufferMapperBase::GrallocBufferMapperBase(DataBuffer& buffer)
     : BufferMapper(buffer)
 {
-    LOGV("GrallocBufferMapperBase::GrallocBufferMapperBase");
+    CTRACE();
 
     for (int i = 0; i < SUB_BUFFER_MAX; i++) {
         mGttOffsetInPage[i] = 0;
@@ -48,7 +47,7 @@ GrallocBufferMapperBase::GrallocBufferMapperBase(DataBuffer& buffer)
 
 GrallocBufferMapperBase::~GrallocBufferMapperBase()
 {
-    LOGV("GrallocBufferMapperBase::~GrallocBufferMapperBase");
+    CTRACE();
 }
 
 uint32_t GrallocBufferMapperBase::getGttOffsetInPage(int subIndex) const

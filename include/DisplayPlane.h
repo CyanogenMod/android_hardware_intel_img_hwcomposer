@@ -78,8 +78,12 @@ public:
         PLANE_PRIMARY,
         PLANE_MAX,
     };
-    // align with android's back buffer count
-    static const uint32_t defaultDataBufferCount = 3;
+
+    enum {
+        // align with android's back buffer count
+        DEFAULT_DATA_BUFFER_COUNT = 3,
+    };
+
 public:
     DisplayPlane(int index, int type, int disp);
     virtual ~DisplayPlane();
