@@ -257,6 +257,7 @@ bool HwcLayer::update(hwc_layer_1_t *layer, int dsp)
             // if buffer is not ready overlay will still be attached to this layer
             // but rendering needs to be skipped.
             WTRACE("ignoring result of data buffer setting for protected video");
+            mHandle = NULL;
             return true;
         }
     }
