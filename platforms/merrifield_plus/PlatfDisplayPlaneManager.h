@@ -53,6 +53,7 @@ public:
 
     bool initialize();
     void deinitialize();
+    void* getZOrderConfig() const;
     // override get sprite plane
     DisplayPlane* getSpritePlane(int dsp);
     // override put plane

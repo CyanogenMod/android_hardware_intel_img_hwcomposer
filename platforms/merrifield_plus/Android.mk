@@ -65,13 +65,16 @@ LOCAL_SRC_FILES += \
     ../../ips/common/RotationBufferProvider.cpp
 
 LOCAL_SRC_FILES += \
-    ../../ips/anniedale/AnnGrallocBuffer.cpp \
-    ../../ips/anniedale/AnnGrallocBufferMapper.cpp \
+    ../../ips/tangier/TngGrallocBuffer.cpp \
+    ../../ips/tangier/TngGrallocBufferMapper.cpp \
+    ../../ips/tangier/TngDisplayQuery.cpp \
+    ../../ips/tangier/TngDisplayContext.cpp
+
+
+LOCAL_SRC_FILES += \
     ../../ips/anniedale/AnnOverlayPlane.cpp \
     ../../ips/anniedale/AnnDisplayPlane.cpp \
     ../../ips/anniedale/AnnRGBPlane.cpp \
-    ../../ips/anniedale/AnnDisplayQuery.cpp \
-    ../../ips/anniedale/AnnDisplayContext.cpp \
     ../../ips/anniedale/PlaneCapabilities.cpp
 
 

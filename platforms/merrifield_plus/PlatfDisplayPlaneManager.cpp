@@ -36,13 +36,13 @@ namespace intel {
 
 // hardware z order configs
 static const uint32_t PRIMARY_ZORDER_CONFIG[2][4] = {
-		{1 << 0, 1 << 3, 1 << 4,  1 << 5},
-		{1 << 0, 1 << 0, 1 << 0,  1 << 0},
+    {1 << 0, 1 << 3, 1 << 4,  1 << 5},
+    {1 << 0, 1 << 0, 1 << 0,  1 << 0},
 };
 
 static const uint32_t EXTERNAL_ZORDER_CONFIG[2][4] = {
-		{1 << 1, (1 << 1) | (1 << 3), (1 << 1) | (1 << 3),  1 << 3},
-		{1 << 1, 1 << 1, 1 << 1,  1 << 1},
+    {1 << 1, (1 << 1) | (1 << 3), (1 << 1) | (1 << 3),  1 << 3},
+    {1 << 1, 1 << 1, 1 << 1,  1 << 1},
 };
 
 PlatfDisplayPlaneManager::PlatfDisplayPlaneManager()
@@ -148,6 +148,12 @@ void PlatfDisplayPlaneManager::deinitialize()
     mExtraSprites.clear();
 
     DisplayPlaneManager::deinitialize();
+}
+
+void* PlatfDisplayPlaneManager::getZOrderConfig() const
+{
+    // HACK: on Annidale, Z order config is not needed by kernel driver
+    return NULL;
 }
 
 DisplayPlane* PlatfDisplayPlaneManager::getSpritePlane(int dsp)
@@ -279,7 +285,7 @@ void PlatfDisplayPlaneManager::disableReclaimedPlanes()
 
 bool PlatfDisplayPlaneManager::setZOrderConfig(ZOrderConfig& zorderConfig)
 {
-	AnnDisplayPlane *annPlane;
+    AnnDisplayPlane *annPlane;
 
     RETURN_FALSE_IF_NOT_INIT();
 
@@ -436,8 +442,8 @@ DisplayPlane* PlatfDisplayPlaneManager::getRealPlane(int dsp,
         return 0;
     }
 
-	reclaimedRealPlanes = &mReclaimedRealPlanes[realType];
-	freeRealPlanes = &mFreeRealPlanes[realType];
+    reclaimedRealPlanes = &mReclaimedRealPlanes[realType];
+    freeRealPlanes = &mFreeRealPlanes[realType];
 
     // allocate plane for this slot following an order from bottom to top
     for (index = 0; index < 32; index++) {
@@ -507,7 +513,7 @@ void PlatfDisplayPlaneManager::reclaimRealPlane(DisplayPlane *plane)
 
 void PlatfDisplayPlaneManager::disableReclaimedRealPlanes()
 {
-	uint32_t i, j;
+    uint32_t i, j;
 
     RETURN_VOID_IF_NOT_INIT();
 

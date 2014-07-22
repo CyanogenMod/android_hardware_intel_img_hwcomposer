@@ -109,11 +109,11 @@ void AnnOverlayPlane::deinitialize()
 {
 
     // delete back buffer
-	for (int i = 0; i < OVERLAY_BACK_BUFFER_COUNT; i++) {
+    for (int i = 0; i < OVERLAY_BACK_BUFFER_COUNT; i++) {
         if (mBackBuffer[i]) {
             deleteBackBuffer(i);
         }
-	}
+    }
     DEINIT_AND_DELETE_OBJ(mWsbm);
 
     DisplayPlane::deinitialize();

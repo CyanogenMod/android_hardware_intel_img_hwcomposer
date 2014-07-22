@@ -27,8 +27,8 @@
  */
 #include <HwcTrace.h>
 #include <PlatfBufferManager.h>
-#include <anniedale/AnnGrallocBuffer.h>
-#include <anniedale/AnnGrallocBufferMapper.h>
+#include <tangier/TngGrallocBuffer.h>
+#include <tangier/TngGrallocBufferMapper.h>
 
 namespace android {
 namespace intel {
@@ -57,7 +57,7 @@ void PlatfBufferManager::deinitialize()
 DataBuffer* PlatfBufferManager::createDataBuffer(gralloc_module_t *module,
                                                  uint32_t handle)
 {
-    return new AnnGrallocBuffer(handle);
+    return new TngGrallocBuffer(handle);
 }
 
 BufferMapper* PlatfBufferManager::createBufferMapper(gralloc_module_t *module,
@@ -66,7 +66,7 @@ BufferMapper* PlatfBufferManager::createBufferMapper(gralloc_module_t *module,
     if (!module)
         return 0;
 
-    return new AnnGrallocBufferMapper(*(IMG_gralloc_module_public_t*)module,
+    return new TngGrallocBufferMapper(*(IMG_gralloc_module_public_t*)module,
                                         buffer);
 }
 
