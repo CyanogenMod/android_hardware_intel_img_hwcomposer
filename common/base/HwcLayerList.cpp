@@ -1061,7 +1061,7 @@ void HwcLayerList::setupSmartComposition()
         return;
     }
 
-    ITRACE("entering smart composition");
+    VTRACE("entering smart composition");
     for (size_t i = 0; i < mLayerCount - 1; i++) {
         hwcLayer = mLayers.itemAt(i);
         hwcLayer->setCompositionType(HWC_OVERLAY);
