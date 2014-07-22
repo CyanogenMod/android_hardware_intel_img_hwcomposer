@@ -66,7 +66,7 @@ bool ExternalDevice::initialize()
     }
 
     mHotplugEventPending = false;
-    if (mConnection) {
+    if (mConnected) {
         mHdcpControl->startHdcpAsync(HdcpLinkStatusListener, this);
     }
 
@@ -118,7 +118,7 @@ void ExternalDevice::HdcpLinkStatusListener(bool success)
     // TODO:  send hotplug event only if HDCP is authenticated?
     if (mHotplugEventPending) {
         ITRACE("HDCP authentication status %d, sending hotplug event...", success);
-        mHwc.hotplug(mType, mConnection);
+        mHwc.hotplug(mType, mConnected);
         mHotplugEventPending = false;
     }
 
@@ -143,18 +143,18 @@ void ExternalDevice::onHotplug()
     {   // lock scope
         Mutex::Autolock _l(mLock);
         // delete device layer list
-        if (!mConnection && mLayerList){
+        if (!mConnected && mLayerList){
             delete mLayerList;
             mLayerList = 0;
         }
     }
 
-    ITRACE("hotpug event: %d", mConnection);
+    ITRACE("hotpug event: %d", mConnected);
 
-    if (mConnection == false) {
+    if (mConnected == false) {
         mHotplugEventPending = false;
         mHdcpControl->stopHdcp();
-        mHwc.hotplug(mType, mConnection);
+        mHwc.hotplug(mType, mConnected);
     } else {
         ITRACE("start HDCP asynchronously...");
          // delay sending hotplug event till HDCP is authenticated.
@@ -163,7 +163,7 @@ void ExternalDevice::onHotplug()
         if (ret == false) {
             ETRACE("failed to start HDCP");
             mHotplugEventPending = false;
-            mHwc.hotplug(mType, mConnection);
+            mHwc.hotplug(mType, mConnected);
         }
     }
 }

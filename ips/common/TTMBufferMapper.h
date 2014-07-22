@@ -52,6 +52,9 @@ public:
     uint32_t getSize(int subIndex) const {
         return mSize;
     }
+    uint32_t getKHandle(int subIndex) const {
+        return 0;
+    }
 
     // wait idle
     bool waitIdle();

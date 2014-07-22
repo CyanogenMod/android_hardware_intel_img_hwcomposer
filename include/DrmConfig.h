@@ -35,6 +35,10 @@ class DrmConfig
 public:
     static const char* getDrmPath();
     static uint32_t getDrmConnector(int device);
+    static uint32_t getDrmEncoder(int device);
+    static uint32_t getFrameBufferFormat();
+    static uint32_t getFrameBufferDepth();
+    static uint32_t getFrameBufferBpp();
     static const char* getHotplugEnvelope();
     static const char* getHotplugString();
 };

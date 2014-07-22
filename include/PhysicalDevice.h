@@ -35,6 +35,7 @@
 #include <VsyncEventObserver.h>
 #include <HotplugEventObserver.h>
 #include <HwcLayerList.h>
+#include <Drm.h>
 #include <IDisplayDevice.h>
 
 namespace android {
@@ -80,7 +81,6 @@ public:
 
 protected:
     void onGeometryChanged(hwc_display_contents_1_t *list);
-    bool updateDisplayConfigs(struct Output *output);
 
     virtual IVsyncControl* createVsyncControl() = 0;
     virtual IBlankControl* createBlankControl() = 0;
@@ -107,7 +107,7 @@ protected:
 
     // layer list
     HwcLayerList *mLayerList;
-    bool mConnection;
+    bool mConnected;
 
     // lock
     Mutex mLock;

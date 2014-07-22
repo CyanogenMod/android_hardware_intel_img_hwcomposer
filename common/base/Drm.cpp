@@ -31,6 +31,7 @@
 #include <IDisplayDevice.h>
 #include <DrmConfig.h>
 #include <Drm.h>
+#include <Hwcomposer.h>
 
 namespace android {
 namespace intel {
@@ -70,7 +71,10 @@ bool Drm::initialize()
 
 void Drm::deinitialize()
 {
-    // TODO clean up mOutputs
+    for (int i = 0; i < OUTPUT_MAX; i++) {
+        resetOutput(i);
+    }
+
     if (mDrmFd) {
         close(mDrmFd);
         mDrmFd = 0;
@@ -78,16 +82,19 @@ void Drm::deinitialize()
     mInitialized = false;
 }
 
-bool Drm::detect()
+bool Drm::detect(int device)
 {
-    Mutex::Autolock _l(mLock);
+    RETURN_FALSE_IF_NOT_INIT();
 
-    if (mDrmFd < 0) {
-        ETRACE("invalid Fd");
+    Mutex::Autolock _l(mLock);
+    int outputIndex = getOutputIndex(device);
+    if (outputIndex < 0 ) {
         return false;
     }
 
-    // try to get drm resources
+    resetOutput(outputIndex);
+
+    // get drm resources
     drmModeResPtr resources = drmModeGetResources(mDrmFd);
     if (!resources) {
         ETRACE("fail to get drm resources, error: %s", strerror(errno));
@@ -95,99 +102,161 @@ bool Drm::detect()
     }
 
     drmModeConnectorPtr connector = NULL;
-    drmModeEncoderPtr encoder = NULL;
-    drmModeCrtcPtr crtc = NULL;
-    drmModeFBPtr fbInfo = NULL;
-    struct Output *output = NULL;
+    DrmOutput *output = &mOutputs[outputIndex];
+    bool ret = false;
 
-    const uint32_t primaryConnector =
-        DrmConfig::getDrmConnector(IDisplayDevice::DEVICE_PRIMARY);
-    const uint32_t externalConnector =
-        DrmConfig::getDrmConnector(IDisplayDevice::DEVICE_EXTERNAL);
-
+    // find connector for the given device
     for (int i = 0; i < resources->count_connectors; i++) {
         connector = drmModeGetConnector(mDrmFd, resources->connectors[i]);
         if (!connector) {
-            ETRACE("failed to get drm connector");
+            ETRACE("drmModeGetConnector failed");
             continue;
         }
 
-        int outputIndex = -1;
-        if (connector->connector_type == primaryConnector) {
-            VTRACE("got primary connector");
-            outputIndex = OUTPUT_PRIMARY;
-        } else if (connector->connector_type == externalConnector) {
-            VTRACE("got external connector");
-            outputIndex = OUTPUT_EXTERNAL;
-        }
-
-        if (outputIndex < 0)
+        if (connector->connector_type != DrmConfig::getDrmConnector(device)) {
+            drmModeFreeConnector(connector);
             continue;
-
-        // update output, free the old objects first
-        output = &mOutputs[outputIndex];
-
-        output->connected =  0;
-
-        if (output->connector) {
-            drmModeFreeConnector(output->connector);
-            output->connector = 0;
-        }
-        if (output->encoder) {
-            drmModeFreeEncoder(output->encoder);
-            output->encoder = 0;
-        }
-
-        if (output->crtc) {
-            drmModeFreeCrtc(output->crtc);
-            output->crtc = 0;
-        }
-
-        if (output->fb) {
-            drmModeFreeFB(output->fb);
-            output->fb = 0;
         }
 
         output->connector = connector;
 
-        // get current encoder
-        encoder = drmModeGetEncoder(mDrmFd, connector->encoder_id);
-        if (!encoder) {
+        if (connector->connection != DRM_MODE_CONNECTED) {
+            ITRACE("device %d is not connected", device);
+            ret = true;
+            break;
+        }
+
+        output->connected = true;
+
+        // get proper encoder for the given connector
+        if (connector->encoder_id) {
+            ITRACE("Drm connector has encoder attached on device %d", device);
+            output->encoder = drmModeGetEncoder(mDrmFd, connector->encoder_id);
+            if (!output->encoder) {
+                ETRACE("failed to get encoder from a known encoder id");
+                // fall through to get an encoder
+            }
+        }
+        if (!output->encoder) {
+            ITRACE("getting encoder for device %d", device);
+            drmModeEncoderPtr encoder;
+            for (int j = 0; j < resources->count_encoders; j++) {
+                encoder = drmModeGetEncoder(mDrmFd, resources->encoders[i]);
+                if (!encoder) {
+                    ETRACE("drmModeGetEncoder failed");
+                    continue;
+                }
+                if (encoder->encoder_type == DrmConfig::getDrmEncoder(device)) {
+                    output->encoder = encoder;
+                    break;
+                }
+                drmModeFreeEncoder(encoder);
+                encoder = NULL;
+            }
+        }
+        if (!output->encoder) {
             ETRACE("failed to get drm encoder");
-            continue;
+            break;
         }
 
-        output->encoder = encoder;
-
-        // get crtc
-        crtc = drmModeGetCrtc(mDrmFd, encoder->crtc_id);
-        if (!crtc) {
+        // get an attached crtc or spare crtc
+        if (output->encoder->crtc_id) {
+            ITRACE("Drm encoder has crtc attached on device %d", device);
+            output->crtc = drmModeGetCrtc(mDrmFd, output->encoder->crtc_id);
+            if (!output->crtc) {
+                ETRACE("failed to get crtc from a known crtc id");
+                // fall through to get a spare crtc
+            }
+        }
+        if (!output->crtc) {
+            ITRACE("getting crtc for device %d", device);
+            drmModeCrtcPtr crtc;
+            for (int j = 0; j < resources->count_crtcs; j++) {
+                crtc = drmModeGetCrtc(mDrmFd, resources->crtcs[j]);
+                if (!crtc) {
+                    ETRACE("drmModeGetCrtc failed");
+                    continue;
+                }
+                if (crtc->buffer_id == 0) {
+                    output->crtc = crtc;
+                    break;
+                }
+                drmModeFreeCrtc(crtc);
+            }
+        }
+        if (!output->crtc) {
             ETRACE("failed to get drm crtc");
-            continue;
+            break;
         }
 
-        output->crtc = crtc;
-
-        // get fb info
-        fbInfo = drmModeGetFB(mDrmFd, crtc->buffer_id);
-        if (!fbInfo) {
-            ETRACE("failed to get fb info");
-            continue;
+        // current mode
+        if (output->crtc->mode_valid) {
+            ITRACE("mode is valid, kernel mode settings");
+            memcpy(&output->mode, &output->crtc->mode, sizeof(drmModeModeInfo));
+            ret = true;
+        } else {
+            ITRACE("mode is invalid, setting preferred mode");
+            ret = initDrmMode(outputIndex);
         }
+        break;
+    }
 
-        output->fb = fbInfo;
-
-        output->connected = (output->connector &&
-                             output->connector->connection == DRM_MODE_CONNECTED &&
-                             output->encoder &&
-                             output->crtc &&
-                             output->fb) ? 1 : 0;
+    if (!ret) {
+         resetOutput(outputIndex);
+    } else if (output->connected) {
+        ITRACE("mode is: %dx%d@%dHz", output->mode.hdisplay, output->mode.vdisplay, output->mode.vrefresh);
     }
 
     drmModeFreeResources(resources);
-
-    return true;
+    return ret;
 }
+
+bool Drm::setDrmMode(int device, int width, int height, int rate, int flags)
+{
+    RETURN_FALSE_IF_NOT_INIT();
+    Mutex::Autolock _l(mLock);
+
+    if (device != IDisplayDevice::DEVICE_EXTERNAL) {
+        WTRACE("Setting mode on invalid device %d", device);
+        return false;
+    }
+
+    int outputIndex = getOutputIndex(device);
+    if (outputIndex < 0 ) {
+        return false;
+    }
+
+    DrmOutput *output= &mOutputs[outputIndex];
+    if (!output->connected) {
+        ETRACE("device is not connected");
+        return false;
+    }
+
+    if (output->connector->count_modes <= 0) {
+        ETRACE("invalid count of modes");
+        return false;
+    }
+
+    drmModeModeInfoPtr mode;
+    int index = 0;
+    for (int i = 0; i < output->connector->count_modes; i++) {
+        mode = &output->connector->modes[i];
+        if (mode->type & DRM_MODE_TYPE_PREFERRED) {
+            index = i;
+        }
+        if (mode->hdisplay == width &&
+            mode->vdisplay == height &&
+            mode->vrefresh == (uint32_t)rate &&
+            (mode->flags & flags) == flags) {
+            index = i;
+            break;
+        }
+    }
+
+    mode = &output->connector->modes[index];
+    return setDrmMode(outputIndex, mode);
+}
+
 
 bool Drm::writeReadIoctl(unsigned long cmd, void *data,
                            unsigned long size)
@@ -242,42 +311,51 @@ int Drm::getDrmFd() const
     return mDrmFd;
 }
 
-drmModeModeInfoPtr Drm::getModeInfo(int device)
-{
-    Output *output = getOutput(device);
-    if (!output) {
-        ETRACE("invalid device?");
-        return 0;
-    }
-
-    drmModeCrtcPtr crtc = output->crtc;
-    if (!crtc || !crtc->mode_valid) {
-        ETRACE("invalid crtc or mode");
-        return 0;
-    }
-
-    drmModeModeInfoPtr mode = &(crtc->mode);
-    if (!mode->hdisplay || !mode->vdisplay) {
-        ETRACE("invalid width or height");
-        return 0;
-    }
-
-    return mode;
-}
-
-struct Output* Drm::getOutput(int device)
+bool Drm::getModeInfo(int device, drmModeModeInfo& mode)
 {
     Mutex::Autolock _l(mLock);
 
-    int output = getOutputIndex(device);
-    if (output < 0 ) {
-        return 0;
+    int outputIndex = getOutputIndex(device);
+    if (outputIndex < 0 ) {
+        return false;
     }
 
-    return &mOutputs[output];
+    DrmOutput *output= &mOutputs[outputIndex];
+    if (output->connected == false) {
+        ETRACE("device is not connected");
+        return false;
+    }
+
+    if (output->mode.hdisplay == 0 || output->mode.vdisplay == 0) {
+        ETRACE("invalid width or height");
+        return false;
+    }
+
+    memcpy(&mode, &output->mode, sizeof(drmModeModeInfo));
+    return true;
 }
 
-bool Drm::outputConnected(int device)
+bool Drm::getPhysicalSize(int device, uint32_t& width, uint32_t& height)
+{
+    Mutex::Autolock _l(mLock);
+
+    int outputIndex = getOutputIndex(device);
+    if (outputIndex < 0 ) {
+        return false;
+    }
+
+    DrmOutput *output= &mOutputs[outputIndex];
+    if (output->connected == false) {
+        ETRACE("device is not connected");
+        return false;
+    }
+
+    width = output->connector->mmWidth;
+    height = output->connector->mmHeight;
+    return true;
+}
+
+bool Drm::isConnected(int device)
 {
     Mutex::Autolock _l(mLock);
 
@@ -286,7 +364,7 @@ bool Drm::outputConnected(int device)
         return false;
     }
 
-    return mOutputs[output].connected ? true : false;
+    return mOutputs[output].connected;
 }
 
 bool Drm::setDpmsMode(int device, int mode)
@@ -304,9 +382,9 @@ bool Drm::setDpmsMode(int device, int mode)
         return false;
     }
 
-    Output *out = &mOutputs[output];
-    if (out->connector == NULL) {
-        ETRACE("invalid connector");
+    DrmOutput *out = &mOutputs[output];
+    if (!out->connected) {
+        ETRACE("device is not connected");
         return false;
     }
 
@@ -334,6 +412,107 @@ bool Drm::setDpmsMode(int device, int mode)
         drmModeFreeProperty(props);
     }
     return false;
+}
+
+void Drm::resetOutput(int index)
+{
+    DrmOutput *output = &mOutputs[index];
+
+    output->connected = false;
+    memset(&output->mode, 0, sizeof(drmModeModeInfo));
+
+    if (output->connector) {
+        drmModeFreeConnector(output->connector);
+        output->connector = 0;
+    }
+    if (output->encoder) {
+        drmModeFreeEncoder(output->encoder);
+        output->encoder = 0;
+    }
+    if (output->crtc) {
+        drmModeFreeCrtc(output->crtc);
+        output->crtc = 0;
+    }
+    if (output->fbId) {
+        drmModeRmFB(mDrmFd, output->fbId);
+        output->fbId = 0;
+    }
+    if (output->fbHandle) {
+        Hwcomposer::getInstance().getBufferManager()->freeFrameBuffer(output->fbHandle);
+        output->fbHandle = 0;
+    }
+}
+
+bool Drm::initDrmMode(int outputIndex)
+{
+    DrmOutput *output= &mOutputs[outputIndex];
+    if (output->connector->count_modes <= 0) {
+        ETRACE("invalid count of modes");
+        return false;
+    }
+
+    drmModeModeInfoPtr mode;
+    int index = 0;
+    for (int i = 0; i < output->connector->count_modes; i++) {
+        mode = &output->connector->modes[i];
+        if (mode->type & DRM_MODE_TYPE_PREFERRED) {
+            index = i;
+            break;
+        }
+    }
+
+    return setDrmMode(outputIndex, &output->connector->modes[index]);
+}
+
+bool Drm::setDrmMode(int index, drmModeModeInfoPtr mode)
+{
+    DrmOutput *output = &mOutputs[index];
+
+    if (output->fbId) {
+        drmModeRmFB(mDrmFd, output->fbId);
+        output->fbId = 0;
+    }
+
+    if (output->fbHandle) {
+        Hwcomposer::getInstance().getBufferManager()->freeFrameBuffer(output->fbHandle);
+        output->fbHandle = 0;
+    }
+
+    // allocate frame buffer
+    int stride = 0;
+    output->fbHandle = Hwcomposer::getInstance().getBufferManager()->allocFrameBuffer(
+        mode->hdisplay, mode->vdisplay, &stride);
+    if (output->fbHandle == 0) {
+        ETRACE("failed to allocate frame buffer");
+        return false;
+    }
+
+    // add frame buffer
+    int ret = drmModeAddFB(
+            mDrmFd,
+            mode->hdisplay,
+            mode->vdisplay,
+            DrmConfig::getFrameBufferDepth(),
+            DrmConfig::getFrameBufferBpp(),
+            stride,
+            output->fbHandle,
+            &output->fbId);
+    if (ret == 0) {
+        // set CRTC
+        ret = drmModeSetCrtc(mDrmFd, output->crtc->crtc_id, output->fbId, 0, 0,
+                       &output->connector->connector_id, 1, mode);
+        if (ret == 0) {
+            //save mode
+            memcpy(&output->mode, mode, sizeof(drmModeModeInfo));
+        } else {
+            ETRACE("drmModeSetCrtc failed");
+        }
+    } else {
+        ETRACE("drmModeAddFB failed");
+    }
+
+    return ret == 0;
+
 }
 
 int Drm::getOutputIndex(int device)

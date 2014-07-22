@@ -56,6 +56,10 @@ public:
     BufferMapper* map(DataBuffer& buffer);
     void unmap(BufferMapper& mapper);
 
+    // frame buffer
+    uint32_t allocFrameBuffer(int width, int height, int *stride);
+    void freeFrameBuffer(uint32_t kHandle);
+
 protected:
     virtual DataBuffer* createDataBuffer(gralloc_module_t *module,
                                              uint32_t handle) = 0;
@@ -68,6 +72,8 @@ private:
     };
 
     gralloc_module_t *mGrallocModule;
+    alloc_device_t *mAllocDev;
+    KeyedVector<uint32_t, BufferMapper*> mFrameBuffers;
     BufferCache *mBufferPool;
     bool mInitialized;
 };

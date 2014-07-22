@@ -46,11 +46,14 @@ public:
     uint32_t getGttOffsetInPage(int subIndex) const;
     void* getCpuAddress(int subIndex) const;
     uint32_t getSize(int subIndex) const;
+    uint32_t getKHandle(int subIndex) const;
+
 protected:
     // mapped info
     uint32_t mGttOffsetInPage[SUB_BUFFER_MAX];
     void* mCpuAddress[SUB_BUFFER_MAX];
     uint32_t mSize[SUB_BUFFER_MAX];
+    uint32_t mKHandle[SUB_BUFFER_MAX];
 };
 
 } // namespace intel

@@ -25,6 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
+#include <HwcTrace.h>
 #include <PlatfBufferManager.h>
 #include <tangier/TngGrallocBuffer.h>
 #include <tangier/TngGrallocBufferMapper.h>

@@ -41,14 +41,6 @@ extern "C" {
 namespace android {
 namespace intel {
 
-struct Output {
-    drmModeConnectorPtr connector;
-    drmModeEncoderPtr encoder;
-    drmModeCrtcPtr crtc;
-    drmModeFBPtr fb;
-    int connected;
-};
-
 class Drm {
 public:
     Drm();
@@ -56,20 +48,24 @@ public:
 public:
     bool initialize();
     void deinitialize();
-    bool detect();
-
+    bool detect(int device);
+    bool setDrmMode(int device, int width, int height, int rate, int flags);
     bool writeReadIoctl(unsigned long cmd, void *data,
                       unsigned long size);
     bool writeIoctl(unsigned long cmd, void *data,
                       unsigned long size);
 
-    struct Output* getOutput(int device);
-    bool outputConnected(int device);
+    bool isConnected(int device);
     bool setDpmsMode(int device, int mode);
     int getDrmFd() const;
-    drmModeModeInfoPtr getModeInfo(int device);
+    bool getModeInfo(int device, drmModeModeInfo& mode);
+    bool getPhysicalSize(int device, uint32_t& width, uint32_t& height);
 
 private:
+    bool initDrmMode(int index);
+    bool setDrmMode(int index, drmModeModeInfoPtr mode);
+    void resetOutput(int index);
+
     // map device type to output index, return -1 if not mapped
     inline int getOutputIndex(int device);
 
@@ -81,8 +77,17 @@ private:
         OUTPUT_MAX,
     };
 
+    struct DrmOutput {
+        drmModeConnectorPtr connector;
+        drmModeEncoderPtr encoder;
+        drmModeCrtcPtr crtc;
+        drmModeModeInfo mode;
+        uint32_t fbHandle;
+        uint32_t fbId;
+        int connected;
+    } mOutputs[OUTPUT_MAX];
+
     int mDrmFd;
-    struct Output mOutputs[OUTPUT_MAX];
     Mutex mLock;
     bool mInitialized;
 };
