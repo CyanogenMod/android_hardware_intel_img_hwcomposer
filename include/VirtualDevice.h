@@ -30,6 +30,7 @@
 
 
 #include <IDisplayDevice.h>
+#include "IFrameServer.h"
 
 namespace android {
 namespace intel {
@@ -37,7 +38,7 @@ namespace intel {
 class Hwcomposer;
 class DisplayPlaneManager;
 
-class VirtualDevice : public IDisplayDevice  {
+class VirtualDevice : public IDisplayDevice, public BnFrameServer {
 public:
     VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm);
     virtual ~VirtualDevice();
@@ -62,6 +63,10 @@ public:
     virtual int getType() const;
     virtual void dump(Dump& d);
 
+    // IFrameServer methods
+    virtual android::status_t start(sp<IFrameTypeChangeListener> frameTypeChangeListener);
+    virtual android::status_t stop(bool isConnected);
+    virtual android::status_t notifyBufferReturned(int index);
 protected:
     virtual void deinitialize();
 

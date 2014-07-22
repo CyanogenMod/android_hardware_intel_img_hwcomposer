@@ -81,6 +81,7 @@ LOCAL_C_INCLUDES := $(addprefix $(LOCAL_PATH)/../../../, $(SGX_INCLUDES)) \
     $(KERNEL_SRC_DIR)/drivers/staging/mrfl/interface \
     hardware/intel/PRIVATE/rgx/rogue/android/graphicshal \
     hardware/intel/PRIVATE/rgx/rogue/include/ \
+    hardware/intel/PRIVATE/widi/libhwcwidi/ \
     $(TARGET_OUT_HEADERS)/drm \
     $(TARGET_OUT_HEADERS)/libdrm \
     $(TARGET_OUT_HEADERS)/libdrm/shared-core \
@@ -104,5 +105,8 @@ LOCAL_MODULE := hwcomposer.$(TARGET_DEVICE)
 LOCAL_CFLAGS:= -DLINUX
 
 #$(error local path is: $(LOCAL_C_INCLUDES))
+ifeq ($(INTEL_WIDI_MERRIFIELD), true)
+   LOCAL_SHARED_LIBRARIES += libhwcwidi libbinder
+endif
 include $(BUILD_SHARED_LIBRARY)
 

@@ -31,6 +31,8 @@
 #include <DisplayPlaneManager.h>
 #include <VirtualDevice.h>
 
+#include <binder/IServiceManager.h>
+#include <binder/ProcessState.h>
 
 namespace android {
 namespace intel {
@@ -47,6 +49,24 @@ VirtualDevice::~VirtualDevice()
 {
     CTRACE();
     deinitialize();
+}
+
+status_t VirtualDevice::start(sp<IFrameTypeChangeListener> typeChangeListener)
+{
+    CTRACE();
+    return NO_ERROR;
+}
+
+status_t VirtualDevice::stop(bool isConnected)
+{
+    CTRACE();
+    return NO_ERROR;
+}
+
+status_t VirtualDevice::notifyBufferReturned(int khandle)
+{
+    CTRACE();
+    return NO_ERROR;
 }
 
 bool VirtualDevice::prePrepare(hwc_display_contents_1_t *display)
@@ -143,7 +163,14 @@ bool VirtualDevice::initialize()
 {
     // Add initialization codes here. If init fails, invoke DEINIT_AND_RETURN_FALSE();
     mInitialized = true;
-
+    // Publish frame server service with service manager
+    status_t ret = defaultServiceManager()->addService(String16("hwc.widi"), this);
+    if (ret != NO_ERROR) {
+        ETRACE("Could not register hwc.widi with service manager, error = %d", ret);
+        mInitialized = false;
+        return false;
+    }
+    ProcessState::self()->startThreadPool();
     return true;
 }
 
