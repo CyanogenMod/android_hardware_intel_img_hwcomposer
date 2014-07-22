@@ -31,6 +31,8 @@
 #include <DisplayQuery.h>
 #include <common/DrmControl.h>
 #include <common/HdcpControl.h>
+#include <cutils/properties.h>
+
 
 namespace android {
 namespace intel {
@@ -102,6 +104,14 @@ bool HdcpControl::startHdcp()
 
 bool HdcpControl::startHdcpAsync(HdcpStatusCallback cb, void *userData)
 {
+    char prop[PROPERTY_VALUE_MAX];
+    if (property_get("debug.hwc.hdcp.enable", prop, "1") > 0) {
+        if (atoi(prop) == 0) {
+            WTRACE("HDCP is disabled");
+            return false;
+        }
+    }
+
     if (cb == NULL || userData == NULL) {
         ETRACE("invalid callback or user data");
         return false;
