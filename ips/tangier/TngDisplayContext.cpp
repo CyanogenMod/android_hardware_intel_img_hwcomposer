@@ -204,15 +204,34 @@ bool TngDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t *
         }
     }
 
-    // update release fence
+    // update release fence and retire fence
+    if (mCount > 0) {
+        // For physical displays, dup the releaseFenceFd only for
+        // HWC layers which successfully flipped to display planes
+        IMG_hwc_layer_t *imgLayerList = (IMG_hwc_layer_t*)mImgLayers;
+
+        for (size_t i = 0; i < mCount; i++) {
+            IMG_hwc_layer_t *imgLayer = &imgLayerList[i];
+            imgLayer->psLayer->releaseFenceFd =
+                (releaseFenceFd != -1) ? dup(releaseFenceFd) : -1;
+        }
+    }
+
     for (size_t i = 0; i < numDisplays; i++) {
         if (!displays[i]) {
             continue;
         }
 
+        // For virtual display, simply set releasefence to be -1
+        if (i == IDisplayDevice::DEVICE_VIRTUAL) {
+            for (size_t j = 0; j < displays[i]->numHwLayers; j++) {
+                if (displays[i]->hwLayers[j].compositionType != HWC_FRAMEBUFFER)
+                    displays[i]->hwLayers[j].releaseFenceFd = -1;
+            }
+        }
+
+        // log for layer fence status
         for (size_t j = 0; j < displays[i]->numHwLayers; j++) {
-            displays[i]->hwLayers[j].releaseFenceFd =
-                (releaseFenceFd != -1) ? dup(releaseFenceFd) : -1;
             VTRACE("handle %#x, acquiredFD %d, releaseFD %d",
                  (uint32_t)displays[i]->hwLayers[j].handle,
                  displays[i]->hwLayers[j].acquireFenceFd,
