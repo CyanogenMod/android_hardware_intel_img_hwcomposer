@@ -28,6 +28,7 @@ LOCAL_SRC_FILES := \
     ../../common/base/Hwcomposer.cpp \
     ../../common/base/HwcModule.cpp \
     ../../common/base/DisplayAnalyzer.cpp \
+    ../../common/base/VsyncManager.cpp \
     ../../common/buffers/BufferCache.cpp \
     ../../common/buffers/GraphicBuffer.cpp \
     ../../common/buffers/BufferManager.cpp \

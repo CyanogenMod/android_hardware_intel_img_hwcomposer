@@ -390,7 +390,7 @@ void HwcLayerList::revisit()
     if ((mFBLayers.size() == 1)) {
         HwcLayer *hwcLayer = mFBLayers.itemAt(0);
         if (checkSupported(DisplayPlane::PLANE_PRIMARY, hwcLayer)) {
-            ITRACE("primary check passed for primary layer");
+            VTRACE("primary check passed for primary layer");
             // attach primary to hwc layer
             hwcLayer->attachPlane(mPrimaryPlane);
             // set the layer type to overlay
