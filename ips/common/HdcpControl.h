@@ -44,7 +44,7 @@ public:
     virtual bool startHdcpAsync(HdcpStatusCallback cb, void *userData);
     virtual bool stopHdcp();
 
-private:
+protected:
     bool enableAuthentication();
     bool disableAuthentication();
     bool enableOverlay();
@@ -53,6 +53,8 @@ private:
     bool disableDisplayIED();
     bool isHdcpSupported();
     bool checkAuthenticated();
+    virtual bool preRunHdcp();
+    virtual bool postRunHdcp();
     bool runHdcp();
     inline void signalCompletion();
 
@@ -88,7 +90,7 @@ private:
         HDCP_AUTHENTICATION_TIMEOUT_MS = 5000,
     };
 
-private:
+protected:
     HdcpStatusCallback mCallback;
     void *mUserData;
     Mutex mMutex;
