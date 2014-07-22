@@ -76,7 +76,7 @@ public:
 
     // plane type
     enum {
-        PLANE_SPRITE = 1,
+        PLANE_SPRITE = 0,
         PLANE_OVERLAY,
         PLANE_PRIMARY,
         PLANE_MAX,
@@ -84,6 +84,9 @@ public:
 
     enum {
         // align with android's back buffer count
+        // each plane will cache the latest MIN_DATA_BUFFER_COUNT buffers
+        // in case that these buffers are still in-using by display device
+        // other buffers will be released on cache invalidation
         MIN_DATA_BUFFER_COUNT = 3,
     };
 
@@ -109,6 +112,7 @@ public:
 
     // data source
     virtual bool setDataBuffer(uint32_t handle);
+
     virtual void invalidateBufferCache();
 
     // display device
@@ -117,7 +121,7 @@ public:
     // hardware operations
     virtual bool flip(void *ctx);
 
-    virtual bool reset() = 0;
+    virtual bool reset();
     virtual bool enable() = 0;
     virtual bool disable() = 0;
 
@@ -132,19 +136,23 @@ public:
 protected:
     virtual void checkPosition(int& x, int& y, int& w, int& h);
     virtual bool setDataBuffer(BufferMapper& mapper) = 0;
-
 private:
-    void invalidateDataBuffers();
+    inline BufferMapper* mapBuffer(DataBuffer *buffer);
 
+    inline bool isActiveBuffer(BufferMapper *mapper);
+    void updateActiveBuffers(BufferMapper *mapper);
+    void invalidateActiveBuffers();
 protected:
     int mIndex;
     int mType;
     int mDevice;
     bool mInitialized;
+
+    // cached data buffers
     KeyedVector<uint64_t, BufferMapper*> mDataBuffers;
     // holding the most recent buffers
-    Vector<BufferMapper*> mRingBuffers;
-    int mDataBuffersCap;
+    Vector<BufferMapper*> mActiveBuffers;
+
     PlanePosition mPosition;
     crop_t mSrcCrop;
     bool mIsProtectedBuffer;

@@ -90,7 +90,10 @@ protected:
     virtual BufferMapper* getTTMMapper(BufferMapper& grallocMapper);
     virtual void  putTTMMapper(BufferMapper* mapper);
     virtual bool rotatedBufferReady(BufferMapper& mapper);
-
+private:
+    inline bool isActiveTTMBuffer(BufferMapper *mapper);
+    void updateActiveTTMBuffers(BufferMapper *mapper);
+    void invalidateActiveTTMBuffers();
 protected:
     // flush flags
     enum {
@@ -105,6 +108,9 @@ protected:
 
     // TTM data buffers
     KeyedVector<uint64_t, BufferMapper*> mTTMBuffers;
+    // latest TTM buffers
+    Vector<BufferMapper*> mActiveTTMBuffers;
+
     // overlay back buffer
     OverlayBackBuffer *mBackBuffer;
     // wsbm

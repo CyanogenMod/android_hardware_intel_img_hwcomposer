@@ -45,55 +45,52 @@ public:
     virtual ~DisplayPlaneManager();
 
     bool initCheck() const { return mInitialized; }
+
+    // sub-class can override initialize & deinitialize
     virtual bool initialize();
     virtual void deinitialize();
 
     // plane allocation & free
     DisplayPlane* getSpritePlane();
-    DisplayPlane* getPrimaryPlane(int pipe);
     DisplayPlane* getOverlayPlane();
-    void putSpritePlane(DisplayPlane& plane);
-    void putOverlayPlane(DisplayPlane& plane);
+    DisplayPlane* getPrimaryPlane(int dsp);
+    void putPlane(DisplayPlane& plane);
 
-    bool hasFreeSprites();
-    bool hasFreeOverlays();
-    int getFreeSpriteCount() const;
-    int getFreeOverlayCount() const;
-
-    bool hasReclaimedOverlays();
-    bool primaryAvailable(int index);
+    bool hasFreeSprite();
+    bool hasFreeOverlay();
+    bool hasFreePrimary(int dsp);
 
     void reclaimPlane(DisplayPlane& plane);
     void disableReclaimedPlanes();
 
     // dump interface
     void dump(Dump& d);
-protected:
+
+private:
     int getPlane(uint32_t& mask);
     int getPlane(uint32_t& mask, int index);
     void putPlane(int index, uint32_t& mask);
 
-    // sub-classes need implement follow functions
-    virtual void detect() = 0;
-    virtual DisplayPlane* allocPlane(int index, int type) = 0;
+    inline DisplayPlane* getPlane(int type, int dsp = 0);
+    inline bool hasFreePlanes(int type, int dsp = 0);
 protected:
-    int mSpritePlaneCount;
-    int mPrimaryPlaneCount;
-    int mOverlayPlaneCount;
+    // sub-classes need implement follow functions
+    virtual bool detect(int& spriteCount,
+                          int& overlayCount,
+                          int& primaryCount) = 0;
+    virtual DisplayPlane* allocPlane(int index, int type) = 0;
+
+private:
+    int mPlaneCount[DisplayPlane::PLANE_MAX];
     int mTotalPlaneCount;
 
-    Vector<DisplayPlane*> mSpritePlanes;
-    Vector<DisplayPlane*> mPrimaryPlanes;
-    Vector<DisplayPlane*> mOverlayPlanes;
+    Vector<DisplayPlane*> mPlanes[DisplayPlane::PLANE_MAX];
 
     // Bitmap of free planes. Bit0 - plane A, bit 1 - plane B, etc.
-    uint32_t mFreeSpritePlanes;
-    uint32_t mFreePrimaryPlanes;
-    uint32_t mFreeOverlayPlanes;
-    uint32_t mReclaimedSpritePlanes;
-    uint32_t mReclaimedPrimaryPlanes;
-    uint32_t mReclaimedOverlayPlanes;
+    uint32_t mFreePlanes[DisplayPlane::PLANE_MAX];
+    uint32_t mReclaimedPlanes[DisplayPlane::PLANE_MAX];
 
+protected:
     bool mInitialized;
 };
 

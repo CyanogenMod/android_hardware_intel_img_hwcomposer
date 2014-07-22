@@ -42,7 +42,6 @@ public:
     virtual ~SpritePlaneBase();
 public:
     // hardware operations
-    virtual bool reset();
     virtual bool flip(void *ctx);
     virtual bool enable();
     virtual bool disable();

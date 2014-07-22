@@ -130,7 +130,7 @@ bool TngSpritePlane::enablePlane(bool enabled)
     } else {
         arg.plane_disable_mask = 1;
     }
-    arg.plane.type = mType;
+    arg.plane.type = DC_SPRITE_PLANE;
     arg.plane.index = mIndex;
     arg.plane.ctx = 0;
 

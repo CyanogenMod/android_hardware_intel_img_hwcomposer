@@ -203,8 +203,6 @@ HwcLayerList::HwcLayerList(hwc_display_contents_1_t *list,
       mFBLayers(),
       mZOrderConfig(),
       mDisplayPlaneManager(dpm),
-      mPrimaryPlane(0),
-      mReclaimPrimaryPlane(false),
       mFramebufferTarget(0),
       mDisplayIndex(disp)
 {
@@ -214,8 +212,6 @@ HwcLayerList::HwcLayerList(hwc_display_contents_1_t *list,
         mOverlayLayers.setCapacity(list->numHwLayers);
         mFBLayers.setCapacity(list->numHwLayers);
         mLayerCount = list->numHwLayers;
-        mPrimaryPlane = mDisplayPlaneManager.getPrimaryPlane(mDisplayIndex);
-        mReclaimPrimaryPlane = (mPrimaryPlane != NULL);
         // analyze list from the top layer
         analyze();
     }
@@ -234,9 +230,7 @@ HwcLayerList::~HwcLayerList()
         // delete HWC layer
         delete hwcLayer;
     }
-    if (mReclaimPrimaryPlane && mPrimaryPlane) {
-        mDisplayPlaneManager.reclaimPlane(*mPrimaryPlane);
-    }
+
     mLayers.clear();
     mOverlayLayers.clear();
     mFBLayers.clear();
@@ -386,12 +380,8 @@ void HwcLayerList::setZOrder()
 // NOTE: current implementation will treat overlay Layer as higher priority.
 void HwcLayerList::revisit()
 {
-    bool primaryPlaneUsed = false;
-
-    if (!mPrimaryPlane) {
-        WTRACE("no primary plane");
-        return;
-    }
+    DisplayPlane *plane;
+    bool primaryPlaneUsed;
 
     // detach primaryPlane
     // FIXME: make it more efficient
@@ -402,16 +392,26 @@ void HwcLayerList::revisit()
             continue;
         }
         // detach primary plane
-        if (hwcLayer->getPlane() == mPrimaryPlane) {
+        plane = hwcLayer->getPlane();
+        if (plane && plane->getType() == DisplayPlane::PLANE_PRIMARY) {
             hwcLayer->detachPlane();
             hwcLayer->setType(HwcLayer::LAYER_FB);
             // remove it from overlay list
             mOverlayLayers.remove(hwcLayer);
             // add it to fb layer list
             mFBLayers.add(hwcLayer);
-            mReclaimPrimaryPlane = true;
+            // reclaim primary plane
+            mDisplayPlaneManager.reclaimPlane(*plane);
         }
     }
+
+    // acquire primary plane of this display device
+    plane = mDisplayPlaneManager.getPrimaryPlane(mDisplayIndex);
+    if (!plane) {
+        ETRACE("failed to get primary plane for display %d", mDisplayIndex);
+        return;
+    }
+    primaryPlaneUsed = false;
 
     // check whether we can take over the layer by using primary
     // we can use primary plane only when:
@@ -423,7 +423,7 @@ void HwcLayerList::revisit()
         if (checkSupported(DisplayPlane::PLANE_PRIMARY, hwcLayer)) {
             VTRACE("primary check passed for primary layer");
             // attach primary to hwc layer
-            hwcLayer->attachPlane(mPrimaryPlane);
+            hwcLayer->attachPlane(plane);
             // set the layer type to overlay
             hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
             // remove layer from FBLayers
@@ -432,19 +432,22 @@ void HwcLayerList::revisit()
             mOverlayLayers.add(hwcLayer);
 
             primaryPlaneUsed = true;
-            mReclaimPrimaryPlane = false;
         }
     }
 
     // if there is still FB layers, attach frame buffer target
     if (mFramebufferTarget && !primaryPlaneUsed) {
         VTRACE("using frame buffer target");
+        // invalidate data buffer
+        plane->invalidateBufferCache();
         // attach primary plane
-        mFramebufferTarget->attachPlane(mPrimaryPlane);
+        mFramebufferTarget->attachPlane(plane);
         mFramebufferTarget->setType(HwcLayer::LAYER_FRAMEBUFFER_TARGET);
         // still add it to overlay list
         mOverlayLayers.add(mFramebufferTarget);
-        mReclaimPrimaryPlane = false;
+    } else if (!mFramebufferTarget) {
+        // unlikely happen. just in case reclaim primary plane
+        mDisplayPlaneManager.reclaimPlane(*plane);
     }
 
     // generate z order config
@@ -503,7 +506,7 @@ void HwcLayerList::analyze()
         hwcLayer->setType(HwcLayer::LAYER_FB);
 
         // check whether the layer can be handled by sprite plane
-        if (mDisplayPlaneManager.hasFreeSprites() &&
+        if (mDisplayPlaneManager.hasFreeSprite() &&
             checkSupported(DisplayPlane::PLANE_SPRITE, hwcLayer)) {
             VTRACE("sprite check passed for layer %d", i);
             plane = mDisplayPlaneManager.getSpritePlane();
@@ -511,7 +514,7 @@ void HwcLayerList::analyze()
                 // enable plane
                 if (!plane->enable()) {
                     ETRACE("sprite plane is not ready");
-                    mDisplayPlaneManager.putSpritePlane(*plane);
+                    mDisplayPlaneManager.putPlane(*plane);
                     continue;
                 }
                 // attach plane to hwc layer

@@ -47,12 +47,6 @@ SpritePlaneBase::~SpritePlaneBase()
     CTRACE();
 }
 
-bool SpritePlaneBase::reset()
-{
-    CTRACE();
-    return true;
-}
-
 bool SpritePlaneBase::flip(void *ctx)
 {
     CTRACE();
@@ -89,8 +83,9 @@ void SpritePlaneBase::setZOrderConfig(ZOrderConfig& config)
                 mAbovePrimary = false;
             else if (config.spriteIndexes[0] == (config.layerCount - 1))
                 mAbovePrimary = true;
-            else
-                WTRACE("unsupported z order config, will use default");
+            else {
+                VTRACE("unsupported z order config, will use default");
+            }
         } else if (config.spriteIndexes[0] < config.primaryIndex)
             // if primary was used as sprite
             mAbovePrimary = false;

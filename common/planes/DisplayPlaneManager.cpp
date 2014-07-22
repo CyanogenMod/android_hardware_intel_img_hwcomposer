@@ -26,25 +26,23 @@
  *
  */
 #include <HwcTrace.h>
+#include <IDisplayDevice.h>
 #include <DisplayPlaneManager.h>
 
 namespace android {
 namespace intel {
 
 DisplayPlaneManager::DisplayPlaneManager()
-    : mSpritePlaneCount(0),
-      mPrimaryPlaneCount(0),
-      mOverlayPlaneCount(0),
-      mTotalPlaneCount(0),
-      mFreeSpritePlanes(0),
-      mFreePrimaryPlanes(0),
-      mFreeOverlayPlanes(0),
-      mReclaimedSpritePlanes(0),
-      mReclaimedPrimaryPlanes(0),
-      mReclaimedOverlayPlanes(0),
+    : mTotalPlaneCount(0),
       mInitialized(false)
 {
+    int i;
 
+    for (i = 0; i < DisplayPlane::PLANE_MAX; i++) {
+        mPlaneCount[i] = 0;
+        mFreePlanes[i] = 0;
+        mReclaimedPlanes[i] = 0;
+    }
 }
 
 DisplayPlaneManager::~DisplayPlaneManager()
@@ -52,8 +50,30 @@ DisplayPlaneManager::~DisplayPlaneManager()
     WARN_IF_NOT_DEINIT();
 }
 
+void DisplayPlaneManager::deinitialize()
+{
+    int i;
+    size_t j;
+
+    for (i = 0; i < DisplayPlane::PLANE_MAX; i++) {
+        for (j = 0; j < mPlanes[i].size(); j++) {
+            // reset plane
+            DisplayPlane *plane = mPlanes[i].itemAt(j);
+            plane->reset();
+
+            DEINIT_AND_DELETE_OBJ(plane);
+        }
+        mPlanes[i].clear();
+    }
+}
+
 bool DisplayPlaneManager::initialize()
 {
+    int i, j;
+    int spriteCount = 0;
+    int overlayCount = 0;
+    int primaryCount = 0;
+
     CTRACE();
 
     if (mInitialized) {
@@ -61,91 +81,43 @@ bool DisplayPlaneManager::initialize()
         return true;
     }
 
-    int i;
-    size_t j;
-
     // detect display plane usage. Hopefully throw DRM ioctl
-    detect();
-
-    // allocate primary plane pool
-    if (mPrimaryPlaneCount) {
-        mPrimaryPlanes.setCapacity(mPrimaryPlaneCount);
-
-        for (i = 0; i < mPrimaryPlaneCount; i++) {
-            DisplayPlane* plane = allocPlane(i, DisplayPlane::PLANE_PRIMARY);
-            if (!plane) {
-                DEINIT_AND_RETURN_FALSE("failed to allocate primary plane %d", i);
-            }
-            mPrimaryPlanes.push_back(plane);
-        }
+    if (!detect(spriteCount, overlayCount, primaryCount)) {
+        ETRACE("failed to detect planes");
+        return false;
     }
 
-    // allocate sprite plane pool
-    if (mSpritePlaneCount) {
-        mSpritePlanes.setCapacity(mSpritePlaneCount);
+    // calculate total plane number and free plane bitmaps
+    mPlaneCount[DisplayPlane::PLANE_SPRITE] = spriteCount;
+    mPlaneCount[DisplayPlane::PLANE_OVERLAY] = overlayCount;
+    mPlaneCount[DisplayPlane::PLANE_PRIMARY] = primaryCount;
 
-        for (i = 0; i < mSpritePlaneCount; i++) {
-            DisplayPlane* plane = allocPlane(i, DisplayPlane::PLANE_SPRITE);
-            if (!plane) {
-                DEINIT_AND_RETURN_FALSE("failed to allocate sprite plane %d", i);
-            }
-            mSpritePlanes.push_back(plane);
-        }
+    mTotalPlaneCount = spriteCount + overlayCount + primaryCount;
+    for (i = 0; i < DisplayPlane::PLANE_MAX; i++) {
+        mFreePlanes[i] = ((1 << mPlaneCount[i]) - 1);
     }
 
-    // allocate overlay plane pool
-    if (mOverlayPlaneCount) {
-        mOverlayPlanes.setCapacity(mOverlayPlaneCount);
-        for (i = 0; i < mOverlayPlaneCount; i++) {
-            DisplayPlane* plane = allocPlane(i, DisplayPlane::PLANE_OVERLAY);
-            if (!plane) {
-                DEINIT_AND_RETURN_FALSE("failed to allocate overlay plane %d", i);
+    // allocate plane pools
+    for (i = 0; i < DisplayPlane::PLANE_MAX; i++) {
+        if (mPlaneCount[i]) {
+            mPlanes[i].setCapacity(mPlaneCount[i]);
+
+            for (j = 0; j < mPlaneCount[i]; j++) {
+                DisplayPlane* plane = allocPlane(j, i);
+                if (!plane) {
+                    ETRACE("failed to allocate plane %d, type %d", j, i);
+                    DEINIT_AND_RETURN_FALSE();
+                }
+                // reset plane
+                plane->reset();
+
+                mPlanes[i].push_back(plane);
             }
-            mOverlayPlanes.push_back(plane);
         }
     }
 
     mInitialized = true;
     return true;
-}
-
-void DisplayPlaneManager::deinitialize()
-{
-    size_t i;
-
-    DisplayPlane *plane = NULL;
-    for (i = 0; i < mOverlayPlanes.size(); i++) {
-        plane = mOverlayPlanes.itemAt(i);
-        DEINIT_AND_DELETE_OBJ(plane);
-    }
-    mOverlayPlanes.clear();
-
-    for (i = 0; i < mSpritePlanes.size(); i++) {
-        plane = mSpritePlanes.itemAt(i);
-        DEINIT_AND_DELETE_OBJ(plane);
-    }
-    mSpritePlanes.clear();
-
-    for (i = 0; i < mPrimaryPlanes.size(); i++) {
-        plane = mPrimaryPlanes.itemAt(i);
-        DEINIT_AND_DELETE_OBJ(plane);
-    }
-    mPrimaryPlanes.clear();
-
-    mSpritePlaneCount = 0;
-    mPrimaryPlaneCount = 0;
-    mOverlayPlaneCount = 0;
-    mTotalPlaneCount = 0;
-
-    mFreeSpritePlanes = 0;
-    mFreePrimaryPlanes = 0;
-    mFreeOverlayPlanes = 0;
-
-    mReclaimedSpritePlanes = 0;
-    mReclaimedPrimaryPlanes = 0;
-    mReclaimedOverlayPlanes = 0;
-
-    mInitialized = false;
 }
 
 int DisplayPlaneManager::getPlane(uint32_t& mask)
@@ -193,139 +165,118 @@ int DisplayPlaneManager::getPlane(uint32_t& mask, int index)
     return -1;
 }
 
-DisplayPlane* DisplayPlaneManager::getSpritePlane()
+DisplayPlane* DisplayPlaneManager::getPlane(int type, int dsp)
 {
-    RETURN_NULL_IF_NOT_INIT();
-
     int freePlaneIndex;
 
-    // check reclaimed sprite planes
-    freePlaneIndex = getPlane(mReclaimedSpritePlanes);
-    if (freePlaneIndex >= 0)
-        return mSpritePlanes.itemAt(freePlaneIndex);
+    RETURN_NULL_IF_NOT_INIT();
 
-    // check free sprite planes
-    freePlaneIndex = getPlane(mFreeSpritePlanes);
+    if (dsp < 0 || dsp > IDisplayDevice::DEVICE_EXTERNAL) {
+        ETRACE("Invalid display device %d", dsp);
+        return 0;
+    }
+
+    if (type < 0 || type > DisplayPlane::PLANE_MAX) {
+        ETRACE("Invalid plane type %d", type);
+        return 0;
+    }
+
+    // try to get free plane from reclaimed planes
+    if (type == DisplayPlane::PLANE_PRIMARY)
+        // primary planes are attached to specific displays
+        freePlaneIndex = getPlane(mReclaimedPlanes[type], dsp);
+    else
+        freePlaneIndex = getPlane(mReclaimedPlanes[type]);
+
+    // if has free plane, return it
     if (freePlaneIndex >= 0)
-        return mSpritePlanes.itemAt(freePlaneIndex);
-    VTRACE("failed to get a sprite plane");
+        return mPlanes[type].itemAt(freePlaneIndex);
+
+    // failed to get a free plane from reclaimed planes, try it on free planes
+    if (type == DisplayPlane::PLANE_PRIMARY)
+        freePlaneIndex = getPlane(mFreePlanes[type], dsp);
+    else
+        freePlaneIndex = getPlane(mFreePlanes[type]);
+
+    // found plane on free planes
+    if (freePlaneIndex >= 0)
+        return mPlanes[type].itemAt(freePlaneIndex);
+
+    VTRACE("failed to get a plane, type %d", type);
     return 0;
 }
 
-DisplayPlane* DisplayPlaneManager::getPrimaryPlane(int pipe)
+void DisplayPlaneManager::putPlane(DisplayPlane& plane)
 {
-    RETURN_NULL_IF_NOT_INIT();
+    int index;
+    int type;
 
-    int freePlaneIndex;
+    RETURN_VOID_IF_NOT_INIT();
 
-    // check reclaimed primary planes
-    freePlaneIndex = getPlane(mReclaimedPrimaryPlanes, pipe);
-    if (freePlaneIndex >= 0)
-        return mPrimaryPlanes.itemAt(freePlaneIndex);
+    index = plane.getIndex();
+    type = plane.getType();
 
-    // check free primary planes
-    freePlaneIndex = getPlane(mFreePrimaryPlanes, pipe);
-    if (freePlaneIndex >= 0)
-        return mPrimaryPlanes.itemAt(freePlaneIndex);
-    VTRACE("failed to get a primary plane");
-    return 0;
+    if (type < 0 || type > DisplayPlane::PLANE_MAX) {
+        ETRACE("Invalid plane type %d", type);
+        return;
+    }
+
+    putPlane(index, mFreePlanes[type]);
+}
+
+bool DisplayPlaneManager::hasFreePlanes(int type, int dsp)
+{
+    uint32_t freePlanes = 0;
+
+    RETURN_FALSE_IF_NOT_INIT();
+
+    if (dsp < 0 || dsp > IDisplayDevice::DEVICE_EXTERNAL) {
+        ETRACE("Invalid display device %d", dsp);
+        return 0;
+    }
+
+    if (type < 0 || type > DisplayPlane::PLANE_MAX) {
+        ETRACE("Invalid plane type %d", type);
+        return 0;
+    }
+
+    if (type == DisplayPlane::PLANE_PRIMARY) {
+        freePlanes = (1 << dsp) & (mFreePlanes[type] | mReclaimedPlanes[type]);
+    } else {
+        freePlanes = (mFreePlanes[type] | mReclaimedPlanes[type]);
+    }
+
+    return freePlanes ? true : false;
+}
+
+DisplayPlane* DisplayPlaneManager::getSpritePlane()
+{
+    return getPlane((int)DisplayPlane::PLANE_SPRITE);
 }
 
 DisplayPlane* DisplayPlaneManager::getOverlayPlane()
 {
-    RETURN_NULL_IF_NOT_INIT();
-
-    int freePlaneIndex;
-
-    // check reclaimed overlay planes
-    freePlaneIndex = getPlane(mReclaimedOverlayPlanes);
-    if (freePlaneIndex < 0) {
-       // check free overlay planes
-       freePlaneIndex = getPlane(mFreeOverlayPlanes);
-    }
-
-    if (freePlaneIndex < 0) {
-       ETRACE("failed to get an overlay plane");
-       return 0;
-    }
-
-    return mOverlayPlanes.itemAt(freePlaneIndex);
+    return getPlane((int)DisplayPlane::PLANE_OVERLAY);
 }
 
-void DisplayPlaneManager::putSpritePlane(DisplayPlane& plane)
+DisplayPlane* DisplayPlaneManager::getPrimaryPlane(int dsp)
 {
-    int index = plane.getIndex();
-
-    if (plane.getType() == DisplayPlane::PLANE_SPRITE)
-        putPlane(index, mFreeSpritePlanes);
+    return getPlane((int)DisplayPlane::PLANE_PRIMARY, dsp);
 }
 
-void DisplayPlaneManager::putOverlayPlane(DisplayPlane& plane)
+bool DisplayPlaneManager::hasFreeSprite()
 {
-    int index = plane.getIndex();
-    if (plane.getType() == DisplayPlane::PLANE_OVERLAY)
-        putPlane(index, mFreeOverlayPlanes);
+    return hasFreePlanes((int)DisplayPlane::PLANE_SPRITE);
 }
 
-bool DisplayPlaneManager::hasFreeSprites()
+bool DisplayPlaneManager::hasFreeOverlay()
 {
-    RETURN_FALSE_IF_NOT_INIT();
-
-    return (mFreeSpritePlanes || mReclaimedSpritePlanes) ? true : false;
+    return hasFreePlanes((int)DisplayPlane::PLANE_OVERLAY);
 }
 
-bool DisplayPlaneManager::hasFreeOverlays()
+bool DisplayPlaneManager::hasFreePrimary(int dsp)
 {
-    RETURN_FALSE_IF_NOT_INIT();
-
-    return (mFreeOverlayPlanes || mReclaimedOverlayPlanes) ? true : false;
-}
-
-int DisplayPlaneManager::getFreeSpriteCount() const
-{
-    RETURN_NULL_IF_NOT_INIT();
-
-    uint32_t availableSprites = mFreeSpritePlanes;
-    availableSprites |= mReclaimedSpritePlanes;
-    int count = 0;
-    for (int i = 0; i < 32; i++) {
-        int bit = (1 << i);
-        if (bit & availableSprites)
-            count++;
-    }
-
-    return count;
-}
-
-int DisplayPlaneManager::getFreeOverlayCount() const
-{
-    RETURN_NULL_IF_NOT_INIT();
-
-    uint32_t availableOverlays = mFreeOverlayPlanes;
-    availableOverlays |= mReclaimedOverlayPlanes;
-    int count = 0;
-    for (int i = 0; i < 32; i++) {
-        int bit = (1 << i);
-        if (bit & availableOverlays)
-            count++;
-    }
-
-    return count;
-}
-
-bool DisplayPlaneManager::hasReclaimedOverlays()
-{
-    RETURN_FALSE_IF_NOT_INIT();
-
-    return (mReclaimedOverlayPlanes) ? true : false;
-}
-
-bool DisplayPlaneManager::primaryAvailable(int pipe)
-{
-    RETURN_FALSE_IF_NOT_INIT();
-
-    return ((mFreePrimaryPlanes & (1 << pipe)) ||
-            (mReclaimedPrimaryPlanes & (1 << pipe))) ? true : false;
+    return hasFreePlanes((int)DisplayPlane::PLANE_PRIMARY, dsp);
 }
 
 void DisplayPlaneManager::reclaimPlane(DisplayPlane& plane)
@@ -333,83 +284,45 @@ void DisplayPlaneManager::reclaimPlane(DisplayPlane& plane)
     RETURN_VOID_IF_NOT_INIT();
 
     int index = plane.getIndex();
+    int type = plane.getType();
 
     ATRACE("reclaimPlane = %d, type = %d", index, plane.getType());
 
-    if (plane.getType() == DisplayPlane::PLANE_OVERLAY)
-        putPlane(index, mReclaimedOverlayPlanes);
-    else if (plane.getType() == DisplayPlane::PLANE_SPRITE)
-        putPlane(index, mReclaimedSpritePlanes);
-    else if (plane.getType() == DisplayPlane::PLANE_PRIMARY)
-        putPlane(index, mReclaimedPrimaryPlanes);
-    else {
-        ETRACE("invalid plane type %d", plane.getType());
+    if (type < 0 || type > DisplayPlane::PLANE_MAX) {
+        ETRACE("Invalid plane type %d", type);
+        return;
     }
+
+    putPlane(index, mReclaimedPlanes[type]);
+
+    // NOTE: don't invalidate plane's data cache here because the reclaimed
+    // plane might be re-assigned to the same layer later
 }
 
 void DisplayPlaneManager::disableReclaimedPlanes()
 {
+    int i, j;
+
     RETURN_VOID_IF_NOT_INIT();
 
-    VTRACE("sprite %d, reclaimed %#x, "
-          "primary %d, reclaimed %#x, "
-          "overlay %d, reclaimed %#x",
-          mSpritePlanes.size(), mReclaimedSpritePlanes,
-          mPrimaryPlanes.size(), mReclaimedPrimaryPlanes,
-          mOverlayPlanes.size(), mReclaimedOverlayPlanes);
-
-    // disable reclaimed sprite planes
-    if (mSpritePlanes.size() && mReclaimedSpritePlanes) {
-        for (int i = 0; i < mSpritePlaneCount; i++) {
-            int bit = (1 << i);
-            if (mReclaimedSpritePlanes & bit) {
-                DisplayPlane* plane = mSpritePlanes.itemAt(i);
-                // reset and disable plane
-                plane->reset();
-                plane->disable();
-                // invalidate plane's data buffer cache
-                plane->invalidateBufferCache();
+    for (i = 0; i < DisplayPlane::PLANE_MAX; i++) {
+        // disable reclaimed planes
+        if (mReclaimedPlanes[i]) {
+            for (j = 0; j < mPlaneCount[i]; j++) {
+                int bit = (1 << j);
+                if (mReclaimedPlanes[i] & bit) {
+                    DisplayPlane* plane = mPlanes[i].itemAt(j);
+                    // disable plane first
+                    plane->disable();
+                    // reset plane
+                    plane->reset();
+                }
             }
-        }
-        // merge into free sprite bitmap
-        mFreeSpritePlanes |= mReclaimedSpritePlanes;
-        mReclaimedSpritePlanes = 0;
-    }
 
-    // disable reclaimed primary planes
-    if (mPrimaryPlanes.size() && mReclaimedPrimaryPlanes) {
-        for (int i = 0; i < mPrimaryPlaneCount; i++) {
-            int bit = (1 << i);
-            if (mReclaimedPrimaryPlanes & bit) {
-                DisplayPlane* plane = mPrimaryPlanes.itemAt(i);
-                // reset and disable plane
-                plane->reset();
-                plane->disable();
-                // invalidate plane's data buffer cache
-                plane->invalidateBufferCache();
-            }
+            // merge into free bitmap
+            mFreePlanes[i] |= mReclaimedPlanes[i];
+            mReclaimedPlanes[i] = 0;
         }
-        // merge into free primary bitmap
-        mFreePrimaryPlanes |= mReclaimedPrimaryPlanes;
-        mReclaimedPrimaryPlanes = 0;
-    }
-
-    // disable reclaimed overlay planes
-    if (mOverlayPlanes.size() && mReclaimedOverlayPlanes) {
-        for (int i = 0; i < mOverlayPlaneCount; i++) {
-            int bit = (1 << i);
-            if (mReclaimedOverlayPlanes & bit) {
-                DisplayPlane* plane = mOverlayPlanes.itemAt(i);
-                // reset and disable plane
-                plane->reset();
-                plane->disable();
-                // invalidate plane's data buffer cache
-                plane->invalidateBufferCache();
-            }
-        }
-        // merge into free overlay bitmap
-        mFreeOverlayPlanes |= mReclaimedOverlayPlanes;
-        mReclaimedOverlayPlanes = 0;
     }
 }
 
@@ -420,17 +333,17 @@ void DisplayPlaneManager::dump(Dump& d)
     d.append(" PLANE TYPE | COUNT |   FREE   | RECLAIMED \n");
     d.append("------------+-------+----------+-----------\n");
     d.append("    SPRITE  |  %2d   | %08x | %08x\n",
-             mSpritePlaneCount,
-             mFreeSpritePlanes,
-             mReclaimedSpritePlanes);
+             mPlaneCount[DisplayPlane::PLANE_SPRITE],
+             mFreePlanes[DisplayPlane::PLANE_SPRITE],
+             mReclaimedPlanes[DisplayPlane::PLANE_SPRITE]);
     d.append("   OVERLAY  |  %2d   | %08x | %08x\n",
-             mOverlayPlaneCount,
-             mFreeOverlayPlanes,
-             mReclaimedOverlayPlanes);
+             mPlaneCount[DisplayPlane::PLANE_OVERLAY],
+             mFreePlanes[DisplayPlane::PLANE_OVERLAY],
+             mReclaimedPlanes[DisplayPlane::PLANE_OVERLAY]);
     d.append("   PRIMARY  |  %2d   | %08x | %08x\n",
-             mPrimaryPlaneCount,
-             mFreePrimaryPlanes,
-             mReclaimedPrimaryPlanes);
+             mPlaneCount[DisplayPlane::PLANE_PRIMARY],
+             mFreePlanes[DisplayPlane::PLANE_PRIMARY],
+             mReclaimedPlanes[DisplayPlane::PLANE_PRIMARY]);
 }
 
 } // namespace intel
