@@ -437,7 +437,7 @@ bool RotationBufferProvider::setupRotationBuffer(VideoPayloadBuffer *payload, in
         payload->rotated_width = mRotatedStride;
         payload->rotated_height = mRotatedHeight;
         payload->rotated_buffer_handle = mKhandles[mTargetIndex];
-
+        payload->client_transform = mTransform;
         mTargetIndex++;
         if (mTargetIndex >= MAX_SURFACE_NUM)
             mTargetIndex = 0;
