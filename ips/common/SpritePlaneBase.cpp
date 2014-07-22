@@ -63,32 +63,43 @@ bool SpritePlaneBase::disable()
     return enablePlane(false);
 }
 
-void SpritePlaneBase::setZOrderConfig(ZOrderConfig& config)
+void SpritePlaneBase::setZOrderConfig(ZOrderConfig& zorderConfig)
 {
-    ATRACE("overlay count = %d", config.overlayCount);
-
-    if (config.overlayCount)
-        mForceBottom = false;
-    else
-        mForceBottom = true;
-
-    // set sprite to be above primary by default
+    mForceBottom = true;
     mAbovePrimary = true;
 
-    // configure sprite z order
-    if (config.spriteCount) {
-        if (!config.primaryIndex) {
-            // if frame buffer target is active
-            if (config.spriteIndexes[0] == 0)
-                mAbovePrimary = false;
-            else if (config.spriteIndexes[0] == (config.layerCount - 1))
-                mAbovePrimary = true;
-            else {
-                VTRACE("unsupported z order config, will use default");
+    if (mType == PLANE_PRIMARY) {
+        bool hasOverlayPlane = false;
+        // only consider force bottom when overlay is active
+        for (size_t i = 0; i < zorderConfig.size(); i++) {
+            DisplayPlane *plane = zorderConfig.itemAt(i);
+            if (plane->getType() == DisplayPlane::PLANE_PRIMARY)
+                break;
+            if (plane->getType() == DisplayPlane::PLANE_OVERLAY) {
+                hasOverlayPlane = true;
             }
-        } else if (config.spriteIndexes[0] < config.primaryIndex)
-            // if primary was used as sprite
+        }
+
+        // if has overlay plane which is below primary plane
+        if (hasOverlayPlane) {
+            mForceBottom = false;
+        }
+    } else if (mType == DisplayPlane::PLANE_SPRITE) {
+        bool hasPrimaryPlane = false;
+        for (size_t i = 0; i < zorderConfig.size(); i++) {
+            DisplayPlane *plane = zorderConfig.itemAt(i);
+            if (plane->getType() == DisplayPlane::PLANE_SPRITE)
+                break;
+            if (plane->getType() == DisplayPlane::PLANE_PRIMARY) {
+                hasPrimaryPlane = true;
+            }
+        }
+
+        if (!hasPrimaryPlane) {
             mAbovePrimary = false;
+        }
+    } else {
+        WTRACE("Invalid sprite plane type %d", mType);
     }
 }
 

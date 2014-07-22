@@ -79,7 +79,7 @@ void PhysicalDevice::onGeometryChanged(hwc_display_contents_1_t *list)
     // NOTE: should NOT be here
     if (mLayerList) {
         WTRACE("mLayerList exists");
-        delete mLayerList;
+        DEINIT_AND_DELETE_OBJ(mLayerList);
     }
 
     // create a new layer list
@@ -118,16 +118,14 @@ bool PhysicalDevice::prePrepare(hwc_display_contents_1_t *display)
     // for a null list, delete hwc list
     if (!mConnected || !display) {
         if (mLayerList) {
-            delete mLayerList;
-            mLayerList = 0;
+            DEINIT_AND_DELETE_OBJ(mLayerList);
         }
         return true;
     }
 
     // check if geometry is changed, if changed delete list
     if ((display->flags & HWC_GEOMETRY_CHANGED) && mLayerList) {
-        delete mLayerList;
-        mLayerList = 0;
+        DEINIT_AND_DELETE_OBJ(mLayerList);
     }
     return true;
 }
@@ -423,8 +421,7 @@ bool PhysicalDevice::initialize()
 void PhysicalDevice::deinitialize()
 {
     if (mLayerList) {
-        delete mLayerList;
-        mLayerList = 0;
+        DEINIT_AND_DELETE_OBJ(mLayerList);
     }
 
     DEINIT_AND_DELETE_OBJ(mVsyncObserver);

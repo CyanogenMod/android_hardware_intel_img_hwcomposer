@@ -48,15 +48,7 @@ enum {
     MAX_SPRITE_COUNT = 4,
 };
 
-typedef struct {
-    int layerCount;
-    int planeCount;
-    int overlayCount;
-    int overlayIndexes[MAX_OVERLAY_COUNT];
-    int spriteCount;
-    int spriteIndexes[MAX_SPRITE_COUNT];
-    int primaryIndex;
-} ZOrderConfig;
+class ZOrderConfig;
 
 class DisplayPlane {
 public:
@@ -127,6 +119,8 @@ public:
 
     // set z order config
     virtual void setZOrderConfig(ZOrderConfig& config) = 0;
+    virtual void setZOrder(int zorder);
+    virtual int getZOrder() const;
 
     virtual void* getContext() const = 0;
 
@@ -145,6 +139,7 @@ private:
 protected:
     int mIndex;
     int mType;
+    int mZOrder;
     int mDevice;
     bool mInitialized;
 

@@ -85,6 +85,46 @@ DisplayPlane* PlatfDisplayPlaneManager::allocPlane(int index, int type)
     return plane;
 }
 
+bool PlatfDisplayPlaneManager::isValidZOrderConfig(ZOrderConfig& config)
+{
+    // check whether it's a supported z order config
+    int firstRGB = -1;
+    int lastRGB = -1;
+    int firstOverlay = -1;
+    int lastOverlay = -1;
+
+    for (int i = 0; i < (int)config.size(); i++) {
+        DisplayPlane *plane = config.itemAt(i);
+        switch (plane->getType()) {
+        case DisplayPlane::PLANE_PRIMARY:
+        case DisplayPlane::PLANE_SPRITE:
+            if (firstRGB == -1) {
+                firstRGB = i;
+                lastRGB = i;
+            } else {
+                lastRGB = i;
+            }
+            break;
+        case DisplayPlane::PLANE_OVERLAY:
+            if (firstOverlay == -1) {
+                firstOverlay = i;
+                lastOverlay = i;
+            } else {
+                lastOverlay = i;
+            }
+            break;
+        }
+    }
+
+    if ((lastRGB < firstOverlay) || (firstRGB > lastOverlay)) {
+        return true;
+    } else {
+        ITRACE("invalid z order config. rgb (%d, %d) yuv (%d, %d)",
+               firstRGB, lastRGB, firstOverlay, lastOverlay);
+        return false;
+    }
+}
+
 } // namespace intel
 } // namespace android
 

@@ -40,6 +40,7 @@ public:
 protected:
     bool detect(int&spriteCount, int& overlayCount, int& primaryCount);
     DisplayPlane* allocPlane(int index, int type);
+    bool isValidZOrderConfig(ZOrderConfig& zorderConfig);
 };
 
 } // namespace intel
