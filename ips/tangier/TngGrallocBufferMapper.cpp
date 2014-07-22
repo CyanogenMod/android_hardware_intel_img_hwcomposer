@@ -107,8 +107,8 @@ bool TngGrallocBufferMapper::gttUnmap(void *vaddr)
 
 bool TngGrallocBufferMapper::map()
 {
-    void *vaddr = 0;
-    uint32_t size = 0;
+    void *vaddr[SUB_BUFFER_MAX];
+    uint32_t size[SUB_BUFFER_MAX];
     int gttOffsetInPage = 0;
     bool ret;
     int err;
@@ -117,31 +117,29 @@ bool TngGrallocBufferMapper::map()
     LOGV("TngGrallocBufferMapper::map");
 
     // get virtual address
-    for (i = 0; i < SUB_BUFFER_MAX; i++) {
-        err = mIMGGrallocModule.getCpuAddress(&mIMGGrallocModule,
-                                              getKey(),
-                                              i,
-                                              &vaddr,
-                                              &size);
-        if (err) {
-            LOGE("TngGrallocBufferMapper::map: failed to map. err = %d",
-                  err);
-            goto map_err;
-        }
+    err = mIMGGrallocModule.getCpuAddress(&mIMGGrallocModule,
+                                          (buffer_handle_t)getHandle(),
+                                          vaddr,
+                                          size);
+    if (err) {
+        LOGE("TngGrallocBufferMapper::map: failed to map. err = %d", err);
+        goto map_err;
+    }
 
+    for (i = 0; i < SUB_BUFFER_MAX; i++) {
         // skip gtt mapping for empty sub buffers
-        if (!vaddr || !size)
+        if (!vaddr[i] || !size[i])
             continue;
 
         // map to gtt
-        ret = gttMap(vaddr, size, 0, &gttOffsetInPage);
+        ret = gttMap(vaddr[i], size[i], 0, &gttOffsetInPage);
         if (!ret) {
             LOGV("TngGrallocBufferMapper::map: failed to map %d into gtt", i);
             goto gtt_err;
         }
 
-        mCpuAddress[i] = vaddr;
-        mSize[i] = size;
+        mCpuAddress[i] = vaddr[i];
+        mSize[i] = size[i];
         mGttOffsetInPage[i] = gttOffsetInPage;
     }
 
@@ -152,14 +150,15 @@ gtt_err:
             gttUnmap(mCpuAddress[i]);
     }
 map_err:
-    mIMGGrallocModule.putCpuAddress(&mIMGGrallocModule,
-                                    getKey());
+    err = mIMGGrallocModule.putCpuAddress(&mIMGGrallocModule,
+                                    (buffer_handle_t)getHandle());
     return false;
 }
 
 bool TngGrallocBufferMapper::unmap()
 {
     int i;
+    int err;
 
     LOGV("TngGrallocBufferMapper::unmap");
 
@@ -172,9 +171,12 @@ bool TngGrallocBufferMapper::unmap()
         mSize[i] = 0;
     }
 
-    mIMGGrallocModule.putCpuAddress(&mIMGGrallocModule,
-                                    getKey());
-    return true;
+    err = mIMGGrallocModule.putCpuAddress(&mIMGGrallocModule,
+                                    (buffer_handle_t)getHandle());
+    if (err)
+        LOGE("TngGrallocBufferMapper::map: failed to unmap. err = %d", err);
+
+    return err;
 }
 
 } // namespace intel
