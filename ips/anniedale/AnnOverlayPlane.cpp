@@ -193,6 +193,9 @@ bool AnnOverlayPlane::bufferOffsetSetup(BufferMapper& mapper)
     backBuffer->OCMD &= ~(0xf << 10);
     backBuffer->OCMD &= ~OVERLAY_MEMORY_LAYOUT_TILED;
 
+    backBuffer->OBUF_0Y = 0;
+    backBuffer->OBUF_0V = 0;
+    backBuffer->OBUF_0U = 0;
     // Y/U/V plane must be 4k bytes aligned.
     ySurface = gttOffsetInBytes;
     if (mIsProtectedBuffer) {
@@ -226,12 +229,13 @@ bool AnnOverlayPlane::bufferOffsetSetup(BufferMapper& mapper)
         backBuffer->OCMD |= OVERLAY_FORMAT_PLANAR_YUV420;
         break;
     case HAL_PIXEL_FORMAT_NV12:    // NV12
-        uSurface = ySurface + yStride * align_to(h, 16);
-        vSurface = ySurface + yStride * align_to(h, 16);
+        uSurface = ySurface;
+        vSurface = ySurface;
+        backBuffer->OBUF_0U = yStride * h;
         yTileOffsetX = srcX;
         yTileOffsetY = srcY;
         uTileOffsetX = srcX / 2;
-        uTileOffsetY = srcY / 2;
+        uTileOffsetY = srcY / 2 + h;
         vTileOffsetX = uTileOffsetX;
         vTileOffsetY = uTileOffsetY;
         backBuffer->OCMD |= OVERLAY_FORMAT_PLANAR_NV12_2;
@@ -293,9 +297,9 @@ bool AnnOverlayPlane::bufferOffsetSetup(BufferMapper& mapper)
     backBuffer->OSTART_0Y = ySurface;
     backBuffer->OSTART_0U = uSurface;
     backBuffer->OSTART_0V = vSurface;
-    backBuffer->OBUF_0Y = srcY * yStride + srcX;
-    backBuffer->OBUF_0V = (srcY / 2) * uvStride + srcX;
-    backBuffer->OBUF_0U = (srcY / 2) * uvStride + srcX;
+    backBuffer->OBUF_0Y += srcY * yStride + srcX;
+    backBuffer->OBUF_0V += (srcY / 2) * uvStride + srcX;
+    backBuffer->OBUF_0U += (srcY / 2) * uvStride + srcX;
     backBuffer->OTILEOFF_0Y = yTileOffsetY << 16 | yTileOffsetX;
     backBuffer->OTILEOFF_0U = uTileOffsetY << 16 | uTileOffsetX;
     backBuffer->OTILEOFF_0V = vTileOffsetY << 16 | vTileOffsetX;
