@@ -383,6 +383,11 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
         return 0;
     }
 
+    srcX = grallocMapper.getCrop().x;
+    srcY = grallocMapper.getCrop().y;
+    srcW = grallocMapper.getCrop().w;
+    srcH = grallocMapper.getCrop().h;
+
     // init ttm buffer
     khandle = payload->rotated_buffer_handle;
     index = mTTMBuffers.indexOfKey(khandle);
@@ -391,36 +396,7 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
 
         w = payload->rotated_width;
         h = payload->rotated_height;
-        srcX = grallocMapper.getCrop().x;
-        srcY = grallocMapper.getCrop().y;
-        srcW = grallocMapper.getCrop().w;
-        srcH = grallocMapper.getCrop().h;
-
-        if (mTransform == PLANE_TRANSFORM_90 || mTransform == PLANE_TRANSFORM_270) {
-            tmp = srcH;
-            srcH = srcW;
-            srcW = tmp;
-
-            tmp = srcX;
-            srcX = srcY;
-            srcY = tmp;
-        }
-
-        // skip pading bytes in rotate buffer
-        switch(mTransform) {
-        case PLANE_TRANSFORM_90:
-            srcX += ((srcW + 0xf) & ~0xf) - srcW;
-            break;
-        case PLANE_TRANSFORM_180:
-            srcX += ((srcW + 0xf) & ~0xf) - srcW;
-            srcY += ((srcH + 0xf) & ~0xf) - srcH;
-            break;
-        case PLANE_TRANSFORM_270:
-            srcY += ((srcH + 0xf) & ~0xf) - srcH;
-            break;
-        default:
-            break;
-        }
+        checkCrop(srcX, srcY, srcW, srcH);
 
         // calculate stride
         switch (grallocMapper.getFormat()) {
@@ -518,6 +494,11 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
     } else {
         VTRACE("got mapper in saved ttm buffers");
         mapper = reinterpret_cast<TTMBufferMapper *>(mTTMBuffers.valueAt(index));
+        if (mapper->getCrop().x != srcX || mapper->getCrop().y != srcY ||
+            mapper->getCrop().w != srcW || mapper->getCrop().h != srcH) {
+            checkCrop(srcX, srcY, srcW, srcH);
+            mapper->setCrop(srcX, srcY, srcW, srcH);
+        }
     }
 
     XTRACE();
@@ -646,6 +627,38 @@ void OverlayPlaneBase::checkPosition(int& x, int& y, int& w, int& h)
     if ((y + h) > mode->vdisplay)
         h = mode->vdisplay - y;
 }
+
+void OverlayPlaneBase::checkCrop(int& srcX, int& srcY, int& srcW, int& srcH)
+{
+    int tmp;
+
+    if (mTransform == PLANE_TRANSFORM_90 || mTransform == PLANE_TRANSFORM_270) {
+        tmp = srcH;
+        srcH = srcW;
+        srcW = tmp;
+
+        tmp = srcX;
+        srcX = srcY;
+        srcY = tmp;
+    }
+
+    // skip pading bytes in rotate buffer
+    switch(mTransform) {
+    case PLANE_TRANSFORM_90:
+        srcX += ((srcW + 0xf) & ~0xf) - srcW;
+        break;
+    case PLANE_TRANSFORM_180:
+        srcX += ((srcW + 0xf) & ~0xf) - srcW;
+        srcY += ((srcH + 0xf) & ~0xf) - srcH;
+        break;
+    case PLANE_TRANSFORM_270:
+        srcY += ((srcH + 0xf) & ~0xf) - srcH;
+        break;
+    default:
+        break;
+    }
+}
+
 
 bool OverlayPlaneBase::bufferOffsetSetup(BufferMapper& mapper)
 {
