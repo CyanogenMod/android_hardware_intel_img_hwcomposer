@@ -34,7 +34,7 @@
 #include <linux/netlink.h>
 #include <sys/types.h>
 #include <unistd.h>
-
+#include <DrmConfig.h>
 #include <common/HotplugControl.h>
 
 namespace android {
@@ -105,13 +105,14 @@ bool HotplugControl::wait(int disp, int& event)
 
 bool HotplugControl::isHotplugEvent(const char *msg, int msgLen)
 {
-    if (strcmp(msg, "change@/devices/pci0000:00/0000:00:02.0/drm/card0"))
+    if (strcmp(msg, DrmConfig::getHotplugEnvelope()) != 0)
         return false;
 
     msg += strlen(msg) + 1;
+    const char* hotplugString = DrmConfig::getHotplugString();
 
     do {
-        if (!strncmp(msg, "HOTPLUG=1", strlen("HOTPLUG=1"))) {
+        if (strncmp(msg, hotplugString, strlen(hotplugString)) == 0) {
             return true;
         }
         msg += strlen(msg) + 1;

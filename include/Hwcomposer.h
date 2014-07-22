@@ -98,8 +98,6 @@ public:
     }
     // Need to be implemented
     static Hwcomposer* createHwcomposer();
-    static const char* getDrmPath();
-    static uint32_t getDrmConnector(int32_t output);
 protected:
     virtual DisplayPlaneManager* createDisplayPlaneManager() = 0;
     virtual BufferManager* createBufferManager() = 0;
