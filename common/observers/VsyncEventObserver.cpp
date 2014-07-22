@@ -133,7 +133,7 @@ bool VsyncEventObserver::threadLoop()
     bool ret = mVsyncControl->wait(mDevice, timestamp);
 
     if (ret == false) {
-        WTRACE("failed to wait for vsync, check vsync enabling...");
+        WTRACE("failed to wait for vsync on display %d, vsync enabled %d", mDevice, mEnabled);
         return true;
     }
 
