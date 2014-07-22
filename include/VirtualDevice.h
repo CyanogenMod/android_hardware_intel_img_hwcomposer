@@ -37,9 +37,17 @@ namespace intel {
 
 class Hwcomposer;
 class DisplayPlaneManager;
+class IVideoPayloadManager;
 
 class VirtualDevice : public IDisplayDevice, public BnFrameServer {
 protected:
+    struct CachedBuffer : public android::RefBase {
+        CachedBuffer(BufferManager *mgr, buffer_handle_t handle);
+        ~CachedBuffer();
+        BufferManager *manager;
+        DataBuffer *buffer;
+        BufferMapper *mapper;
+    };
     struct Configuration {
         sp<IFrameTypeChangeListener> typeChangeListener;
         sp<IFrameListener> frameListener;
@@ -56,6 +64,14 @@ protected:
 
     Mutex mListenerLock;
     FrameInfo mLastFrameInfo;
+
+    android::KeyedVector<buffer_handle_t, android::sp<CachedBuffer> > mDisplayBufferCache;
+    android::Mutex mHeldBuffersLock;
+    android::KeyedVector<uint32_t, android::sp<CachedBuffer> > mHeldBuffers;
+
+private:
+    android::sp<CachedBuffer> getDisplayBuffer(buffer_handle_t handle);
+
 public:
     VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm);
     virtual ~VirtualDevice();
@@ -87,11 +103,13 @@ public:
     virtual android::status_t setResolution(const FrameProcessingPolicy& policy, android::sp<IFrameListener> listener);
 protected:
     virtual void deinitialize();
+    virtual IVideoPayloadManager* createVideoPayloadManager() = 0;
 
 protected:
     bool mInitialized;
     Hwcomposer& mHwc;
     DisplayPlaneManager& mDisplayPlaneManager;
+    IVideoPayloadManager *mPayloadManager;
 };
 
 }
