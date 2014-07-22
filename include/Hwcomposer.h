@@ -39,6 +39,7 @@
 #include <DisplayPlaneManager.h>
 #include <DisplayAnalyzer.h>
 #include <VsyncManager.h>
+#include <MultiDisplayObserver.h>
 
 namespace android {
 namespace intel {
@@ -83,6 +84,7 @@ public:
     BufferManager* getBufferManager();
     IDisplayContext* getDisplayContext();
     DisplayAnalyzer* getDisplayAnalyzer();
+    MultiDisplayObserver* getMultiDisplayObserver();
 
 protected:
     Hwcomposer();
@@ -118,6 +120,7 @@ protected:
     Vector<IDisplayDevice*> mDisplayDevices;
     IDisplayContext *mDisplayContext;
     VsyncManager *mVsyncManager;
+    MultiDisplayObserver *mMultiDisplayObserver;
     Mutex mLock;
     bool mInitialized;
 private:
