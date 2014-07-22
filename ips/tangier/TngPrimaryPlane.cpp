@@ -80,6 +80,33 @@ void TngPrimaryPlane::setFramebufferTarget(uint32_t handle)
     mCurrentDataBuffer = handle;
 }
 
+bool TngPrimaryPlane::enablePlane(bool enabled)
+{
+    RETURN_FALSE_IF_NOT_INIT();
+
+    struct drm_psb_register_rw_arg arg;
+    memset(&arg, 0, sizeof(struct drm_psb_register_rw_arg));
+    if (enabled) {
+        arg.plane_enable_mask = 1;
+    } else {
+        arg.plane_disable_mask = 1;
+    }
+    arg.plane.type = DC_PRIMARY_PLANE;
+    arg.plane.index = mIndex;
+    arg.plane.ctx = 0;
+
+    // issue ioctl
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+    bool ret = drm->writeReadIoctl(DRM_PSB_REGISTER_RW, &arg, sizeof(arg));
+    if (ret == false) {
+        WTRACE("primary enabling (%d) failed with error code %d", enabled, ret);
+        return false;
+    }
+
+    return true;
+
+}
+
 bool TngPrimaryPlane::setDataBuffer(uint32_t handle)
 {
     if (!handle) {
@@ -144,13 +171,6 @@ void TngPrimaryPlane::setZOrderConfig(ZOrderConfig& zorderConfig,
 
 bool TngPrimaryPlane::assignToDevice(int disp)
 {
-    return true;
-}
-
-// override disable
-bool TngPrimaryPlane::disable()
-{
-    CTRACE();
     return true;
 }
 
