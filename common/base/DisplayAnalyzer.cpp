@@ -34,7 +34,7 @@
 #include <Hwcomposer.h>
 #include <DisplayAnalyzer.h>
 #include <cutils/properties.h>
-
+#include <GraphicBuffer.h>
 
 namespace android {
 namespace intel {
@@ -530,6 +530,23 @@ void DisplayAnalyzer::resetCompositionType(hwc_display_contents_1_t *display)
         hwc_layer_1_t *layer = &display->hwLayers[i];
         if (layer) layer->compositionType = HWC_FRAMEBUFFER;
     }
+}
+
+bool DisplayAnalyzer::isProtectedLayer(hwc_layer_1_t &layer)
+{
+    bool ret = false;
+    BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
+    if (!layer.handle) {
+        return ret;
+    }
+    DataBuffer *buffer = bm->lockDataBuffer((uint32_t)layer.handle);
+    if (!buffer) {
+        ETRACE("failed to get buffer");
+    } else {
+        ret = GraphicBuffer::isProtectedBuffer((GraphicBuffer*)buffer);
+        bm->unlockDataBuffer(buffer);
+    }
+    return ret;
 }
 
 } // namespace intel
