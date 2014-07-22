@@ -213,6 +213,15 @@ bool Drm::detect(int device)
             ITRACE("mode is invalid, setting preferred mode");
             ret = initDrmMode(outputIndex);
         }
+
+        if (outputIndex == OUTPUT_PRIMARY) {
+            if (!readIoctl(DRM_PSB_PANEL_ORIENTATION, &output->panelOrientation, sizeof(int))) {
+                ETRACE("failed to get device %d orientation", device);
+                output->panelOrientation = PANEL_ORIENTATION_0;
+            }
+        } else {
+            output->panelOrientation = PANEL_ORIENTATION_0;
+        }
         break;
     }
 
@@ -654,6 +663,23 @@ int Drm::getOutputIndex(int device)
     }
 
     return -1;
+}
+
+int Drm::getPanelOrientation(int device)
+{
+    int outputIndex = getOutputIndex(device);
+    if (outputIndex < 0) {
+        ETRACE("invalid device");
+        return PANEL_ORIENTATION_0;
+    }
+
+    DrmOutput *output= &mOutputs[outputIndex];
+    if (output->connected == false) {
+        ETRACE("device is not connected");
+        return PANEL_ORIENTATION_0;
+    }
+
+    return output->panelOrientation;
 }
 
 

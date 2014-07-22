@@ -98,13 +98,10 @@ void DisplayPlane::deinitialize()
 
 void DisplayPlane::checkPosition(int& x, int& y, int& w, int& h)
 {
-    Drm *drm = Hwcomposer::getInstance().getDrm();
-    drmModeModeInfo modeInfo;
-    if (!drm->getModeInfo(mDevice, modeInfo)) {
-        ETRACE("failed to get mode info");
+    drmModeModeInfoPtr mode = &mModeInfo;
+
+    if (mode->hdisplay == 0 || mode->vdisplay == 0)
         return;
-    }
-    drmModeModeInfoPtr mode = &modeInfo;
 
     if (x < 0)
         x = 0;
@@ -338,6 +335,14 @@ bool DisplayPlane::assignToDevice(int disp)
     ATRACE("disp = %d", disp);
 
     mDevice = disp;
+
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+    if (!drm->getModeInfo(mDevice, mModeInfo)) {
+        ETRACE("failed to get mode info");
+    }
+
+    mPanelOrientation = drm->getPanelOrientation(mDevice);
+
     return true;
 }
 
