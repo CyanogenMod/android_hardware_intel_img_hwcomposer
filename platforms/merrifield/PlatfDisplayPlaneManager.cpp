@@ -51,7 +51,7 @@ bool PlatfDisplayPlaneManager::detect(int&spriteCount,
 {
     CTRACE();
 
-    spriteCount = 0;
+    spriteCount = 1;
     overlayCount = 2;
     primaryCount = 3;
 
