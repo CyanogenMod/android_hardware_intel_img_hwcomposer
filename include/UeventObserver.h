@@ -64,6 +64,8 @@ private:
         void *data;
     };
     KeyedVector<String8, UeventListener*> mListeners;
+    int mExitRDFd;
+    int mExitWDFd;
 };
 
 } // namespace intel
