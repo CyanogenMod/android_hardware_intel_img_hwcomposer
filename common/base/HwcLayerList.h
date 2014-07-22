@@ -25,8 +25,8 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef HWCLAYERLIST_H_
-#define HWCLAYERLIST_H_
+#ifndef HWC_LAYER_LIST_H
+#define HWC_LAYER_LIST_H
 
 #include <Dump.h>
 #include <hardware/hwcomposer.h>
@@ -34,158 +34,84 @@
 #include <DataBuffer.h>
 #include <DisplayPlane.h>
 #include <DisplayPlaneManager.h>
+#include <HwcLayer.h>
 
 namespace android {
 namespace intel {
 
-class HwcLayer {
-public:
-    enum {
-        // LAYER_FB layers are marked as HWC_FRAMEBUFFER.
-        // And a LAYER_FB can become HWC_OVERLAY layers during
-        // revisiting layer list.
-        LAYER_FB = 0,
-        // LAYER_FORCE_FB layers are marked as HWC_FRAMEBUFFER.
-        // And a LAYER_FORCE_FB can never become HWC_OVERLAY layers during
-        // revisiting layer list.
-        LAYER_FORCE_FB,
-        // LAYER_OVERLAY layers are marked as HWC_OVERLAY
-        LAYER_OVERLAY,
-        // LAYER_SKIPPED layers are marked as HWC_OVERLAY with no plane attached
-        LAYER_SKIPPED,
-        // LAYER_FRAMEBUFFER_TARGET layers are marked as HWC_FRAMEBUFFER_TARGET
-        LAYER_FRAMEBUFFER_TARGET,
-    };
-
-    enum {
-        LAYER_PRIORITY_PROTECTED = 0x70000000UL,
-        LAYER_PRIORITY_SIZE_OFFSET = 4,
-    };
-public:
-    HwcLayer(int index, hwc_layer_1_t *layer);
-    virtual ~HwcLayer();
-
-    // plane operations
-    bool attachPlane(DisplayPlane *plane, int device);
-    DisplayPlane* detachPlane();
-
-    void setType(uint32_t type);
-    uint32_t getType() const;
-    int32_t getCompositionType() const;
-    void setCompositionType(int32_t type);
-
-    int getIndex() const;
-    uint32_t getFormat() const;
-    uint32_t getBufferWidth() const;
-    uint32_t getBufferHeight() const;
-    const stride_t& getBufferStride() const;
-    uint32_t getUsage() const;
-    uint32_t getHandle() const;
-    bool isProtected() const;
-    hwc_layer_1_t* getLayer() const;
-    DisplayPlane* getPlane() const;
-
-    void setPriority(uint32_t priority);
-    uint32_t getPriority() const;
-
-    bool update(hwc_layer_1_t *layer, int dsp);
-    void postFlip();
-    bool isUpdated();
-
-private:
-    void setupAttributes();
-
-private:
-    const int mIndex;
-    int mDevice;
-    hwc_layer_1_t *mLayer;
-    DisplayPlane *mPlane;
-    uint32_t mFormat;
-    uint32_t mWidth;
-    uint32_t mHeight;
-    stride_t mStride;
-    uint32_t mUsage;
-    uint32_t mHandle;
-    bool mIsProtected;
-    uint32_t mType;
-    uint32_t mPriority;
-
-    // for smart composition
-    uint32_t mTransform;
-    hwc_frect_t mSourceCropf;
-    hwc_rect_t mDisplayFrame;
-    bool mUpdated;
-};
 
 class HwcLayerList {
 public:
-    HwcLayerList(hwc_display_contents_1_t *list, DisplayPlaneManager& dpm,
-                  int disp);
+    HwcLayerList(hwc_display_contents_1_t *list, int disp);
     virtual ~HwcLayerList();
 
+public:
+    virtual bool initialize();
     virtual void deinitialize();
 
     virtual bool update(hwc_display_contents_1_t *list);
     virtual DisplayPlane* getPlane(uint32_t index) const;
 
-    bool hasProtectedLayer();
-    bool hasVisibleLayer();
     void postFlip();
 
     // dump interface
     virtual void dump(Dump& d);
-protected:
+
+
+private:
+    bool checkSupported(int planeType, HwcLayer *hwcLayer);
+    bool allocatePlanesV1();
+    bool allocatePlanesV2();
+    bool assignOverlayPlanes();
+    bool assignOverlayPlanes(int index, int planeNumber);
+    bool assignSpritePlanes();
+    bool assignSpritePlanes(int index, int planeNumber);
+    bool assignPrimaryPlane();
+    bool assignPrimaryPlaneHelper(HwcLayer *hwcLayer, int zorder = -1);
+    bool attachPlanes();
+    bool useAsFrameBufferTarget(HwcLayer *target);
+    bool hasIntersection(HwcLayer *la, HwcLayer *lb);
+    ZOrderLayer* addZOrderLayer(int type, HwcLayer *hwcLayer, int zorder = -1);
+    void removeZOrderLayer(ZOrderLayer *layer);
+    void setupSmartComposition();
+    void dump();
+
+private:
     class HwcLayerVector : public SortedVector<HwcLayer*> {
     public:
-        HwcLayerVector();
-        virtual int do_compare(const void* lhs, const void* rhs) const;
+        HwcLayerVector() {}
+        virtual int do_compare(const void* lhs, const void* rhs) const {
+            const HwcLayer* l = *(HwcLayer**)lhs;
+            const HwcLayer* r = *(HwcLayer**)rhs;
+            // sorted from index 0 to n
+            return l->getIndex() - r->getIndex();
+        }
     };
 
     class PriorityVector : public SortedVector<HwcLayer*> {
     public:
-        PriorityVector();
-        virtual int do_compare(const void* lhs, const void* rhs) const;
+        PriorityVector() {}
+        virtual int do_compare(const void* lhs, const void* rhs) const {
+            const HwcLayer* l = *(HwcLayer**)lhs;
+            const HwcLayer* r = *(HwcLayer**)rhs;
+            return r->getPriority() - l->getPriority();
+        }
     };
 
-    virtual bool initialize();
-    virtual void revisit();
-    virtual bool checkSupported(int planeType, HwcLayer *hwcLayer);
-    virtual void analyze();
-private:
-    void assignPlanes();
-    void adjustAssignment();
-    void preProccess();
-    void detachPrimary();
-    bool usePrimaryAsSprite(DisplayPlane *primaryPlane);
-    bool usePrimaryAsFramebufferTarget(DisplayPlane *primaryPlane);
-    bool updateZOrderConfig();
-    void updatePossiblePrimaryLayers();
-    bool calculatePrimaryZOrder(int& zorder);
-    bool mergeFBLayersToLayer(HwcLayer *target, int idx);
-    bool mergeToLayer(HwcLayer* target, HwcLayer* layer);
-    bool hasIntersection(HwcLayer *la, HwcLayer *lb);
-    bool setupZOrderConfig();
-    void setupSmartComposition();
-private:
     hwc_display_contents_1_t *mList;
-    uint32_t mLayerCount;
-    HwcLayerVector mLayers;
-    HwcLayerVector mOverlayLayers;
-    HwcLayerVector mSkippedLayers;
-    HwcLayerVector mFBLayers;
-    ZOrderConfig mZOrderConfig;
-    // need a display plane manager to get display plane info;
-    DisplayPlaneManager& mDisplayPlaneManager;
-    int mDisplayIndex;
+    int mLayerCount;
 
-    PriorityVector mCandidates;
+    HwcLayerVector mLayers;
+    HwcLayerVector mFBLayers;
     PriorityVector mSpriteCandidates;
     PriorityVector mOverlayCandidates;
-    PriorityVector mPossiblePrimaryLayers;
+    ZOrderConfig mZOrderConfig;
+    HwcLayer *mFrameBufferTarget;
+    int mDisplayIndex;
 };
 
 } // namespace intel
 } // namespace android
 
 
-#endif /* HWCLAYERLIST_H_ */
+#endif /* HWC_LAYER_LIST_H */

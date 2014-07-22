@@ -26,6 +26,7 @@ LOCAL_SHARED_LIBRARIES := liblog libcutils libdrm \
                           libhwcwidi libbinder
 LOCAL_SRC_FILES := \
     ../../common/base/Drm.cpp \
+    ../../common/base/HwcLayer.cpp \
     ../../common/base/HwcLayerList.cpp \
     ../../common/base/Hwcomposer.cpp \
     ../../common/base/HwcModule.cpp \
@@ -74,6 +75,7 @@ LOCAL_SRC_FILES += \
     ../../ips/tangier/TngPrimaryPlane.cpp \
     ../../ips/tangier/TngSpritePlane.cpp \
     ../../ips/tangier/TngDisplayQuery.cpp \
+    ../../ips/tangier/TngPlaneManager.cpp \
     ../../ips/tangier/TngDisplayContext.cpp
 
 
@@ -82,7 +84,6 @@ LOCAL_SRC_FILES += \
     PlatfPrimaryDevice.cpp \
     PlatfExternalDevice.cpp \
     PlatfVirtualDevice.cpp \
-    PlatfDisplayPlaneManager.cpp \
     PlatfHwcomposer.cpp
 
 
@@ -120,6 +121,5 @@ ifeq ($(TARGET_HAS_MULTIPLE_DISPLAY),true)
    LOCAL_SHARED_LIBRARIES += libmultidisplay libbinder
    LOCAL_CFLAGS += -DTARGET_HAS_MULTIPLE_DISPLAY
 endif
-LOCAL_CFLAGS += -DMERR
 include $(BUILD_SHARED_LIBRARY)
 

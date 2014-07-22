@@ -29,7 +29,7 @@
 #include <HwcTrace.h>
 #include <tangier/TngDisplayContext.h>
 #include <common/PowerManager.h>
-#include <PlatfDisplayPlaneManager.h>
+#include <anniedale/AnnPlaneManager.h>
 #include <PlatfBufferManager.h>
 #include <IDisplayDevice.h>
 #include <PlatfPrimaryDevice.h>
@@ -56,7 +56,7 @@ PlatfHwcomposer::~PlatfHwcomposer()
 DisplayPlaneManager* PlatfHwcomposer::createDisplayPlaneManager()
 {
     CTRACE();
-    return (new PlatfDisplayPlaneManager());
+    return (new AnnPlaneManager());
 }
 
 BufferManager* PlatfHwcomposer::createBufferManager()

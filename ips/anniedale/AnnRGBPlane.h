@@ -48,12 +48,10 @@ public:
     bool enable();
     bool disable();
     bool isDisabled();
+    void postFlip();
 
     void* getContext() const;
     void setZOrderConfig(ZOrderConfig& config, void *nativeConfig);
-    bool assignToDevice(int disp);
-
-    void setZOrder(int zorder);
 
     bool setDataBuffer(uint32_t handle);
 protected:

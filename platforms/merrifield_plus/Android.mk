@@ -25,6 +25,7 @@ LOCAL_SHARED_LIBRARIES := liblog libcutils libdrm \
                           libva libva-tpi libva-android
 LOCAL_SRC_FILES := \
     ../../common/base/Drm.cpp \
+    ../../common/base/HwcLayer.cpp \
     ../../common/base/HwcLayerList.cpp \
     ../../common/base/Hwcomposer.cpp \
     ../../common/base/HwcModule.cpp \
@@ -72,8 +73,8 @@ LOCAL_SRC_FILES += \
 
 
 LOCAL_SRC_FILES += \
+    ../../ips/anniedale/AnnPlaneManager.cpp \
     ../../ips/anniedale/AnnOverlayPlane.cpp \
-    ../../ips/anniedale/AnnDisplayPlane.cpp \
     ../../ips/anniedale/AnnRGBPlane.cpp \
     ../../ips/anniedale/PlaneCapabilities.cpp
 
@@ -82,7 +83,6 @@ LOCAL_SRC_FILES += \
     PlatfBufferManager.cpp \
     PlatfPrimaryDevice.cpp \
     PlatfExternalDevice.cpp \
-    PlatfDisplayPlaneManager.cpp \
     PlatfHwcomposer.cpp
 
 

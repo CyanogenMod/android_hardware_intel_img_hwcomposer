@@ -58,6 +58,7 @@ public:
     virtual bool assignToDevice(int disp);
 
     virtual void setZOrderConfig(ZOrderConfig& config, void *nativeConfig);
+    virtual void setSourceCrop(int x, int y, int w, int h);
 
     // plane operations
     virtual bool flip(void *ctx) ;
@@ -65,6 +66,7 @@ public:
     virtual bool enable();
     virtual bool disable();
     virtual bool isDisabled();
+    virtual void postFlip();
 
     virtual void* getContext() const;
     virtual bool initialize(uint32_t bufferCount);

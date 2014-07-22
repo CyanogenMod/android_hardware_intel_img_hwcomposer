@@ -121,9 +121,6 @@ void AnnOverlayPlane::deinitialize()
 
 bool AnnOverlayPlane::setDataBuffer(uint32_t handle)
 {
-    if (mIndex == 1 && mTransform != 0)
-        return false;
-
     if (mDisablePending) {
         if (isDisabled() || mDisablePendingCount >= OVERLAY_DISABLING_COUNT_MAX) {
             mDisablePending = false;
@@ -313,6 +310,18 @@ bool AnnOverlayPlane::isDisabled()
     return arg.plane.ctx == PSB_DC_PLANE_DISABLED;
 }
 
+void AnnOverlayPlane::postFlip()
+{
+    // when using AnnOverlayPlane through AnnDisplayPlane as proxy, postFlip is never
+    // called so mUpdateMasks is never reset.
+    // When using AnnOverlayPlane directly, postFlip is invoked and mUpdateMasks is reset
+    // post-flip.
+
+    // need to check why mUpdateMasks = 0 causes video freeze.
+
+    //DisplayPlane::postFlip();
+}
+
 OverlayBackBuffer* AnnOverlayPlane::createBackBuffer()
 {
     CTRACE();
@@ -428,12 +437,6 @@ bool AnnOverlayPlane::bufferOffsetSetup(BufferMapper& mapper)
     uint32_t yTileOffsetX, yTileOffsetY;
     uint32_t uTileOffsetX, uTileOffsetY;
     uint32_t vTileOffsetX, vTileOffsetY;
-
-    // ANN overlay plane require offset align 64
-    if (srcX & 63) {
-        ETRACE("offset %d not align to 64", srcX);
-        return false;
-    }
 
     // clear original format setting
     backBuffer->OCMD &= ~(0xf << 10);
@@ -808,14 +811,6 @@ bool AnnOverlayPlane::scalingSetup(BufferMapper& mapper)
         srcWidth = tmp;
     }
 
-    // FIXME: work aournd for pipe crashing issue, when rotate screen
-    // from 90 to 0 degree (with Sharp 25x16 panel).
-    if (!mIsProtectedBuffer) {
-        if ((mTransform == DisplayPlane::PLANE_TRANSFORM_90) &&
-            ((float)srcWidth / srcHeight != (float)w / h))
-            return false;
-    }
-
      // Y down-scale factor as a multiple of 4096
     if (srcWidth == dstWidth && srcHeight == dstHeight) {
         xscaleFract = (1 << 12);
@@ -1021,8 +1016,10 @@ bool AnnOverlayPlane::flip(void *ctx)
 
     RETURN_FALSE_IF_NOT_INIT();
 
-    if (!DisplayPlane::flip(ctx))
+    if (!DisplayPlane::flip(ctx)) {
+        ETRACE("failed to flip display plane.");
         return false;
+    }
 
     // update back buffer address
     ovadd = (mBackBuffer[mCurrent]->gttOffsetInPage << 12);
@@ -1070,8 +1067,10 @@ bool AnnOverlayPlane::flush(uint32_t flags)
     RETURN_FALSE_IF_NOT_INIT();
     ATRACE("flags = %#x, type = %d, index = %d", flags, mType, mIndex);
 
-    if (!(flags & PLANE_ENABLE) && !(flags & PLANE_DISABLE))
+    if (!(flags & PLANE_ENABLE) && !(flags & PLANE_DISABLE)) {
+        ETRACE("invalid flush flags.");
         return false;
+    }
 
     struct drm_psb_register_rw_arg arg;
     memset(&arg, 0, sizeof(struct drm_psb_register_rw_arg));
@@ -1122,6 +1121,24 @@ bool AnnOverlayPlane::isFlushed()
         mIndex, arg.plane.ctx ? "DONE" : "PENDING", mDisablePendingDevice, mDevice);
     return arg.plane.ctx == 1;
 }
+
+void AnnOverlayPlane::setSourceCrop(int x, int y, int w, int h)
+{
+    DisplayPlane::setSourceCrop(x, y, w, h);
+
+    if (!mIsProtectedBuffer) {
+        return;
+    }
+
+    // ANN overlay plane requires offset aligned to 64
+    int offset = 64 - (mSrcCrop.x & 63);
+    if (offset != 64) {
+        mUpdateMasks |= PLANE_SOURCE_CROP_CHANGED;
+        mSrcCrop.x += offset;
+        mSrcCrop.w -= offset;
+    }
+}
+
 
 } // namespace intel
 } // namespace android

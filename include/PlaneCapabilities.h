@@ -32,22 +32,15 @@
 namespace android {
 namespace intel {
 
+class HwcLayer;
 class PlaneCapabilities
 {
 public:
-    static bool isFormatSupported(int planeType, uint32_t format, uint32_t trans);
-    static bool isSizeSupported(int planeType,
-                                    uint32_t format,
-                                    uint32_t w,
-                                    uint32_t h,
-                                    const stride_t& stride);
-    static bool isBlendingSupported(int planeType, uint32_t blending, uint8_t planeAlpha);
-    static bool isScalingSupported(int planeType,
-                                       hwc_frect_t& src,
-                                       hwc_rect_t& dest,
-                                       uint32_t trans);
-    static bool isTransformSupported(int planeType, uint32_t trans);
-
+    static bool isFormatSupported(int planeType, HwcLayer *hwcLayer);
+    static bool isSizeSupported(int planeType,  HwcLayer *hwcLayer);
+    static bool isBlendingSupported(int planeType, HwcLayer *hwcLayer);
+    static bool isScalingSupported(int planeType, HwcLayer *hwcLayer);
+    static bool isTransformSupported(int planeType,  HwcLayer *hwcLayer);
 };
 
 } // namespace intel

@@ -31,6 +31,7 @@
 #include <OMX_IVCommon.h>
 #include <PlaneCapabilities.h>
 #include "OverlayHardware.h"
+#include <HwcLayer.h>
 
 #define SPRITE_PLANE_MAX_STRIDE_TILED      16384
 //FIXME: need confirmation about this stride
@@ -42,8 +43,11 @@
 namespace android {
 namespace intel {
 
-bool PlaneCapabilities::isFormatSupported(int planeType, uint32_t format, uint32_t trans)
+bool PlaneCapabilities::isFormatSupported(int planeType, HwcLayer *hwcLayer)
 {
+    uint32_t format = hwcLayer->getFormat();
+    uint32_t trans = hwcLayer->getLayer()->transform;
+
     if (planeType == DisplayPlane::PLANE_SPRITE || planeType == DisplayPlane::PLANE_PRIMARY) {
         switch (format) {
         case HAL_PIXEL_FORMAT_BGRA_8888:
@@ -81,11 +85,13 @@ bool PlaneCapabilities::isFormatSupported(int planeType, uint32_t format, uint32
     }
 }
 
-bool PlaneCapabilities::isSizeSupported(int planeType,
-                                             uint32_t format,
-                                             uint32_t w, uint32_t h,
-                                             const stride_t& stride)
+bool PlaneCapabilities::isSizeSupported(int planeType, HwcLayer *hwcLayer)
 {
+    uint32_t format = hwcLayer->getFormat();
+    uint32_t w = hwcLayer->getBufferWidth();
+    uint32_t h = hwcLayer->getBufferHeight();
+    const stride_t& stride = hwcLayer->getBufferStride();
+
     bool isYUVPacked;
     uint32_t maxStride;
 
@@ -139,8 +145,11 @@ bool PlaneCapabilities::isSizeSupported(int planeType,
     }
 }
 
-bool PlaneCapabilities::isBlendingSupported(int planeType, uint32_t blending, uint8_t planeAlpha)
+bool PlaneCapabilities::isBlendingSupported(int planeType, HwcLayer *hwcLayer)
 {
+    uint32_t blending = (uint32_t)hwcLayer->getLayer()->blending;
+    uint8_t planeAlpha = hwcLayer->getLayer()->planeAlpha;
+
     if (planeType == DisplayPlane::PLANE_SPRITE || planeType == DisplayPlane::PLANE_PRIMARY) {
         bool ret = false;
 
@@ -167,8 +176,12 @@ bool PlaneCapabilities::isBlendingSupported(int planeType, uint32_t blending, ui
     }
 }
 
-bool PlaneCapabilities::isScalingSupported(int planeType, hwc_frect_t& src, hwc_rect_t& dest, uint32_t trans)
+
+bool PlaneCapabilities::isScalingSupported(int planeType, HwcLayer *hwcLayer)
 {
+    hwc_frect_t& src = hwcLayer->getLayer()->sourceCropf;
+    hwc_rect_t& dest = hwcLayer->getLayer()->displayFrame;
+
     int srcW, srcH;
     int dstW, dstH;
 
@@ -187,6 +200,11 @@ bool PlaneCapabilities::isScalingSupported(int planeType, hwc_frect_t& src, hwc_
             return false;
         }
 
+        if (dstW <= 1 || dstH <= 1) {
+            // Workaround: Overlay flip when height is 1 causes MIPI stall on TNG
+            return false;
+        }
+
         return true;
     } else {
         ETRACE("invalid plane type %d", planeType);
@@ -194,8 +212,10 @@ bool PlaneCapabilities::isScalingSupported(int planeType, hwc_frect_t& src, hwc_
     }
 }
 
-bool PlaneCapabilities::isTransformSupported(int planeType, uint32_t trans)
+bool PlaneCapabilities::isTransformSupported(int planeType, HwcLayer *hwcLayer)
 {
+    uint32_t trans = hwcLayer->getLayer()->transform;
+
     if (planeType == DisplayPlane::PLANE_OVERLAY)
         return true;
     // don't transform any tranform

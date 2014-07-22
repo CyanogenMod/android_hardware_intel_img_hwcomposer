@@ -26,7 +26,7 @@
  *
  */
 #include <HwcTrace.h>
-#include <PlatfDisplayPlaneManager.h>
+#include <tangier/TngPlaneManager.h>
 #include <tangier/TngPrimaryPlane.h>
 #include <tangier/TngSpritePlane.h>
 #include <tangier/TngOverlayPlane.h>
@@ -34,35 +34,33 @@
 namespace android {
 namespace intel {
 
-PlatfDisplayPlaneManager::PlatfDisplayPlaneManager()
+TngPlaneManager::TngPlaneManager()
     : DisplayPlaneManager()
 {
-    CTRACE();
     memset(&mZorder, 0, sizeof(mZorder));
 }
 
-PlatfDisplayPlaneManager::~PlatfDisplayPlaneManager()
+TngPlaneManager::~TngPlaneManager()
 {
-
 }
 
-bool PlatfDisplayPlaneManager::detect(int&spriteCount,
-                                           int& overlayCount,
-                                           int& primaryCount)
+bool TngPlaneManager::initialize()
 {
-    CTRACE();
+    mSpritePlaneCount = 1;  // Sprite D
+    mOverlayPlaneCount = 2;  // Overlay A & C
+    mPrimaryPlaneCount = 3;  // Primary A, B, C
 
-    spriteCount = 1;
-    overlayCount = 2;
-    primaryCount = 3;
-
-    return true;
+    return DisplayPlaneManager::initialize();
 }
 
-DisplayPlane* PlatfDisplayPlaneManager::allocPlane(int index, int type)
+void TngPlaneManager::deinitialize()
+{
+    DisplayPlaneManager::deinitialize();
+}
+
+DisplayPlane* TngPlaneManager::allocPlane(int index, int type)
 {
     DisplayPlane *plane = 0;
-    ATRACE("index = %d, type = %d", index, type);
 
     switch (type) {
     case DisplayPlane::PLANE_PRIMARY:
@@ -86,7 +84,7 @@ DisplayPlane* PlatfDisplayPlaneManager::allocPlane(int index, int type)
     return plane;
 }
 
-bool PlatfDisplayPlaneManager::isValidZOrderConfig(ZOrderConfig& config)
+bool TngPlaneManager::isValidZOrder(int dsp, ZOrderConfig& config)
 {
     // check whether it's a supported z order config
     int firstRGB = -1;
@@ -95,8 +93,8 @@ bool PlatfDisplayPlaneManager::isValidZOrderConfig(ZOrderConfig& config)
     int lastOverlay = -1;
 
     for (int i = 0; i < (int)config.size(); i++) {
-        DisplayPlane *plane = config.itemAt(i);
-        switch (plane->getType()) {
+        const ZOrderLayer *layer = config[i];
+        switch (layer->planeType) {
         case DisplayPlane::PLANE_PRIMARY:
         case DisplayPlane::PLANE_SPRITE:
             if (firstRGB == -1) {
@@ -126,9 +124,75 @@ bool PlatfDisplayPlaneManager::isValidZOrderConfig(ZOrderConfig& config)
     }
 }
 
-void* PlatfDisplayPlaneManager::getNativeZOrderConfig()
+bool TngPlaneManager::assignPlanes(int dsp, ZOrderConfig& config)
 {
-    return &mZorder;
+    // probe if plane is available
+    int size = (int)config.size();
+    for (int i = 0; i < size; i++) {
+        const ZOrderLayer *layer = config.itemAt(i);
+        if (!getFreePlanes(dsp, layer->planeType)) {
+            DTRACE("no plane available for dsp %d, type %d", dsp, layer->planeType);
+            return false;
+        }
+    }
+
+    if (config.size() == 1 && config[0]->planeType == DisplayPlane::PLANE_SPRITE) {
+        config[0]->planeType == DisplayPlane::PLANE_PRIMARY;
+    }
+
+    // allocate planes
+    for (int i = 0; i < size; i++) {
+        ZOrderLayer *layer = config.itemAt(i);
+        layer->plane = getPlaneHelper(dsp, layer->planeType);
+        if (layer->plane == NULL) {
+            // should never happen!!
+            ETRACE("failed to assign plane for type %d", layer->planeType);
+        }
+        // sequence !!!!! enabling plane before setting zorder
+        // see TngSpritePlane::enablePlane implementation!!!!
+        layer->plane->enable();
+    }
+
+    // setup Z order
+    for (int i = 0; i < size; i++) {
+        ZOrderLayer *layer = config.itemAt(i);
+        layer->plane->setZOrderConfig(config, &mZorder);
+    }
+
+    return true;
+}
+
+void* TngPlaneManager::getZOrderConfig() const
+{
+    return (void*)&mZorder;
+}
+
+DisplayPlane* TngPlaneManager::getPlaneHelper(int dsp, int type)
+{
+    RETURN_NULL_IF_NOT_INIT();
+
+    if (dsp < 0 || dsp > IDisplayDevice::DEVICE_EXTERNAL) {
+        ETRACE("Invalid display device %d", dsp);
+        return 0;
+    }
+
+    int index = dsp == IDisplayDevice::DEVICE_PRIMARY ? 0 : 1;
+
+    if (type == DisplayPlane::PLANE_PRIMARY) {
+        return getPlane(type, index);
+    } else if (type == DisplayPlane::PLANE_SPRITE) {
+        return getAnyPlane(type);
+    } else if (type == DisplayPlane::PLANE_OVERLAY) {
+        // use overlay A for pipe A and overlay C for pipe B if possible
+        DisplayPlane *plane = getPlane(type, index);
+        if (plane == NULL) {
+            plane = getPlane(type, !index);
+        }
+        return plane;
+    } else {
+        ETRACE("invalid plane type %d", type);
+        return 0;
+    }
 }
 
 } // namespace intel
