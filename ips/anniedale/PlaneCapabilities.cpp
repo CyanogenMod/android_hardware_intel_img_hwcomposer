@@ -219,8 +219,7 @@ bool PlaneCapabilities::isScalingSupported(int planeType, HwcLayer *hwcLayer)
                 DTRACE("overlay rotation with scaling >= 3, fall back to GLES");
                 return false;
             }
-            if ((trans == HAL_TRANSFORM_ROT_90 || trans == HAL_TRANSFORM_ROT_270) &&
-                ((float)srcW / srcH != (float)dstW / dstH)) {
+            if (trans == HAL_TRANSFORM_ROT_90 && (float)srcW / srcH != (float)dstW / dstH) {
                 // FIXME: work aournd for pipe crashing issue, when rotate screen
                 // from 90 to 0 degree (with Sharp 25x16 panel).
                 DTRACE("overlay rotation with uneven scaling, fall back to GLES");
