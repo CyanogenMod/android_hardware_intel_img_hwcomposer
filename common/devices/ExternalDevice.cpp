@@ -40,7 +40,8 @@ ExternalDevice::ExternalDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
       mHdcpControl(NULL),
       mAbortModeSettingCond(),
       mPendingDrmMode(),
-      mHotplugEventPending(false)
+      mHotplugEventPending(false),
+      mExpectedRefreshRate(0)
 {
     CTRACE();
 }
@@ -179,6 +180,7 @@ void ExternalDevice::setDrmMode()
         mHotplugEventPending = false;
         mHwc.hotplug(mType, true);
     }
+    mExpectedRefreshRate = 0;
 }
 
 
@@ -283,6 +285,13 @@ void ExternalDevice::setRefreshRate(int hz)
 
     if (hz == (int)mode.vrefresh)
         return;
+
+    if (mExpectedRefreshRate != 0 &&
+            mExpectedRefreshRate == hz && mHotplugEventPending) {
+        ITRACE("Ignore a new refresh setting event because there is a same event is handling");
+        return;
+    }
+    mExpectedRefreshRate = hz;
 
     ITRACE("changing refresh rate from %d to %d", mode.vrefresh, hz);
 

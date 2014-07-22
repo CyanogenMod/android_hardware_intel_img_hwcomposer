@@ -66,6 +66,7 @@ private:
     Condition mAbortModeSettingCond;
     drmModeModeInfo mPendingDrmMode;
     bool mHotplugEventPending;
+    int mExpectedRefreshRate;
 
 private:
     DECLARE_THREAD(ModeSettingThread, ExternalDevice);
