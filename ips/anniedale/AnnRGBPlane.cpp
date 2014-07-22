@@ -99,8 +99,6 @@ bool AnnRGBPlane::setDataBuffer(uint32_t handle)
 
 bool AnnRGBPlane::setDataBuffer(BufferMapper& mapper)
 {
-    Drm *drm = Hwcomposer::getInstance().getDrm();
-    drmModeModeInfo modeInfo;
     int bpp;
     int srcX, srcY, srcW, srcH;
     int dstX, dstY, dstW, dstH;
@@ -108,9 +106,6 @@ bool AnnRGBPlane::setDataBuffer(BufferMapper& mapper)
     uint32_t stride;
     uint32_t linoff;
     uint32_t planeAlpha;
-    uint32_t rotate_linoff;
-    uint32_t rotate_pos;
-    int width = 0, height = 0;
 
     CTRACE();
 
@@ -133,15 +128,8 @@ bool AnnRGBPlane::setDataBuffer(BufferMapper& mapper)
     srcY = mapper.getCrop().y;
     srcW = mapper.getWidth();
     srcH = mapper.getHeight();
-    if (!drm->getModeInfo(mDevice, modeInfo)) {
-        ETRACE("failed to get mode info");
-        return false;
-    }
-    width = modeInfo.hdisplay;
-    height = modeInfo.vdisplay;
     stride = mapper.getStride().rgb.stride;
     linoff = srcY * stride + srcX * bpp;
-    rotate_linoff = linoff + (mapper.getCrop().h - 1) * stride + (mapper.getCrop().w) * bpp;
 
     // unlikely happen, but still we need make sure linoff is valid
     if (linoff > (stride * mapper.getHeight())) {
@@ -167,7 +155,6 @@ bool AnnRGBPlane::setDataBuffer(BufferMapper& mapper)
     mContext.ctx.sp_ctx.pipe = mDevice;
     mContext.ctx.sp_ctx.cntr = spriteFormat | 0x80000000;
     mContext.ctx.sp_ctx.linoff = linoff;
-    mContext.ctx.sp_ctx.rotate_linoff = rotate_linoff;
     mContext.ctx.sp_ctx.stride = stride;
 
     // turn off premultipled alpha blending for HWC_BLENDING_COVERAGE
@@ -184,7 +171,6 @@ bool AnnRGBPlane::setDataBuffer(BufferMapper& mapper)
 
     mContext.ctx.sp_ctx.surf = mapper.getGttOffsetInPage(0) << 12;
     mContext.ctx.sp_ctx.pos = (dstY & 0xfff) << 16 | (dstX & 0xfff);
-    mContext.ctx.sp_ctx.rotate_pos  = (((height - dstY - dstH) & 0xfff) << 16) | ((width - dstX - dstW) & 0xfff);
     mContext.ctx.sp_ctx.size =
         ((dstH - 1) & 0xfff) << 16 | ((dstW - 1) & 0xfff);
     mContext.ctx.sp_ctx.contalpa = planeAlpha;
@@ -303,11 +289,9 @@ void AnnRGBPlane::setFramebufferTarget(uint32_t handle)
     mContext.ctx.prim_ctx.index = mIndex;
     mContext.ctx.prim_ctx.pipe = mDevice;
     mContext.ctx.prim_ctx.linoff = 0;
-    mContext.ctx.prim_ctx.rotate_linoff = mPosition.h * stride;
     mContext.ctx.prim_ctx.stride = stride;
     mContext.ctx.prim_ctx.tileoff = 0;
     mContext.ctx.prim_ctx.pos = 0;
-    mContext.ctx.prim_ctx.rotate_pos = 0;
     mContext.ctx.prim_ctx.size =
         ((mPosition.h - 1) & 0xfff) << 16 | ((mPosition.w - 1) & 0xfff);
     mContext.ctx.prim_ctx.surf = 0;
