@@ -25,49 +25,33 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
+#ifndef HWC_UTILS_H
+#define HWC_UTILS_H
 
-#include <HotplugEventObserver.h>
-#include <ExternalDevice.h>
 
 namespace android {
 namespace intel {
 
-HotplugEventObserver::HotplugEventObserver(ExternalDevice& disp,
-                                              IHotplugControl& hotplug)
-    : mDisplayDevice(disp),
-      mHotplug(hotplug)
-{
-    LOGD("HotplugEventObserver");
-}
+#if 1 //LOG_NDEBUG
+#define INIT_CHECK() \
+    if (false == mInitialized) { \
+        LOGE("Object is not initialized!  File: %s, line %d", __func__, __LINE__); \
+        __builtin_trap(); \
+        return false; \
+    }
+#else
+#define INIT_CHECK()   // INIT_CHECK will be stripped out of release build
+#endif
 
-HotplugEventObserver::~HotplugEventObserver()
-{
-    LOGD("~HotplugEventObserver");
-}
+#define DEINIT_AND_RETURN_FALSE(...) \
+    LOGE(__VA_ARGS__); \
+    deinitialize(); \
+    return false;
 
-bool HotplugEventObserver::threadLoop()
-{
-    int event;
 
-    // wait for hotplug event
-    if (mHotplug.wait(mDisplayDevice.getType(), event))
-        mDisplayDevice.onHotplug();
-
-    return true;
-}
-
-status_t HotplugEventObserver::readyToRun()
-{
-    LOGD("HotplugEventObserver::readyToRun");
-    return NO_ERROR;
-}
-
-void HotplugEventObserver::onFirstRef()
-{
-    LOGD("HotplugEventObserver::onFirstRef");
-    run("HotplugEventObserver", PRIORITY_URGENT_DISPLAY);
-}
 
 } // namespace intel
 } // namespace android
+
+
+#endif /* HWC_UTILS_H */

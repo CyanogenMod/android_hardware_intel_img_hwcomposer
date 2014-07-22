@@ -25,70 +25,42 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <cutils/log.h>
+#ifndef EXTERNAL_DEVICE_H
+#define EXTERNAL_DEVICE_H
 
+#include <DisplayPlane.h>
+#include <IVsyncControl.h>
+#include <IBlankControl.h>
 #include <VsyncEventObserver.h>
+#include <HotplugEventObserver.h>
+#include <HwcLayerList.h>
 #include <PhysicalDevice.h>
 
 namespace android {
 namespace intel {
 
-VsyncEventObserver::VsyncEventObserver(PhysicalDevice& disp,
-                                          IVsyncControl& vsync)
-    : mDisplayDevice(disp),
-      mVsync(vsync),
-      mEnabled(0)
-{
-    LOGV("VsyncEventObserver()");
+
+class ExternalDevice : public PhysicalDevice {
+
+public:
+    ExternalDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm);
+    virtual ~ExternalDevice();
+public:
+    virtual bool initialize();
+
+protected:
+    virtual void onHotplug();
+    virtual void deinitialize();
+
+protected:
+    virtual IHotplugControl* createHotplugControl() = 0;
+protected:
+    IHotplugControl *mHotplugControl;
+    sp<HotplugEventObserver> mHotplugObserver;
+    friend class HotplugEventObserver;
+};
+
+}
 }
 
-VsyncEventObserver::~VsyncEventObserver()
-{
-
-}
-
-void VsyncEventObserver::control(int enabled)
-{
-    LOGV("control: enabled %s", enabled ? "True" : "False");
-
-    Mutex::Autolock _l(mLock);
-    mEnabled = enabled;
-    mCondition.signal();
-}
-
-bool VsyncEventObserver::threadLoop()
-{
-    { // scope for lock
-        Mutex::Autolock _l(mLock);
-        while (!mEnabled) {
-            mCondition.wait(mLock);
-        }
-    }
-
-    int64_t timestamp;
-    bool ret = mVsync.wait(mDisplayDevice.getType(), timestamp);
-
-    if (ret == false) {
-        LOGW("threadLoop: failed to wait for vsync, check vsync enabling...");
-        return true;
-    }
-
-    // notify device
-    mDisplayDevice.onVsync(timestamp);
-    return true;
-}
-
-status_t VsyncEventObserver::readyToRun()
-{
-    LOGV("VsyncEventObserver: readyToRun. disp %d", mDisplayDevice.getType());
-    return NO_ERROR;
-}
-
-void VsyncEventObserver::onFirstRef()
-{
-    LOGV("VsyncEventObserver: onFirstRef. disp %d", mDisplayDevice.getType());
-    run("VsyncEventObserver", PRIORITY_URGENT_DISPLAY);
-}
-
-} // namespace intel
-} // namesapce android
+#endif /* EXTERNAL_DEVICE_H */

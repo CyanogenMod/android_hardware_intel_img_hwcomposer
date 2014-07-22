@@ -30,7 +30,10 @@ LOCAL_SRC_FILES := \
     ../../common/base/HwcModule.cpp \
     ../../common/buffers/BufferCache.cpp \
     ../../common/buffers/BufferManager.cpp \
-    ../../common/devices/DisplayDevice.cpp \
+    ../../common/devices/PhysicalDevice.cpp \
+    ../../common/devices/PrimaryDevice.cpp \
+    ../../common/devices/ExternalDevice.cpp \
+    ../../common/devices/VirtualDevice.cpp \
     ../../common/observers/HotplugEventObserver.cpp \
     ../../common/observers/VsyncEventObserver.cpp \
     ../../common/planes/DisplayPlane.cpp \
@@ -62,7 +65,9 @@ LOCAL_SRC_FILES += \
 
 LOCAL_SRC_FILES += \
     PlatfBufferManager.cpp \
-    PlatfDisplayDevice.cpp \
+    PlatfPrimaryDevice.cpp \
+    PlatfExternalDevice.cpp \
+    PlatfVirtualDevice.cpp \
     PlatfDisplayPlaneManager.cpp \
     PlatfHwcomposer.cpp
 

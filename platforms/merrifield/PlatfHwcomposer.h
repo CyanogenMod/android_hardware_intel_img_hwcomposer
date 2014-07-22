@@ -47,7 +47,7 @@ public:
 protected:
     DisplayPlaneManager* createDisplayPlaneManager();
     BufferManager* createBufferManager();
-    DisplayDevice* createDisplayDevice(int disp, DisplayPlaneManager& dpm);
+    IDisplayDevice* createDisplayDevice(int disp, DisplayPlaneManager& dpm);
     void* getContexts();
     bool commitContexts(void *context, int count);
 private:

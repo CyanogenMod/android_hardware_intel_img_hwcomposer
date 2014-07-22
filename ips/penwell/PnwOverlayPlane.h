@@ -31,7 +31,6 @@
 #include <utils/KeyedVector.h>
 #include <hal_public.h>
 #include <DisplayPlane.h>
-#include <DisplayDevice.h>
 #include <BufferMapper.h>
 #include <common/Wsbm.h>
 #include <common/OverlayPlaneBase.h>

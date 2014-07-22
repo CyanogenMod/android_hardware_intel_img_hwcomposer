@@ -140,10 +140,10 @@ bool OverlayPlaneBase::assignToDevice(int disp)
     }
 
     switch (disp) {
-    case DisplayDevice::DEVICE_EXTERNAL:
+    case IDisplayDevice::DEVICE_EXTERNAL:
         pipeConfig = (0x2 << 6);
         break;
-    case DisplayDevice::DEVICE_PRIMARY:
+    case IDisplayDevice::DEVICE_PRIMARY:
     default:
         pipeConfig = 0;
         break;

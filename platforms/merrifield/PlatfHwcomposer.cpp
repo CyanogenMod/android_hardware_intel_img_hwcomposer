@@ -31,7 +31,11 @@
 #include <PlatfHwcomposer.h>
 #include <PlatfDisplayPlaneManager.h>
 #include <PlatfBufferManager.h>
-#include <PlatfDisplayDevice.h>
+#include <IDisplayDevice.h>
+#include <PlatfPrimaryDevice.h>
+#include <PlatfExternalDevice.h>
+#include <PlatfVirtualDevice.h>
+
 
 namespace android {
 namespace intel {
@@ -137,12 +141,22 @@ BufferManager* PlatfHwcomposer::createBufferManager()
     return (new PlatfBufferManager());
 }
 
-DisplayDevice* PlatfHwcomposer::createDisplayDevice(int disp,
+IDisplayDevice* PlatfHwcomposer::createDisplayDevice(int disp,
                                                      DisplayPlaneManager& dpm)
 {
     LOGV("PlatfHwcomposer::createDisplayDevice");
 
-    return (new PlatfDisplayDevice(disp, *this, dpm));
+    switch (disp) {
+        case IDisplayDevice::DEVICE_PRIMARY:
+            return new PlatfPrimaryDevice(*this, dpm);
+        case IDisplayDevice::DEVICE_EXTERNAL:
+            return new PlatfExternalDevice(*this, dpm);
+        case IDisplayDevice::DEVICE_VIRTUAL:
+            return new PlatfVirtualDevice(*this, dpm);
+        default:
+            LOGE("%s: Invalid display device %d", __func__, disp);
+            return NULL;
+    }
 }
 
 Hwcomposer* Hwcomposer::createHwcomposer()
