@@ -52,12 +52,17 @@ bool PlaneCapabilities::isFormatSupported(int planeType, uint32_t format, uint32
     } else if (planeType == DisplayPlane::PLANE_OVERLAY) {
         switch (format) {
         case HAL_PIXEL_FORMAT_YV12:
-            return trans ? false : true;
         case HAL_PIXEL_FORMAT_I420:
-        case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:
-        case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled:
+        case HAL_PIXEL_FORMAT_NV12:
         case HAL_PIXEL_FORMAT_YUY2:
         case HAL_PIXEL_FORMAT_UYVY:
+            // TODO: overlay supports 180 degree rotation
+            if (trans == HAL_TRANSFORM_ROT_180) {
+                WTRACE("180 degree rotation is not supported yet");
+            }
+            return trans ? false : true;
+        case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:
+        case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled:
             return true;
         default:
             VTRACE("unsupported format %#x", format);

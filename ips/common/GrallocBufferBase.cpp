@@ -73,6 +73,12 @@ void GrallocBufferBase::initStride()
         mStride.yuv.yStride = yStride;
         mStride.yuv.uvStride = uvStride;
         break;
+    case HAL_PIXEL_FORMAT_NV12:
+        yStride = align_to(align_to(mWidth, 32), 64);
+        uvStride = yStride;
+        mStride.yuv.yStride = yStride;
+        mStride.yuv.uvStride = uvStride;
+        break;
     case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:
     case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled:
         yStride = align_to(align_to(mWidth, 32), 64);
