@@ -422,13 +422,6 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
         mapper = reinterpret_cast<TTMBufferMapper *>(mTTMBuffers.valueAt(index));
     }
 
-    // sync rotated data buffer.
-    // Well, I have to, video driver DOESN'T support sync this buffer
-    ret = mapper->waitIdle();
-    if (ret == false) {
-        WTRACE("failed to wait for idle");
-    }
-
     XTRACE();
 
     return mapper;
