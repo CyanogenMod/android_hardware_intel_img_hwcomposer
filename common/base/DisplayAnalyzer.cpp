@@ -48,6 +48,7 @@ DisplayAnalyzer::DisplayAnalyzer()
       mBlankDevice(false),
       mOverlayAllowed(true),
       mActiveInputState(true),
+      mIgnoreVideoSkipFlag(false),
       mCachedNumDisplays(0),
       mCachedDisplays(0),
       mPendingEvents(),
@@ -72,6 +73,7 @@ bool DisplayAnalyzer::initialize()
     mBlankDevice = false;
     mOverlayAllowed = true;
     mActiveInputState = true;
+    mIgnoreVideoSkipFlag = false;
     mCachedNumDisplays = 0;
     mCachedDisplays = 0;
     mPendingEvents.clear();
@@ -419,6 +421,9 @@ void DisplayAnalyzer::handlePendingEvents()
     case IDLE_EXIT_EVENT:
         handleIdleExitEvent();
         break;
+    case VIDEO_CHECK_EVENT:
+        handleVideoCheckEvent();
+        break;
     }
 }
 
@@ -545,6 +550,8 @@ void DisplayAnalyzer::handleVideoEvent(int instanceID, int state)
     // Setting timing immediately,
     // Don't posthone to next circle
     handleTimingEvent();
+
+    handleVideoCheckEvent();
 }
 
 void DisplayAnalyzer::blankSecondaryDevice()
@@ -687,6 +694,53 @@ void DisplayAnalyzer::handleIdleExitEvent()
     setCompositionType(0, HWC_FRAMEBUFFER, true);
 }
 
+void DisplayAnalyzer::handleVideoCheckEvent()
+{
+    // check if the first seen video layer on secondary device (HDMI/WFD) is marked as skipped
+    // it is assumed video is always skipped if the first seen video layer is skipped
+    // this is to workaround secure video layer transmitted over non secure output
+    // and HWC_SKIP_LAYER set during rotation animation.
+    mIgnoreVideoSkipFlag = false;
+
+    if (mVideoStateMap.size() != 1 ||
+        mCachedNumDisplays <= 1) {
+        return;
+    }
+
+    uint32_t videoHandles[mCachedNumDisplays];
+    for (int i = 0; i < (int)mCachedNumDisplays; i++) {
+        videoHandles[i] = 0;
+        hwc_display_contents_1_t *content = mCachedDisplays[i];
+        if (content == NULL) {
+            continue;
+        }
+        for (int j = 0; j < (int)content->numHwLayers - 1; j++) {
+            if (isVideoLayer(content->hwLayers[j])) {
+                videoHandles[i] = (uint32_t)content->hwLayers[j].handle;
+                if (i > 0) {
+                    if (videoHandles[i] == videoHandles[0]) {
+                        mIgnoreVideoSkipFlag = !(content->hwLayers[j].flags & HWC_SKIP_LAYER);
+                        ITRACE("Ignoring video HWC_SKIP_LAYER: %d on output %d", mIgnoreVideoSkipFlag, i);
+                    }
+                    return;
+                }
+                break;
+            }
+        }
+    }
+
+    if (videoHandles[0]) {
+        WTRACE("Video is on the primary panel only");
+        return;
+    }
+
+    // video state map indicates video session is active and there is secondary
+    // display, need to continue checking as video is not found in the buffers yet
+    Event e;
+    e.type = VIDEO_CHECK_EVENT;
+    postEvent(e);
+}
+
 void DisplayAnalyzer::enterVideoExtMode()
 {
     if (mVideoExtModeActive) {
@@ -794,6 +848,11 @@ bool DisplayAnalyzer::isProtectedLayer(hwc_layer_1_t &layer)
         bm->unlockDataBuffer(buffer);
     }
     return ret;
+}
+
+bool DisplayAnalyzer::ignoreVideoSkipFlag()
+{
+    return mIgnoreVideoSkipFlag;
 }
 
 void DisplayAnalyzer::setCompositionType(hwc_display_contents_1_t *display, int type)
