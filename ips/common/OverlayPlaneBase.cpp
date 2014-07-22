@@ -163,13 +163,15 @@ bool OverlayPlaneBase::reset()
     resetBackBuffer();
 
     // flush
-    flush(FLUSH_NEEDED);
+    flush(PLANE_DISABLE);
     return true;
 }
 
 bool OverlayPlaneBase::enable()
 {
     RETURN_FALSE_IF_NOT_INIT();
+
+    DTRACE("enter");
 
     OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
     if (!backBuffer)
@@ -181,14 +183,14 @@ bool OverlayPlaneBase::enable()
     backBuffer->OCMD |= 0x1;
 
     // flush
-    flush(FLUSH_NEEDED);
+    flush(PLANE_ENABLE);
     return true;
 }
 
 bool OverlayPlaneBase::disable()
 {
     RETURN_FALSE_IF_NOT_INIT();
-
+    DTRACE("enter");
     OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
     if (!backBuffer)
         return false;
@@ -199,40 +201,35 @@ bool OverlayPlaneBase::disable()
     backBuffer->OCMD &= ~0x1;
 
     // flush
-    flush(FLUSH_NEEDED | WAIT_VBLANK);
+    flush(PLANE_DISABLE);
     return true;
 }
 
 
 bool OverlayPlaneBase::flush(uint32_t flags)
 {
-    Drm *drm = Hwcomposer::getInstance().getDrm();
     RETURN_FALSE_IF_NOT_INIT();
-    ATRACE("flags = %#x", flags);
+    ATRACE("flags = %#x, type = %d, index = %d", flags, mType, mIndex);
 
-    if (!drm) {
-        ETRACE("failed to get drm");
-        return false;
-    }
-
-    if (!flags && !(flags & FLUSH_NEEDED))
+    if (!(flags & PLANE_ENABLE) && !(flags & PLANE_DISABLE))
         return false;
 
     struct drm_psb_register_rw_arg arg;
-
     memset(&arg, 0, sizeof(struct drm_psb_register_rw_arg));
-    arg.overlay_write_mask = 1;
-    arg.overlay_read_mask = 0;
-    arg.overlay.b_wms = 0;
-    arg.overlay.b_wait_vblank = (flags & WAIT_VBLANK) ? 1 : 0;
-    arg.overlay.OVADD = (mBackBuffer->gttOffsetInPage << 12);
 
+    if (flags & PLANE_DISABLE)
+        arg.plane_disable_mask = 1;
+    else if (flags & PLANE_ENABLE)
+        arg.plane_enable_mask = 1;
+
+    arg.plane.type = mType;
+    arg.plane.index = mIndex;
+    arg.plane.ctx = (mBackBuffer->gttOffsetInPage << 12);
     // pipe select
-    arg.overlay.OVADD |= mPipeConfig;
-    if (flags & UPDATE_COEF)
-        arg.overlay.OVADD |= 1;
+    arg.plane.ctx |= mPipeConfig;
 
     // issue ioctl
+    Drm *drm = Hwcomposer::getInstance().getDrm();
     bool ret = drm->writeReadIoctl(DRM_PSB_REGISTER_RW, &arg, sizeof(arg));
     if (ret == false) {
         WTRACE("overlay update failed with error code %d", ret);
@@ -403,7 +400,8 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
         case HAL_PIXEL_FORMAT_YV12:
         case HAL_PIXEL_FORMAT_I420:
             uint32_t yStride_align;
-            if (yStride_align = DisplayQuery::getOverlayLumaStrideAlignment(grallocMapper.getFormat()))
+            yStride_align = DisplayQuery::getOverlayLumaStrideAlignment(grallocMapper.getFormat());
+            if (yStride_align > 0)
             {
                 yStride = align_to(align_to(w, 32), yStride_align);
             }
@@ -526,31 +524,12 @@ bool OverlayPlaneBase::rotatedBufferReady(BufferMapper& mapper)
 
 void OverlayPlaneBase::checkPosition(int& x, int& y, int& w, int& h)
 {
-    struct Output *output;
-    drmModeModeInfoPtr mode;
-    drmModeCrtcPtr drmCrtc;
     Drm *drm = Hwcomposer::getInstance().getDrm();
-
-    if (!drm) {
-        ETRACE("failed to get drm");
+    drmModeModeInfoPtr mode = drm->getModeInfo(mDevice);
+    if (!mode) {
+        ETRACE("invalid mode");
         return;
     }
-
-    // get output
-    output = drm->getOutput(mDevice);
-    if (!output) {
-        ETRACE("failed to get output");
-        return;
-    }
-
-    drmCrtc = output->crtc;
-    if (!drmCrtc)
-        return;
-
-    mode = &drmCrtc->mode;
-    if (!drmCrtc->mode_valid || !mode->hdisplay || !mode->vdisplay)
-        return;
-
 
     if (Hwcomposer::getInstance().getDisplayAnalyzer()->checkVideoExtendedMode() &&
         mDevice == IDisplayDevice::DEVICE_EXTERNAL) {
@@ -1085,6 +1064,7 @@ bool OverlayPlaneBase::setDataBuffer(BufferMapper& grallocMapper)
     }
 
     backBuffer->OCMD |= 0x1;
+
     return true;
 }
 

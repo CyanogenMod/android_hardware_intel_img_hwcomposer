@@ -54,9 +54,10 @@ public:
     virtual void* getContext() const = 0;
 protected:
     virtual bool setDataBuffer(BufferMapper& mapper) = 0;
-    virtual void checkPosition(int& x, int& y, int& w, int& h);
+    virtual bool enablePlane(bool enabled);
 protected:
     bool mForceBottom;
+    bool mAbovePrimary;
 };
 
 } // namespace intel

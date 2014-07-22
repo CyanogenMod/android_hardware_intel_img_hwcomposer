@@ -36,7 +36,8 @@ namespace intel {
 
 SpritePlaneBase::SpritePlaneBase(int index, int disp)
     : DisplayPlane(index, PLANE_SPRITE, disp),
-      mForceBottom(true)
+      mForceBottom(false),
+      mAbovePrimary(true)
 {
     CTRACE();
 }
@@ -44,11 +45,6 @@ SpritePlaneBase::SpritePlaneBase(int index, int disp)
 SpritePlaneBase::~SpritePlaneBase()
 {
     CTRACE();
-}
-
-void SpritePlaneBase::checkPosition(int& x, int& y, int& w, int& h)
-{
-
 }
 
 bool SpritePlaneBase::reset()
@@ -60,19 +56,17 @@ bool SpritePlaneBase::reset()
 bool SpritePlaneBase::flip()
 {
     CTRACE();
-    return true;
+    return DisplayPlane::flip();
 }
 
 bool SpritePlaneBase::enable()
 {
-    CTRACE();
-    return true;
+    return enablePlane(true);
 }
 
 bool SpritePlaneBase::disable()
 {
-    CTRACE();
-    return true;
+    return enablePlane(false);
 }
 
 void SpritePlaneBase::setZOrderConfig(ZOrderConfig& config)
@@ -83,6 +77,34 @@ void SpritePlaneBase::setZOrderConfig(ZOrderConfig& config)
         mForceBottom = false;
     else
         mForceBottom = true;
+}
+
+bool SpritePlaneBase::enablePlane(bool enabled)
+{
+    RETURN_FALSE_IF_NOT_INIT();
+    DTRACE();
+
+    struct drm_psb_register_rw_arg arg;
+    memset(&arg, 0, sizeof(struct drm_psb_register_rw_arg));
+    if (enabled) {
+        arg.plane_enable_mask = 1;
+    } else {
+        arg.plane_disable_mask = 1;
+    }
+    arg.plane.type = mType;
+    arg.plane.index = mIndex;
+    arg.plane.ctx = 0;
+
+    // issue ioctl
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+    bool ret = drm->writeReadIoctl(DRM_PSB_REGISTER_RW, &arg, sizeof(arg));
+    if (ret == false) {
+        WTRACE("sprite enabling (%d) failed with error code %d", enabled, ret);
+        return false;
+    }
+
+    return true;
+
 }
 
 } // namespace intel

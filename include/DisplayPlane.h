@@ -105,8 +105,9 @@ public:
     virtual bool assignToDevice(int disp);
 
     // hardware operations
+    virtual bool flip();
+
     virtual bool reset() = 0;
-    virtual bool flip() = 0;
     virtual bool enable() = 0;
     virtual bool disable() = 0;
 
@@ -119,6 +120,7 @@ public:
 protected:
     virtual void deinitialize();
 protected:
+    virtual void checkPosition(int& x, int& y, int& w, int& h);
     virtual bool setDataBuffer(BufferMapper& mapper) = 0;
 protected:
     int mIndex;
@@ -130,6 +132,8 @@ protected:
     crop_t mSrcCrop;
     bool mIsProtectedBuffer;
     int mTransform;
+    uint32_t mCurrentDataBuffer;
+    uint32_t mNextDataBuffer;
 };
 
 } // namespace intel
