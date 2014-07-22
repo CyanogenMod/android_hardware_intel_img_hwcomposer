@@ -617,6 +617,10 @@ void HwcLayerList::assignPlanes()
         // attach plane
         HwcLayer *hwcLayer = mOverlayCandidates.itemAt(idx);
         DisplayPlane *plane = mDisplayPlaneManager.getOverlayPlane(mDisplayIndex);
+        if (!plane) {
+            WTRACE("failed to get overlay plane for display %d", mDisplayIndex);
+            break;
+        }
         if (!hwcLayer->attachPlane(plane, mDisplayIndex)) {
             WTRACE("failed to attach plane");
             mDisplayPlaneManager.reclaimPlane(*plane);
