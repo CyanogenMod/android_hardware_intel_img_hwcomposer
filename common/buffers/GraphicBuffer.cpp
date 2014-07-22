@@ -67,7 +67,7 @@ bool GraphicBuffer::isCompressionUsage(uint32_t usage)
         return false;
     }
 
-    return (usage & GRALLOC_USAGE_COMPRESSION) != 0;
+    return false;
 }
 
 bool GraphicBuffer::isCompressionBuffer(GraphicBuffer *buffer)
