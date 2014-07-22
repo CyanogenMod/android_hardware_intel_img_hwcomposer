@@ -236,8 +236,19 @@ bool PlaneCapabilities::isTransformSupported(int planeType, HwcLayer *hwcLayer)
 {
     uint32_t trans = hwcLayer->getLayer()->transform;
 
-    if (planeType == DisplayPlane::PLANE_OVERLAY)
-        return true;
+    if (planeType == DisplayPlane::PLANE_OVERLAY) {
+        // overlay does not support FLIP_H/FLIP_V
+        switch (trans) {
+        case DisplayPlane::PLANE_TRANSFORM_0:
+        case DisplayPlane::PLANE_TRANSFORM_90:
+        case DisplayPlane::PLANE_TRANSFORM_180:
+        case DisplayPlane::PLANE_TRANSFORM_270:
+            return true;
+        default:
+            return false;
+        }
+    }
+
     // don't transform any tranform
     return trans ? false : true;
 }
