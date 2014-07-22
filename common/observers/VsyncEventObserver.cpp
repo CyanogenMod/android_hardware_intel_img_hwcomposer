@@ -103,13 +103,13 @@ bool VsyncEventObserver::control(bool enabled)
         return true;
     }
 
+    Mutex::Autolock _l(mLock);
     bool ret = mVsyncControl->control(mDevice, enabled);
     if (!ret) {
         ETRACE("failed to control (%d) vsync on display %d", enabled, mDevice);
         return false;
     }
 
-    Mutex::Autolock _l(mLock);
     mEnabled = enabled;
     mCondition.signal();
     return true;
@@ -117,7 +117,7 @@ bool VsyncEventObserver::control(bool enabled)
 
 bool VsyncEventObserver::threadLoop()
 {
-     do {
+    do {
         // scope for lock
         Mutex::Autolock _l(mLock);
         while (!mEnabled) {
@@ -129,15 +129,18 @@ bool VsyncEventObserver::threadLoop()
         }
     } while (0);
 
-    int64_t timestamp;
-    bool ret = mVsyncControl->wait(mDevice, timestamp);
+    if(mEnabled){
+        int64_t timestamp;
+        bool ret = mVsyncControl->wait(mDevice, timestamp);
+        if (ret == false) {
+            WTRACE("failed to wait for vsync on display %d, vsync enabled %d", mDevice, mEnabled);
+            return true;
+        }
 
-    if (ret == false) {
-        WTRACE("failed to wait for vsync on display %d, vsync enabled %d", mDevice, mEnabled);
+        // notify device
+        mDisplayDevice.onVsync(timestamp);
     }
 
-    // notify device
-    mDisplayDevice.onVsync(timestamp);
     return true;
 }
 
