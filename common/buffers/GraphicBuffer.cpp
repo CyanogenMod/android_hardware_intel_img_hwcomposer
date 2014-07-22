@@ -61,6 +61,24 @@ bool GraphicBuffer::isProtectedBuffer(GraphicBuffer *buffer)
     return isProtectedUsage(buffer->mUsage);
 }
 
+bool GraphicBuffer::isCompressionUsage(uint32_t usage)
+{
+    if (usage == USAGE_INVALID) {
+        return false;
+    }
+
+    return (usage & GRALLOC_USAGE_COMPRESSION) != 0;
+}
+
+bool GraphicBuffer::isCompressionBuffer(GraphicBuffer *buffer)
+{
+    if (buffer == NULL) {
+        return false;
+    }
+
+    return isCompressionUsage(buffer->mUsage);
+}
+
 void GraphicBuffer::initBuffer(uint32_t handle)
 {
     mUsage = USAGE_INVALID;
