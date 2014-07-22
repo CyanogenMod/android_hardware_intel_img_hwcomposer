@@ -46,6 +46,7 @@ protected:
     IPrepareListener* createPrepareListener();
     IHotplugControl* createHotplugControl();
     IHdcpControl* createHdcpControl();
+    virtual void setRefreshRate(int hz) {};
 };
 
 }
