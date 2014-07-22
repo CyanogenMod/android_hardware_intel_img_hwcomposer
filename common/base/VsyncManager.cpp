@@ -163,6 +163,7 @@ int VsyncManager::getCandidate()
         return IDisplayDevice::DEVICE_EXTERNAL;
     }
 
+#ifdef INTEL_WIDI_MERRIFIELD
     // use vsync from virtual display when video extended mode is entered
     if (Hwcomposer::getInstance().getDisplayAnalyzer()->isVideoExtModeActive()) {
         device = mDevices.itemAt(IDisplayDevice::DEVICE_VIRTUAL);
@@ -171,6 +172,7 @@ int VsyncManager::getCandidate()
         }
         WTRACE("Could not use vsync from secondary device");
     }
+#endif
     return IDisplayDevice::DEVICE_PRIMARY;
 }
 
