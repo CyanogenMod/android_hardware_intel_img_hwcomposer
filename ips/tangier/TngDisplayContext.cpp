@@ -128,7 +128,7 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
               " sourceCrop %d,%d - %dx%d, dst %d,%d - %dx%d, custom 0x%x",
               __func__,
               mCount,
-              imgLayer->handle,
+              (uint32_t)imgLayer->handle,
               imgLayer->transform,
               imgLayer->blending,
               imgLayer->sourceCrop.left,

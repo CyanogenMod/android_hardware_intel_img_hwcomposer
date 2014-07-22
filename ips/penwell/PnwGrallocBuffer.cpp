@@ -41,7 +41,7 @@ PnwGrallocBuffer::PnwGrallocBuffer(uint32_t handle)
     LOGV("PnwGrallocBuffer");
 
     if (!grallocHandle)
-        return false;
+        return;
 
     mFormat = grallocHandle->format;
     mWidth = grallocHandle->width;

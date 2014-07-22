@@ -71,9 +71,7 @@ bool DisplayPlane::initialize(uint32_t bufferCount)
 
 void DisplayPlane::deinitialize()
 {
-    // reset plane & invalid buffer cache
-    reset();
-
+    // invalid buffer cache
     invalidateBufferCache();
 
     mInitialized = false;
@@ -82,11 +80,6 @@ void DisplayPlane::deinitialize()
 void DisplayPlane::setPosition(int x, int y, int w, int h)
 {
     LOGV("DisplayPlane::setPosition: %d, %d - %dx%d", x, y, w, h);
-
-    if (!initCheck()) {
-        LOGE("DisplayPlane::setPosition: plane hasn't been initialized");
-        return;
-    }
 
     mPosition.x = x;
     mPosition.y = y;
@@ -98,11 +91,6 @@ void DisplayPlane::setSourceCrop(int x, int y, int w, int h)
 {
     LOGV("setSourceCrop: %d, %d - %dx%d", x, y, w, h);
 
-    if (!initCheck()) {
-        LOGE("DisplayPlane::setSourceCrop: plane hasn't been initialized");
-        return;
-    }
-
     mSrcCrop.x = x;
     mSrcCrop.y = y;
     mSrcCrop.w = w;
@@ -112,11 +100,6 @@ void DisplayPlane::setSourceCrop(int x, int y, int w, int h)
 void DisplayPlane::setTransform(int trans)
 {
     LOGV("DisplayPlane::setTransform: %d", trans);
-
-    if (!initCheck()) {
-        LOGE("DisplayPlane::setTransform: plane hasn't been initialized");
-        return;
-    }
 
     switch (trans) {
     case PLANE_TRANSFORM_90:

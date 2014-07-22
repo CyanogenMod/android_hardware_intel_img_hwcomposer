@@ -58,7 +58,7 @@ bool BufferManager::initialize()
     LOGV("BufferManager::initialize");
 
     // create buffer pool
-    mBufferPool = new BufferCache(defaultBufferPoolSize);
+    mBufferPool = new BufferCache(DEFAULT_BUFFER_POOL_SIZE);
     if (!mBufferPool) {
         LOGE("failed to create gralloc buffer cache\n");
         return false;
