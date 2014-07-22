@@ -33,7 +33,6 @@
 #include <IBlankControl.h>
 #include <IPrepareListener.h>
 #include <VsyncEventObserver.h>
-#include <HotplugEventObserver.h>
 #include <HwcLayerList.h>
 #include <Drm.h>
 #include <IDisplayDevice.h>

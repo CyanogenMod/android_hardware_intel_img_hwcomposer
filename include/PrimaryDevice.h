@@ -32,7 +32,6 @@
 #include <IVsyncControl.h>
 #include <IBlankControl.h>
 #include <VsyncEventObserver.h>
-#include <HotplugEventObserver.h>
 #include <HwcLayerList.h>
 #include <PhysicalDevice.h>
 
@@ -45,11 +44,17 @@ public:
     PrimaryDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm);
     virtual ~PrimaryDevice();
 public:
+    virtual bool initialize();
+    virtual void deinitialize();
 
+    bool blank(bool blank);
 protected:
     virtual IVsyncControl* createVsyncControl() = 0;
     virtual IBlankControl* createBlankControl() = 0;
 
+private:
+    static void repeatedFrameEventListener(void *data);
+    void repeatedFrameListener();
 };
 
 }

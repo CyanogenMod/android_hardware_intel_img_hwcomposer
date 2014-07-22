@@ -28,7 +28,6 @@
 #ifndef EXTERNAL_DEVICE_H
 #define EXTERNAL_DEVICE_H
 
-#include <HotplugEventObserver.h>
 #include <PhysicalDevice.h>
 #include <IHdcpControl.h>
 #include <SimpleThread.h>
@@ -48,22 +47,20 @@ public:
     virtual bool setDrmMode(drmModeModeInfo& value);
     virtual void setRefreshRate(int hz);
 
-protected:
-    virtual void onHotplug();
-
 private:
     static void HdcpLinkStatusListener(bool success, void *userData);
     void HdcpLinkStatusListener(bool success);
     void setDrmMode();
 
 protected:
-    virtual IHotplugControl* createHotplugControl() = 0;
     virtual IHdcpControl* createHdcpControl() = 0;
 
 protected:
     IHdcpControl *mHdcpControl;
-    HotplugEventObserver *mHotplugObserver;
-    friend class HotplugEventObserver;
+
+private:
+    static void hotplugEventListener(void *data);
+    void hotplugListener();
 
 private:
     Condition mAbortModeSettingCond;

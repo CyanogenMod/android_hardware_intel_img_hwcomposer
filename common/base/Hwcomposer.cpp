@@ -28,6 +28,7 @@
 #include <HwcTrace.h>
 #include <Hwcomposer.h>
 #include <Dump.h>
+#include <UeventObserver.h>
 
 namespace android {
 namespace intel {
@@ -43,6 +44,8 @@ Hwcomposer::Hwcomposer()
       mDisplayContext(0),
       mVsyncManager(0),
       mMultiDisplayObserver(0),
+      mUeventObserver(0),
+      mPowerManager(0),
       mInitialized(false)
 {
     CTRACE();
@@ -343,6 +346,16 @@ bool Hwcomposer::initialize()
         DEINIT_AND_RETURN_FALSE("failed to create display context");
     }
 
+    mPowerManager = createPowerManager();
+    if (!mPowerManager || !mPowerManager->initialize()) {
+        DEINIT_AND_RETURN_FALSE("failed to initialize power manager");
+    }
+
+    mUeventObserver = new UeventObserver();
+    if (!mUeventObserver || !mUeventObserver->initialize()) {
+        DEINIT_AND_RETURN_FALSE("failed to initialize uevent observer");
+    }
+
     // create display device
     for (int i = 0; i < IDisplayDevice::DEVICE_COUNT; i++) {
         IDisplayDevice *device = createDisplayDevice(i, *mPlaneManager);
@@ -369,6 +382,9 @@ bool Hwcomposer::initialize()
         DEINIT_AND_RETURN_FALSE("failed to initialize display observer");
     }
 
+    // all initialized, starting uevent observer
+    mUeventObserver->start();
+
     mInitialized = true;
     return true;
 }
@@ -377,10 +393,10 @@ void Hwcomposer::deinitialize()
 {
     DEINIT_AND_DELETE_OBJ(mMultiDisplayObserver);
     DEINIT_AND_DELETE_OBJ(mDisplayAnalyzer);
-
     // delete mVsyncManager first as it holds reference to display devices.
     DEINIT_AND_DELETE_OBJ(mVsyncManager);
 
+    DEINIT_AND_DELETE_OBJ(mUeventObserver);
     // destroy display devices
     for (size_t i = 0; i < mDisplayDevices.size(); i++) {
         IDisplayDevice *device = mDisplayDevices.itemAt(i);
@@ -388,6 +404,7 @@ void Hwcomposer::deinitialize()
     }
     mDisplayDevices.clear();
 
+    DEINIT_AND_DELETE_OBJ(mPowerManager);
     DEINIT_AND_DELETE_OBJ(mDisplayContext);
     DEINIT_AND_DELETE_OBJ(mPlaneManager);
     DEINIT_AND_DELETE_OBJ(mBufferManager);
@@ -437,6 +454,16 @@ IDisplayDevice* Hwcomposer::getDisplayDevice(int disp)
 VsyncManager* Hwcomposer::getVsyncManager()
 {
     return mVsyncManager;
+}
+
+UeventObserver* Hwcomposer::getUeventObserver()
+{
+    return mUeventObserver;
+}
+
+IPowerManager* Hwcomposer::getPowerManager()
+{
+    return mPowerManager;
 }
 
 } // namespace intel

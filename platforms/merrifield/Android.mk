@@ -38,7 +38,7 @@ LOCAL_SRC_FILES := \
     ../../common/devices/PrimaryDevice.cpp \
     ../../common/devices/ExternalDevice.cpp \
     ../../common/devices/VirtualDevice.cpp \
-    ../../common/observers/HotplugEventObserver.cpp \
+    ../../common/observers/UeventObserver.cpp \
     ../../common/observers/VsyncEventObserver.cpp \
     ../../common/observers/SoftVsyncObserver.cpp \
     ../../common/observers/MultiDisplayObserver.cpp \
@@ -49,7 +49,7 @@ LOCAL_SRC_FILES := \
 
 LOCAL_SRC_FILES += \
     ../../ips/common/BlankControl.cpp \
-    ../../ips/common/HotplugControl.cpp \
+    ../../ips/common/PowerManager.cpp \
     ../../ips/common/HdcpControl.cpp \
     ../../ips/common/DrmControl.cpp \
     ../../ips/common/VsyncControl.cpp \

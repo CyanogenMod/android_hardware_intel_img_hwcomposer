@@ -44,6 +44,7 @@ protected:
     BufferManager* createBufferManager();
     IDisplayDevice* createDisplayDevice(int disp, DisplayPlaneManager& dpm);
     IDisplayContext* createDisplayContext();
+    IPowerManager* createPowerManager();
 };
 
 } //namespace intel

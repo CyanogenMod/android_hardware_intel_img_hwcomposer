@@ -72,7 +72,7 @@ uint32_t DrmConfig::getFrameBufferBpp()
     return 32;
 }
 
-const char* DrmConfig::getHotplugEnvelope()
+const char* DrmConfig::getUeventEnvelope()
 {
     return "change@/devices/pci0000:00/0000:00:02.0/drm/card0";
 }
@@ -80,6 +80,11 @@ const char* DrmConfig::getHotplugEnvelope()
 const char* DrmConfig::getHotplugString()
 {
     return "HOTPLUG=1";
+}
+
+const char* DrmConfig::getRepeatedFrameString()
+{
+    return "REPEATED_FRAME";
 }
 
 } // namespace intel

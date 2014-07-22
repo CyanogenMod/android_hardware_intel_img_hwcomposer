@@ -40,6 +40,8 @@
 #include <DisplayAnalyzer.h>
 #include <VsyncManager.h>
 #include <MultiDisplayObserver.h>
+#include <UeventObserver.h>
+#include <IPowerManager.h>
 
 namespace android {
 namespace intel {
@@ -86,6 +88,8 @@ public:
     VsyncManager* getVsyncManager();
     MultiDisplayObserver* getMultiDisplayObserver();
     IDisplayDevice* getDisplayDevice(int disp);
+    UeventObserver* getUeventObserver();
+    IPowerManager* getPowerManager();
 
 protected:
     Hwcomposer();
@@ -111,6 +115,7 @@ protected:
     virtual IDisplayDevice* createDisplayDevice(int disp,
                                                  DisplayPlaneManager& dpm) = 0;
     virtual IDisplayContext* createDisplayContext() = 0;
+    virtual IPowerManager* createPowerManager() = 0;
 
 protected:
     hwc_procs_t const *mProcs;
@@ -122,6 +127,8 @@ protected:
     IDisplayContext *mDisplayContext;
     VsyncManager *mVsyncManager;
     MultiDisplayObserver *mMultiDisplayObserver;
+    UeventObserver *mUeventObserver;
+    IPowerManager *mPowerManager;
     bool mInitialized;
 private:
     static Hwcomposer *sInstance;

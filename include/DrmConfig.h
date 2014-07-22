@@ -39,8 +39,9 @@ public:
     static uint32_t getFrameBufferFormat();
     static uint32_t getFrameBufferDepth();
     static uint32_t getFrameBufferBpp();
-    static const char* getHotplugEnvelope();
+    static const char* getUeventEnvelope();
     static const char* getHotplugString();
+    static const char* getRepeatedFrameString();
 };
 
 } // namespace intel

@@ -25,36 +25,32 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef HOTPLUGEVENTOBSERVER_H_
-#define HOTPLUGEVENTOBSERVER_H_
-
-#include <IHotplugControl.h>
-#include <SimpleThread.h>
+#ifndef IPOWER_MANAGER_H
+#define IPOWER_MANAGER_H
 
 namespace android {
 namespace intel {
 
-class ExternalDevice;
-
-class HotplugEventObserver
-{
+class IPowerManager {
 public:
-    HotplugEventObserver(ExternalDevice& disp);
-    virtual ~HotplugEventObserver();
-    virtual bool initialize();
-    virtual void deinitialize();
+    virtual ~IPowerManager() {}
 
-private:
-    ExternalDevice& mDisplayDevice;
-    IHotplugControl *mHotplugControl;
-    bool mExitThread;
-    bool mInitialized;
+public:
+    virtual bool initialize() = 0;
+    virtual void deinitialize() = 0;
+    virtual bool isSupported() = 0;
+    virtual bool isEnabled() = 0;
+    virtual void enableIdleControl() = 0;
+    virtual void disableIdleControl() = 0;
+    virtual void enterIdleState() = 0;
+    virtual void exitIdleState() = 0;
+    virtual void setIdleReady() = 0;
+    virtual bool getIdleReady() = 0;
+    virtual void resetIdleControl() = 0;
 
-private:
-    DECLARE_THREAD(HotplugEventPollThread, HotplugEventObserver);
+}; //class IPowerManager
 
-}; // HotplugEventObserver
-}
-}
+} // intel
+} // android
 
-#endif /* HOTPLUGEVENTOBSERVER_H_ */
+#endif

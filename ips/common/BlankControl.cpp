@@ -29,6 +29,7 @@
 #include <HwcTrace.h>
 #include <Drm.h>
 #include <common/BlankControl.h>
+#include <Hwcomposer.h>
 
 namespace android {
 namespace intel {

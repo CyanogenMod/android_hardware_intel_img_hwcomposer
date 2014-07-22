@@ -340,6 +340,14 @@ void DisplayAnalyzer::postInputEvent(bool active)
     Hwcomposer::getInstance().invalidate();
 }
 
+void DisplayAnalyzer::postIdleEntryEvent(void)
+{
+    Event e;
+    e.type = IDLE_ENTRY_EVENT;
+    e.nValue = 0;
+    postEvent(e);
+}
+
 void DisplayAnalyzer::postEvent(Event& e)
 {
     Mutex::Autolock lock(mEventMutex);
@@ -385,11 +393,22 @@ void DisplayAnalyzer::handlePendingEvents()
     case DPMS_EVENT:
         handleDpmsEvent(e.nValue);
         break;
+    case IDLE_ENTRY_EVENT:
+        handleIdleEntryEvent(e.nValue);
+        break;
+    case IDLE_EXIT_EVENT:
+        handleIdleExitEvent();
+        break;
     }
 }
 
 void DisplayAnalyzer::handleHotplugEvent(bool connected)
 {
+    if (connected) {
+        Hwcomposer::getInstance().getPowerManager()->disableIdleControl();
+    } else if (mVideoStateMap.size() == 0) {
+        Hwcomposer::getInstance().getPowerManager()->enableIdleControl();
+    }
 }
 
 void DisplayAnalyzer::handleBlankEvent(bool blank)
@@ -490,6 +509,13 @@ void DisplayAnalyzer::handleVideoEvent(int instanceID, int state)
         // MDS should update input state in 5 seconds after video playback starts
         mActiveInputState = true;
     }
+
+    if (mVideoStateMap.size() > 0) {
+        hwc->getPowerManager()->disableIdleControl();
+    } else if (!hwc->getDrm()->isConnected(IDisplayDevice::DEVICE_EXTERNAL)) {
+         hwc->getPowerManager()->enableIdleControl();
+    }
+
     // delay changing timing as it is a lengthy operation
     if (state == VIDEO_PLAYBACK_STARTED ||
         state == VIDEO_PLAYBACK_STOPPED) {
@@ -572,6 +598,64 @@ void DisplayAnalyzer::handleDpmsEvent(int delayCount)
     Hwcomposer::getInstance().getDrm()->setDpmsMode(
         IDisplayDevice::DEVICE_PRIMARY,
         IDisplayDevice::DEVICE_DISPLAY_OFF);
+}
+
+
+void DisplayAnalyzer::handleIdleEntryEvent(int count)
+{
+    DTRACE("handling idle entry event, count %d", count);
+    if (hasProtectedLayer()) {
+        ITRACE("Ignoring idle entry as protected layer exists.");
+        setCompositionType(0, HWC_FRAMEBUFFER, true);
+        return;
+    }
+
+    // stop idle entry if external device is connected
+    if (mCachedDisplays && mCachedDisplays[IDisplayDevice::DEVICE_EXTERNAL]) {
+        ITRACE("Ignoring idle entry as external device is connected.");
+        setCompositionType(0, HWC_FRAMEBUFFER, true);
+        return;
+    }
+
+    // stop idle entry if video playback is active
+    // TODO: remove this check for Annidale
+    if (mVideoStateMap.size() > 0) {
+        ITRACE("Ignoring idle entry as video session is active.");
+        setCompositionType(0, HWC_FRAMEBUFFER, true);
+        return;
+    }
+
+    setCompositionType(0, HWC_FORCE_FRAMEBUFFER, true);
+
+    IPowerManager *pm = Hwcomposer::getInstance().getPowerManager();
+    if (count == 0) {
+        // ready to enter idel mode
+        pm->setIdleReady();
+    }
+
+    if (count >= DELAY_BEFORE_IDLE_ENTRY) {
+        pm->enterIdleState();
+        // next prepare/set will exit idle state.
+        Event e;
+        e.type = IDLE_EXIT_EVENT;
+        postEvent(e);
+    } else {
+        // invalidate surface flinger again
+        Event e;
+        e.type = IDLE_ENTRY_EVENT;
+        e.nValue = count + 1;
+        postEvent(e);
+        Hwcomposer::getInstance().invalidate();
+    }
+}
+
+void DisplayAnalyzer::handleIdleExitEvent()
+{
+    DTRACE("handling idle exit event");
+
+    IPowerManager *pm = Hwcomposer::getInstance().getPowerManager();
+    pm->exitIdleState();
+    setCompositionType(0, HWC_FRAMEBUFFER, true);
 }
 
 void DisplayAnalyzer::enterVideoExtMode()

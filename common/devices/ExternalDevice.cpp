@@ -28,6 +28,7 @@
 
 #include <HwcTrace.h>
 #include <Drm.h>
+#include <DrmConfig.h>
 #include <Hwcomposer.h>
 #include <ExternalDevice.h>
 
@@ -37,7 +38,6 @@ namespace intel {
 ExternalDevice::ExternalDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
     : PhysicalDevice(DEVICE_EXTERNAL, hwc, dpm),
       mHdcpControl(NULL),
-      mHotplugObserver(NULL),
       mAbortModeSettingCond(),
       mPendingDrmMode(),
       mHotplugEventPending(false)
@@ -66,10 +66,14 @@ bool ExternalDevice::initialize()
         mHdcpControl->startHdcpAsync(HdcpLinkStatusListener, this);
     }
 
-    // create hotplug observer
-    mHotplugObserver = new HotplugEventObserver(*this);
-    if (!mHotplugObserver || !mHotplugObserver->initialize()) {
-        DEINIT_AND_RETURN_FALSE("failed to create hotplug observer");
+    UeventObserver *observer = Hwcomposer::getInstance().getUeventObserver();
+    if (observer) {
+        observer->registerListener(
+            DrmConfig::getHotplugString(),
+            hotplugEventListener,
+            this);
+    } else {
+        ETRACE("Uevent observer is NULL");
     }
     return true;
 }
@@ -82,8 +86,6 @@ void ExternalDevice::deinitialize()
         mThread->join();
         mThread = NULL;
     }
-
-    DEINIT_AND_DELETE_OBJ(mHotplugObserver);
 
     if (mHdcpControl) {
         mHdcpControl->stopHdcp();
@@ -209,7 +211,15 @@ void ExternalDevice::HdcpLinkStatusListener(bool success)
     }
 }
 
-void ExternalDevice::onHotplug()
+void ExternalDevice::hotplugEventListener(void *data)
+{
+    ExternalDevice *pThis = (ExternalDevice*)data;
+    if (pThis) {
+        pThis->hotplugListener();
+    }
+}
+
+void ExternalDevice::hotplugListener()
 {
     bool ret;
 

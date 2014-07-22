@@ -23,36 +23,51 @@
  *
  * Authors:
  *    Jackie Li <yaodong.li@intel.com>
- *
  */
-#ifndef HOTPLUG_CONTROL_H
-#define HOTPLUG_CONTROL_H
+#ifndef UEVENT_OBSERVER_H
+#define UEVENT_OBSERVER_H
 
-#include <IHotplugControl.h>
+#include <utils/KeyedVector.h>
+#include <utils/String8.h>
+#include <SimpleThread.h>
 
 namespace android {
 namespace intel {
 
-class HotplugControl : public IHotplugControl {
-    enum {
-        UEVENT_MSG_LEN = 4096,
-    };
+typedef void (*UeventListenerFunc)(void *data);
+
+class UeventObserver
+{
 public:
-    HotplugControl();
-    virtual ~HotplugControl();
+    UeventObserver();
+    virtual ~UeventObserver();
 
 public:
     bool initialize();
     void deinitialize();
-    bool waitForEvent();
+    void start();
+    void registerListener(const char *event, UeventListenerFunc func, void *data);
+
 private:
-    bool isHotplugEvent(const char *msg, int msgLen);
+    DECLARE_THREAD(UeventObserverThread, UeventObserver);
+    void onUevent();
+
 private:
+    enum {
+        UEVENT_MSG_LEN = 4096,
+    };
+
     char mUeventMessage[UEVENT_MSG_LEN];
     int mUeventFd;
+    struct UeventListener {
+        UeventListenerFunc func;
+        void *data;
+    };
+    KeyedVector<String8, UeventListener*> mListeners;
 };
 
 } // namespace intel
 } // namespace android
 
-#endif /* HOTPLUG_CONTROL_H */
+#endif
+

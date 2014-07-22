@@ -48,6 +48,11 @@ enum {
     MAX_SPRITE_COUNT = 4,
 };
 
+enum {
+     // in version 1.3, HWC_FRAMEBUFFER_TARGET is defined as 3
+     HWC_FORCE_FRAMEBUFFER = 255,
+};
+
 class ZOrderConfig;
 
 class DisplayPlane {
