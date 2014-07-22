@@ -37,6 +37,8 @@
 #include <binder/ProcessState.h>
 #include <cutils/properties.h>
 
+#include <hal_public.h>
+
 #include <sync/sync.h>
 
 #define NUM_CSC_BUFFERS 6
@@ -907,6 +909,29 @@ bool VirtualDevice::vanillaPrepare(hwc_display_contents_1_t *display)
     return true;
 }
 
+void VirtualDevice::colorSwap(buffer_handle_t src, buffer_handle_t dest, uint32_t pixelCount)
+{
+    sp<CachedBuffer> srcCachedBuffer = getMappedBuffer((uint32_t)src);
+    if (srcCachedBuffer == NULL || srcCachedBuffer->mapper == NULL)
+        return;
+    sp<CachedBuffer> destCachedBuffer = getMappedBuffer((uint32_t)dest);
+    if (destCachedBuffer == NULL || destCachedBuffer->mapper == NULL)
+        return;
+    uint8_t* srcPtr = static_cast<uint8_t*>(srcCachedBuffer->mapper->getCpuAddress(0));
+    uint8_t* destPtr = static_cast<uint8_t*>(destCachedBuffer->mapper->getCpuAddress(0));
+    if (srcPtr == NULL || destPtr == NULL)
+        return;
+    while (pixelCount > 0) {
+        destPtr[0] = srcPtr[2];
+        destPtr[1] = srcPtr[1];
+        destPtr[2] = srcPtr[0];
+        destPtr[3] = srcPtr[3];
+        srcPtr += 4;
+        destPtr += 4;
+        pixelCount--;
+    }
+}
+
 bool VirtualDevice::vanillaCommit(hwc_display_contents_1_t *display)
 {
     if (mProtectedMode)
@@ -924,11 +949,22 @@ bool VirtualDevice::vanillaCommit(hwc_display_contents_1_t *display)
     uint32_t destHandle = (uint32_t) display->outbuf;
     if (srcHandle == 0 || destHandle == 0)
         return false;
-    if (!(mgr->convertRGBToNV12(srcHandle, destHandle, cropInfo, 0))) {
-        ETRACE("color space conversion from RGB to NV12 failed");
-        return false;
-    }
 
+    const IMG_native_handle_t* nativeSrcHandle = reinterpret_cast<const IMG_native_handle_t*>(layer.handle);
+    const IMG_native_handle_t* nativeDestHandle = reinterpret_cast<const IMG_native_handle_t*>(display->outbuf);
+
+    if ((nativeSrcHandle->iFormat == HAL_PIXEL_FORMAT_RGBA_8888 &&
+         nativeDestHandle->iFormat == HAL_PIXEL_FORMAT_BGRA_8888) ||
+        (nativeSrcHandle->iFormat == HAL_PIXEL_FORMAT_BGRA_8888 &&
+         nativeDestHandle->iFormat == HAL_PIXEL_FORMAT_RGBA_8888)) {
+        colorSwap(layer.handle, display->outbuf, nativeSrcHandle->iWidth*nativeSrcHandle->iHeight);
+    }
+    else {
+        if (!(mgr->convertRGBToNV12(srcHandle, destHandle, cropInfo, 0))) {
+            ETRACE("color space conversion from RGB to NV12 failed");
+            return false;
+        }
+    }
     return true;
 }
 
