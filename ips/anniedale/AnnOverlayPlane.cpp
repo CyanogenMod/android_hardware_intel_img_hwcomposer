@@ -530,47 +530,29 @@ void AnnOverlayPlane::setTransform(int transform)
 {
     RETURN_VOID_IF_NOT_INIT();
 
+    if (mPanelOrientation == PANEL_ORIENTATION_180)
+       transform ^=  HWC_TRANSFORM_ROT_180;
+
     DisplayPlane::setTransform(transform);
 
     // setup transform config
-    if (mPanelOrientation == PANEL_ORIENTATION_180) {
-        switch (mTransform) {
-        case HWC_TRANSFORM_ROT_90:
-            mRotationConfig = (0x3 << 10);
-            break;
-        case HWC_TRANSFORM_ROT_180:
-            mRotationConfig = 0;
-            break;
-        case HWC_TRANSFORM_ROT_270:
-            mRotationConfig = (0x1 << 10);
-            break;
-        case 0:
-            mRotationConfig = (0x2 << 10);
-            break;
-        default:
-            ETRACE("Invalid transform %d", mTransform);
-            mRotationConfig = (0x2 << 10);
-            break;
-        }
-    } else {
-        switch (mTransform) {
-        case HWC_TRANSFORM_ROT_90:
-            mRotationConfig = (0x1 << 10);
-            break;
-        case HWC_TRANSFORM_ROT_180:
-            mRotationConfig = (0x2 << 10);
-            break;
-        case HWC_TRANSFORM_ROT_270:
-            mRotationConfig = (0x3 << 10);
-            break;
-        case 0:
-            mRotationConfig = 0;
-            break;
-        default:
-            ETRACE("Invalid transform %d", mTransform);
-            mRotationConfig = 0;
-            break;
-        }
+    switch (mTransform) {
+    case HWC_TRANSFORM_ROT_90:
+        mRotationConfig = (0x1 << 10);
+        break;
+    case HWC_TRANSFORM_ROT_180:
+        mRotationConfig = (0x2 << 10);
+        break;
+    case HWC_TRANSFORM_ROT_270:
+        mRotationConfig = (0x3 << 10);
+        break;
+    case 0:
+        mRotationConfig = 0;
+        break;
+    default:
+        ETRACE("Invalid transform %d", mTransform);
+        mRotationConfig = 0;
+        break;
     }
 }
 
