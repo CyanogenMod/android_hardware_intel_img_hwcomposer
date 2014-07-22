@@ -51,7 +51,8 @@ DisplayAnalyzer::DisplayAnalyzer()
       mCachedNumDisplays(0),
       mCachedDisplays(0),
       mPendingEvents(),
-      mEventMutex()
+      mEventMutex(),
+      mEventHandledCondition()
 {
 }
 
@@ -310,6 +311,18 @@ void DisplayAnalyzer::postVideoEvent(bool preparing, bool playing)
     e.videoEvent.preparing = preparing;
     e.videoEvent.playing = playing;
     postEvent(e);
+    if (preparing) {
+        Hwcomposer::getInstance().invalidate();
+        Mutex::Autolock lock(mEventMutex);
+        // ideally overlay should be disabled in the surface flinger thread, if it is not processed
+        // in close to one vsync cycle (20ms)  it will be safely disabled in this thread context
+        // there is no threading issue
+        status_t err = mEventHandledCondition.waitRelative(mEventMutex, milliseconds(20));
+        if (err == -ETIMEDOUT) {
+            WTRACE("timeout waiting for event handling");
+            Hwcomposer::getInstance().getPlaneManager()->disableOverlayPlanes();
+        }
+    }
 }
 
 void DisplayAnalyzer::postBlankEvent(bool blank)
@@ -373,8 +386,6 @@ void DisplayAnalyzer::handleBlankEvent(bool blank)
 
 void DisplayAnalyzer::handleVideoEvent(bool preparing, bool playing)
 {
-// TODO: MDS needs to set MDS_VIDEO_PREPARED
-#if 0
     if (preparing != mVideoPreparing) {
         for (int i = 0; i < (int)mCachedNumDisplays; i++) {
             if (mCachedDisplays[i]) {
@@ -386,8 +397,11 @@ void DisplayAnalyzer::handleVideoEvent(bool preparing, bool playing)
         // scrambed RGB overlay if video is protected.
         mOverlayAllowed = !preparing;
     }
-#endif
     mVideoPlaying = playing;
+    if (preparing) {
+        Hwcomposer::getInstance().getPlaneManager()->disableOverlayPlanes();
+        mEventHandledCondition.signal();
+    }
 }
 
 void DisplayAnalyzer::blankSecondaryDevice()

@@ -45,7 +45,10 @@ PrepareListener::~PrepareListener()
 
 void PrepareListener::onProtectedLayerStart(int disp)
 {
-    ATRACE("disp = %d", disp);
+    WTRACE("disp = %d, ignored for now", disp);
+    // need chaabi support for granular IED control
+    return;
+
     Drm *drm = Hwcomposer::getInstance().getDrm();
     int ret = drmCommandNone(drm->getDrmFd(), DRM_PSB_HDCP_DISPLAY_IED_ON);
     if (ret != 0) {

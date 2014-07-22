@@ -99,6 +99,7 @@ private:
     hwc_display_contents_1_t** mCachedDisplays;
     Vector<Event> mPendingEvents;
     Mutex mEventMutex;
+    Condition mEventHandledCondition;
 };
 
 } // namespace intel

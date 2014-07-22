@@ -62,6 +62,7 @@ public:
 
     void reclaimPlane(DisplayPlane& plane);
     void disableReclaimedPlanes();
+    void disableOverlayPlanes();
 
     // dump interface
     void dump(Dump& d);

@@ -326,6 +326,18 @@ void DisplayPlaneManager::disableReclaimedPlanes()
     }
 }
 
+void DisplayPlaneManager::disableOverlayPlanes()
+{
+    for (int i = 0; i < DisplayPlane::PLANE_MAX; i++) {
+        for (int j = 0; j < mPlaneCount[i]; j++) {
+            DisplayPlane* plane = (DisplayPlane *)mPlanes[i][j];
+            if (plane && plane->getType() == DisplayPlane::PLANE_OVERLAY) {
+                plane->disable();
+            }
+        }
+    }
+}
+
 void DisplayPlaneManager::dump(Dump& d)
 {
     d.append("Display Plane Manager state:\n");
