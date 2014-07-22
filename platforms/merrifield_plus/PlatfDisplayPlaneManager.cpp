@@ -342,7 +342,7 @@ bool PlatfDisplayPlaneManager::setZOrderConfig(ZOrderConfig& zorderConfig)
             return false;
         }
 
-        realPlane->setZOrderConfig(zorderConfig, (void *)i);
+        realPlane->setZOrderConfig(zorderConfig, (void *)slot);
 
         // TODO: check enable failure
         realPlane->enable();
