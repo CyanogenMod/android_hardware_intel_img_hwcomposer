@@ -34,6 +34,7 @@ extern "C" {
 
 extern int psbWsbmInitialize(int drmFD);
 extern void psbWsbmTakedown();
+extern int psbWsbmAllocateFromUB(uint32_t size, uint32_t align, void ** buf, void *user_pt);
 extern int psbWsbmAllocateTTMBuffer(uint32_t size, uint32_t align,void ** buf);
 extern int psbWsbmDestroyTTMBuffer(void * buf);
 extern void * psbWsbmGetCPUAddress(void * buf);

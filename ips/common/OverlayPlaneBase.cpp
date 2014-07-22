@@ -390,9 +390,8 @@ void OverlayPlaneBase::resetBackBuffer()
     backBuffer->SCHRKEN |= 0xff;
 }
 
-BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
+BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper, struct VideoPayloadBuffer *payload)
 {
-    struct VideoPayloadBuffer *payload;
     uint32_t khandle;
     uint32_t w, h;
     uint32_t yStride, uvStride;
@@ -405,7 +404,6 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
     TTMBufferMapper *mapper;
     bool ret;
 
-    payload = (struct VideoPayloadBuffer *)grallocMapper.getCpuAddress(SUB_BUFFER1);
     if (!payload) {
         ETRACE("invalid payload buffer");
         return 0;
@@ -608,7 +606,8 @@ void OverlayPlaneBase::invalidateTTMBuffers()
     mTTMBuffers.clear();
 }
 
-bool OverlayPlaneBase::rotatedBufferReady(BufferMapper& mapper)
+
+bool OverlayPlaneBase::rotatedBufferReady(BufferMapper& mapper, BufferMapper* &rotatedMapper)
 {
     struct VideoPayloadBuffer *payload;
     uint32_t format;
@@ -638,6 +637,7 @@ bool OverlayPlaneBase::rotatedBufferReady(BufferMapper& mapper)
         return false;
     }
 
+    rotatedMapper = getTTMMapper(mapper, payload);
     return true;
 }
 
@@ -1170,19 +1170,16 @@ bool OverlayPlaneBase::setDataBuffer(BufferMapper& grallocMapper)
     // get gralloc mapper
     mapper = &grallocMapper;
     if (mTransform) {
-        if (!rotatedBufferReady(grallocMapper)) {
+        if (!rotatedBufferReady(grallocMapper, rotatedMapper)) {
             WTRACE("rotated buffer is not ready");
             return false;
         }
 
-        // get rotated data buffer mapper
-        mapper = getTTMMapper(grallocMapper);
-        if (!mapper) {
+        if (!rotatedMapper) {
             ETRACE("failed to get rotated buffer");
             return false;
         }
-
-        rotatedMapper = mapper;
+        mapper = rotatedMapper;
     }
 
     OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;

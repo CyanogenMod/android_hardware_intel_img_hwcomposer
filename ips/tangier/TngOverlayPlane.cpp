@@ -114,17 +114,42 @@ void TngOverlayPlane::deinitialize()
     OverlayPlaneBase::deinitialize();
 }
 
-bool TngOverlayPlane::rotatedBufferReady(BufferMapper& mapper)
+bool TngOverlayPlane::rotatedBufferReady(BufferMapper& mapper, BufferMapper* &rotatedMapper)
 {
     struct VideoPayloadBuffer *payload;
+    VideoPayloadBuffer buffer_info;
     uint32_t format;
     // only NV12_VED has rotated buffer
     format = mapper.getFormat();
+
     if (format != OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar &&
-        format != OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled)
+        format != OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled &&
+        format != HAL_PIXEL_FORMAT_NV12)
         return false;
 
     payload = (struct VideoPayloadBuffer *)mapper.getCpuAddress(SUB_BUFFER1);
+
+    if (payload == NULL && format == HAL_PIXEL_FORMAT_NV12) { /* need to populate buffer_info */
+        bool ret;
+        void *p;
+
+        p = mapper.getCpuAddress(SUB_BUFFER0);
+        if (!p) {
+            ETRACE("failed to get buffer user pointer");
+            return false;
+        }
+
+        ret = mRotationBufProvider->prepareBufferInfo(mapper.getWidth(),
+                                                mapper.getHeight(),
+                                                mapper.getStride().yuv.yStride,
+                                                &buffer_info, p);
+        if (ret == false) {
+            ETRACE("failed to prepare buffer info");
+            return false;
+        }
+        payload = &buffer_info;
+    }
+
     // check payload
     if (!payload) {
         ETRACE("no payload found");
@@ -147,7 +172,17 @@ bool TngOverlayPlane::rotatedBufferReady(BufferMapper& mapper)
         }
     }
 
+    rotatedMapper = getTTMMapper(mapper, payload);
+
     return true;
+}
+
+void TngOverlayPlane::invalidateBufferCache()
+{
+    // clear plane buffer cache
+    OverlayPlaneBase::invalidateBufferCache();
+    if (mRotationBufProvider)
+        mRotationBufProvider->invalidateCaches();
 }
 
 bool TngOverlayPlane::flush(uint32_t flags)

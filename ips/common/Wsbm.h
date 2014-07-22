@@ -44,6 +44,7 @@ public:
     bool initialize();
     void deinitialize();
     bool allocateTTMBuffer(uint32_t size, uint32_t align,void ** buf);
+    bool allocateTTMBufferUB(uint32_t size, uint32_t align, void ** buf, void *user_pt);
     bool destroyTTMBuffer(void * buf);
     void * getCPUAddress(void * buf);
     uint32_t getGttOffset(void * buf);

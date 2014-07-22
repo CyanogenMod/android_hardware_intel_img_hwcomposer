@@ -164,6 +164,44 @@ out:
     return ret;
 }
 
+int psbWsbmAllocateFromUB(uint32_t size, uint32_t align, void ** buf, void *user_pt)
+{
+    struct _WsbmBufferObject * wsbmBuf = NULL;
+    int ret = 0;
+    int offset = 0;
+
+    ATRACE("size %d", align_to(size, 4096));
+
+    if(!buf || !user_pt) {
+        ETRACE("invalid parameter");
+        return -EINVAL;
+    }
+
+    VTRACE("mainPool %p", mainPool);
+
+    ret = wsbmGenBuffers(mainPool, 1, &wsbmBuf, align,
+                        DRM_PSB_FLAG_MEM_MMU | WSBM_PL_FLAG_CACHED |
+                        WSBM_PL_FLAG_NO_EVICT | WSBM_PL_FLAG_SHARED);
+    if(ret) {
+        ETRACE("wsbmGenBuffers failed with error code %d", ret);
+        return ret;
+    }
+
+    ret = wsbmBODataUB(wsbmBuf,
+                       align_to(size, 4096), NULL, NULL, 0,
+                       user_pt);
+
+    if(ret) {
+        ETRACE("wsbmBOData failed with error code %d", ret);
+        /*FIXME: should I unreference this buffer here?*/
+        return ret;
+    }
+
+    *buf = wsbmBuf;
+
+    VTRACE("ttm UB buffer allocated. %p", *buf);
+    return 0;
+}
 
 int psbWsbmAllocateTTMBuffer(uint32_t size, uint32_t align, void ** buf)
 {

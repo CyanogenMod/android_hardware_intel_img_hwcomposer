@@ -77,6 +77,17 @@ bool Wsbm::allocateTTMBuffer(uint32_t size, uint32_t align, void ** buf)
     return true;
 }
 
+bool Wsbm::allocateTTMBufferUB(uint32_t size, uint32_t align, void ** buf, void *user_pt)
+{
+    int ret = psbWsbmAllocateFromUB(size, align, buf, user_pt);
+    if (ret) {
+        ETRACE("failed to allocate UB buffer");
+        return false;
+    }
+
+    return true;
+}
+
 bool Wsbm::destroyTTMBuffer(void * buf)
 {
     int ret = psbWsbmDestroyTTMBuffer(buf);

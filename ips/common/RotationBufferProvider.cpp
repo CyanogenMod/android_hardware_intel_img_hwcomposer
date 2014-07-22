@@ -62,7 +62,8 @@ RotationBufferProvider::RotationBufferProvider(Wsbm* wsbm)
       mRotatedWidth(0),
       mRotatedHeight(0),
       mRotatedStride(0),
-      mTargetIndex(0)
+      mTargetIndex(0),
+      mTTMWrappers()
 {
     for (int i = 0; i < MAX_SURFACE_NUM; i++) {
         mKhandles[i] = 0;
@@ -86,12 +87,28 @@ bool RotationBufferProvider::initialize()
 {
     if (NULL == mWsbm)
         return false;
+    mTTMWrappers.setCapacity(TTM_WRAPPER_COUNT);
     return true;
 }
 
 void RotationBufferProvider::deinitialize()
 {
     stopVA();
+    if (mTTMWrappers.size()) {
+        invalidateCaches();
+    }
+}
+
+void RotationBufferProvider::invalidateCaches()
+{
+    void *buf;
+
+    for (size_t i = 0; i < mTTMWrappers.size(); i++) {
+        buf = mTTMWrappers.valueAt(i);
+        if (!mWsbm->destroyTTMBuffer(buf))
+            WTRACE("failed to free TTMBuffer");
+    }
+    mTTMWrappers.clear();
 }
 
 int RotationBufferProvider::transFromHalToVa(int transform)
@@ -159,13 +176,15 @@ bool RotationBufferProvider::createVaSurface(VideoPayloadBuffer *payload, int tr
         }
         mRotatedWidth = width;
         mRotatedHeight = height;
+        bufferHeight = (height + 0x1f) & ~0x1f;
+        stride = getStride(isTarget, width);
     } else {
         width = payload->width;
         height = payload->height;
+        bufferHeight = payload->height;
+        stride = payload->luma_stride; /* NV12 srouce buffer */
     }
 
-    bufferHeight = (height + 0x1f) & ~0x1f;
-    stride = getStride(isTarget, width);
     if (!stride) {
         ETRACE("invalid stride value");
         return false;
@@ -468,6 +487,48 @@ bool RotationBufferProvider::setupRotationBuffer(VideoPayloadBuffer *payload, in
         return false; // To not block in HWC, just abort instead of re-try
     }
 
+    return true;
+}
+
+bool RotationBufferProvider::prepareBufferInfo(int w, int h, int stride, VideoPayloadBuffer *payload, void *user_pt)
+{
+    int chroma_offset, size;
+    void *buf = NULL;
+
+    payload->width = payload->crop_width = w;
+    payload->height = payload->crop_height = h;
+    payload->format = VA_FOURCC_NV12;
+    payload->tiling = 1;
+    payload->luma_stride = stride;
+    payload->chroma_u_stride = stride;
+    payload->chroma_v_stride = stride;
+    payload->client_transform = 0;
+
+    chroma_offset = stride * h;
+    size = stride * h + stride * h / 2;
+
+    ssize_t index;
+    index = mTTMWrappers.indexOfKey((uint64_t)user_pt);
+    if (index < 0) {
+        VTRACE("wrapped userPt as wsbm buffer");
+        bool ret = mWsbm->allocateTTMBufferUB(size, 0, &buf, user_pt);
+        if (ret == false) {
+            ETRACE("failed to allocate TTM buffer");
+            return ret;
+        }
+
+        if (mTTMWrappers.size() >= TTM_WRAPPER_COUNT) {
+            WTRACE("mTTMWrappers is unexpectedly full. Invalidate caches");
+            invalidateCaches();
+        }
+
+        index = mTTMWrappers.add((uint64_t)user_pt, buf);
+    } else {
+        VTRACE("got wsbmBuffer in saved caches");
+        buf = mTTMWrappers.valueAt(index);
+    }
+
+    payload->khandle = mWsbm->getKBufHandle(buf);
     return true;
 }
 

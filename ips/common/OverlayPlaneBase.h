@@ -93,9 +93,9 @@ protected:
     virtual void deleteBackBuffer();
     virtual void resetBackBuffer();
 
-    virtual BufferMapper* getTTMMapper(BufferMapper& grallocMapper);
+    virtual BufferMapper* getTTMMapper(BufferMapper& grallocMapper, struct VideoPayloadBuffer *payload);
     virtual void  putTTMMapper(BufferMapper* mapper);
-    virtual bool rotatedBufferReady(BufferMapper& mapper);
+    virtual bool rotatedBufferReady(BufferMapper& mapper, BufferMapper* &rotatedMapper);
 private:
     inline bool isActiveTTMBuffer(BufferMapper *mapper);
     void updateActiveTTMBuffers(BufferMapper *mapper);
