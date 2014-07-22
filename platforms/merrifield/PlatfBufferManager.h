@@ -46,6 +46,8 @@ protected:
     DataBuffer* createDataBuffer(gralloc_module_t *module, uint32_t handle);
     BufferMapper* createBufferMapper(gralloc_module_t *module,
                                         DataBuffer& buffer);
+    bool convertRGBToNV12(uint32_t rgbHandle, uint32_t yuvHandle,
+                                  crop_t& srcCrop, uint32_t async);
 };
 
 }
