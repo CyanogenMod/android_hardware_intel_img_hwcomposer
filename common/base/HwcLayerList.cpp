@@ -55,6 +55,8 @@ HwcLayer::HwcLayer(int index, hwc_layer_1_t *layer)
       mLayer(layer),
       mPlane(0),
       mFormat(DataBuffer::FORMAT_INVALID),
+      mWidth(0),
+      mHeight(0),
       mUsage(0),
       mHandle(0),
       mIsProtected(false),
@@ -65,6 +67,7 @@ HwcLayer::HwcLayer(int index, hwc_layer_1_t *layer)
 {
     memset(&mSourceCrop, 0, sizeof(mSourceCrop));
     memset(&mDisplayFrame, 0, sizeof(mDisplayFrame));
+    memset(&mStride, 0, sizeof(mStride));
 
     setupAttributes();
 }
@@ -158,6 +161,21 @@ int HwcLayer::getIndex() const
 uint32_t HwcLayer::getFormat() const
 {
     return mFormat;
+}
+
+uint32_t HwcLayer::getBufferWidth() const
+{
+    return mWidth;
+}
+
+uint32_t HwcLayer::getBufferHeight() const
+{
+    return mHeight;
+}
+
+const stride_t& HwcLayer::getBufferStride() const
+{
+    return mStride;
 }
 
 uint32_t HwcLayer::getUsage() const
@@ -285,6 +303,9 @@ void HwcLayer::setupAttributes()
          ETRACE("failed to get buffer");
      } else {
         mFormat = buffer->getFormat();
+        mWidth = buffer->getWidth();
+        mHeight = buffer->getHeight();
+        mStride = buffer->getStride();
         mPriority = buffer->getWidth() * buffer->getHeight();
         mPriority <<= LAYER_PRIORITY_SIZE_OFFSET;
         mPriority |= mIndex;
@@ -398,6 +419,17 @@ bool HwcLayerList::checkSupported(int planeType, HwcLayer *hwcLayer)
                                                  layer.transform);
     if (!valid) {
         VTRACE("plane type %d: (bad buffer format)", planeType);
+        return false;
+    }
+
+    // check buffer size
+    valid = PlaneCapabilities::isSizeSupported(planeType,
+                                               hwcLayer->getFormat(),
+                                               hwcLayer->getBufferWidth(),
+                                               hwcLayer->getBufferHeight(),
+                                               hwcLayer->getBufferStride());
+    if (!valid) {
+        VTRACE("plane type %d: (bad buffer size)", planeType);
         return false;
     }
 
