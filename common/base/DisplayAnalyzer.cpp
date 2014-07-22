@@ -280,6 +280,9 @@ bool DisplayAnalyzer::isVideoFullScreen(int device, hwc_layer_1_t &layer)
         ITRACE("video is not full-screen");
         return false;
     }
+    //TODO: The following check is not aligned with the definition of
+    //current video extended mode UC.
+#if 0
     int offset = layer.displayFrame.left + layer.displayFrame.right - width;
     if (offset > 1 || offset < -1) {
         ITRACE("video is not centralized in horizontal direction");
@@ -290,6 +293,7 @@ bool DisplayAnalyzer::isVideoFullScreen(int device, hwc_layer_1_t &layer)
         ITRACE("video is not centralized in vertical direction");
         return false;
     }
+#endif
     return true;
 }
 
