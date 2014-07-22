@@ -95,7 +95,7 @@ bool PhysicalDevice::prePrepare(hwc_display_contents_1_t *display)
     RETURN_FALSE_IF_NOT_INIT();
 
     // for a null list, delete hwc list
-    if (!mConnected || !display) {
+    if (!mConnected || !display || mBlank) {
         if (mLayerList) {
             DEINIT_AND_DELETE_OBJ(mLayerList);
         }
@@ -113,7 +113,7 @@ bool PhysicalDevice::prepare(hwc_display_contents_1_t *display)
 {
     RETURN_FALSE_IF_NOT_INIT();
 
-    if (!mConnected || !display)
+    if (!mConnected || !display || mBlank)
         return true;
 
     // check if geometry is changed
@@ -134,7 +134,7 @@ bool PhysicalDevice::commit(hwc_display_contents_1_t *display, IDisplayContext *
 {
     RETURN_FALSE_IF_NOT_INIT();
 
-    if (!display || !context || !mLayerList) {
+    if (!display || !context || !mLayerList || mBlank) {
         return true;
     }
     return context->commitContents(display, mLayerList);
