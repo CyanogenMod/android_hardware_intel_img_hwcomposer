@@ -78,6 +78,7 @@ public:
     status_t getVideoSourceInfo(int sessionID, VideoSourceInfo* info);
     int  getVideoSessionNumber();
     bool isExternalDeviceTimingFixed() const;
+    status_t notifyWidiConnectionStatus(bool connected);
 
 private:
     bool isMDSRunning();
@@ -127,6 +128,7 @@ public:
     status_t getVideoSourceInfo(int sessionID, VideoSourceInfo* info) { return INVALID_OPERATION; }
     int  getVideoSessionNumber() { return 0; }
     bool isExternalDeviceTimingFixed() const { return false; }
+    status_t notifyWidiConnectionStatus(bool connected) { return NO_ERROR; }
 };
 
 #endif //TARGET_HAS_MULTIPLE_DISPLAY
