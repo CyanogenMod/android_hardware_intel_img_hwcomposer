@@ -35,6 +35,8 @@
 #include <binder/IServiceManager.h>
 #include <binder/ProcessState.h>
 
+#include <sync/sync.h>
+
 #define NUM_CSC_BUFFERS 6
 
 namespace android {
@@ -307,6 +309,34 @@ bool VirtualDevice::commit(hwc_display_contents_1_t *display, IDisplayContext *c
         }
         return true;
     }
+
+    // Wait and close HWC_OVERLAY typed layer's acquire fence
+    for (size_t i = 0; i < display->numHwLayers-1; i++) {
+        hwc_layer_1_t& layer = display->hwLayers[i];
+        if (layer.compositionType == HWC_OVERLAY) {
+            if (layer.acquireFenceFd != -1) {
+                // sync_wait(layer.acquireFenceFd, 16ms);
+                close(layer.acquireFenceFd);
+                layer.acquireFenceFd = -1;
+            }
+        }
+    }
+
+    // Wait and close framebuffer target layer's acquire fence
+    hwc_layer_1_t& fbt = display->hwLayers[display->numHwLayers-1];
+    if (fbt.acquireFenceFd != -1) {
+        // sync_wait(fbt.acquireFencdFd, 16ms);
+        close(fbt.acquireFenceFd);
+        fbt.acquireFenceFd = -1;
+    }
+
+    // Wait and close outbuf's acquire fence
+    if (display->outbufAcquireFenceFd != -1) {
+        // sync_wait(display->outbufAcquireFenceFd, 16ms);
+        close(display->outbufAcquireFenceFd);
+        display->outbufAcquireFenceFd = -1;
+    }
+
 
     // This is for clone mode
     hwc_layer_1_t& streamingLayer = display->hwLayers[mLayerToSend];
