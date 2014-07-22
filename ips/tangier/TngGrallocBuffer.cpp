@@ -34,7 +34,8 @@ namespace intel {
 TngGrallocBuffer::TngGrallocBuffer(uint32_t handle)
     :GrallocBufferBase(handle)
 {
-    TngIMGGrallocBuffer *grallocHandle = (TngIMGGrallocBuffer *)handle;
+    struct TngIMGGrallocBuffer *grallocHandle =
+        (struct TngIMGGrallocBuffer*)handle;
 
     CTRACE();
 
@@ -43,12 +44,12 @@ TngGrallocBuffer::TngGrallocBuffer(uint32_t handle)
         return;
     }
 
-    mFormat = grallocHandle->iFormat;
-    mWidth = grallocHandle->iWidth;
-    mHeight = grallocHandle->iHeight;
+    mFormat = grallocHandle->pixelFormat;
+    mWidth = grallocHandle->w;
+    mHeight = grallocHandle->h;
     mUsage = grallocHandle->usage;
     mKey = grallocHandle->ui64Stamp;
-    mBpp = grallocHandle->uiBpp;
+    mBpp = grallocHandle->bytesPerPixel;
 
     initialize();
 }
