@@ -28,6 +28,7 @@
 #ifndef VIDEO_PAYLOAD_BUFFER_H
 #define VIDEO_PAYLOAD_BUFFER_H
 
+#include <utils/Timers.h>
 namespace android {
 namespace intel {
 
@@ -56,6 +57,10 @@ struct VideoPayloadBuffer {
     uint32_t rotate_luma_stride;
     uint32_t rotate_chroma_u_stride;
     uint32_t rotate_chroma_v_stride;
+
+    nsecs_t hwc_timestamp;
+    uint32_t layer_transform;
+
     void *native_window;
 };
 

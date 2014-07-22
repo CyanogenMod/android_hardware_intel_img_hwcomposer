@@ -545,6 +545,10 @@ bool OverlayPlaneBase::rotatedBufferReady(BufferMapper& mapper)
         return false;
 
     if (payload->client_transform != mTransform) {
+        if (payload->surface_protected) {
+            payload->hwc_timestamp = systemTime();
+            payload->layer_transform = mTransform;
+        }
         WTRACE("client is not ready");
         return false;
     }
