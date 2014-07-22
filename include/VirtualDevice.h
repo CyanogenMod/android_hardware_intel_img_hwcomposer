@@ -107,6 +107,7 @@ protected:
     int64_t mFrameReadyRenderTs;
     bool mDoOnFrameReady;
     bool mCancelOnFrameReady;
+    sp<IFrameListener> mAsyncFrameListener;
 
     bool mProtectedMode;
 
