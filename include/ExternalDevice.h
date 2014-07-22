@@ -43,10 +43,10 @@ public:
     virtual ~ExternalDevice();
 public:
     virtual bool initialize();
+    virtual void deinitialize();
 
 protected:
     virtual void onHotplug();
-    virtual void deinitialize();
 
 private:
     static void HdcpLinkStatusListener(bool success, void *userData);

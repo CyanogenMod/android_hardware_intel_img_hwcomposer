@@ -46,13 +46,6 @@ typedef struct {
 } OverlayBackBuffer;
 
 class OverlayPlaneBase : public DisplayPlane {
-    // flush flags
-    enum {
-        PLANE_ENABLE     = 0x00000001UL,
-        PLANE_DISABLE    = 0x00000002UL,
-        UPDATE_COEF      = 0x00000004UL,
-    };
-    static const uint32_t overlayDataBufferCount = 30;
 public:
     OverlayPlaneBase(int index, int disp);
     ~OverlayPlaneBase();
@@ -64,17 +57,18 @@ public:
     virtual void setZOrderConfig(ZOrderConfig& config);
 
     // plane operations
-    virtual bool flip() = 0;
+    virtual bool flip(void *ctx) = 0;
     virtual bool reset();
     virtual bool enable();
     virtual bool disable();
 
     virtual void* getContext() const = 0;
     virtual bool initialize(uint32_t bufferCount);
-protected:
     virtual void deinitialize();
+
+protected:
     // generic overlay register flush
-    virtual bool flush(uint32_t flags);
+    virtual bool flush(uint32_t flags) = 0;
     virtual bool setDataBuffer(BufferMapper& mapper);
     virtual bool bufferOffsetSetup(BufferMapper& mapper);
     virtual uint32_t calculateSWidthSW(uint32_t offset, uint32_t width);
@@ -86,6 +80,7 @@ protected:
                                 coeffPtr pCoeff);
     virtual bool scalingSetup(BufferMapper& mapper);
     virtual void checkPosition(int& x, int& y, int& w, int& h);
+
 protected:
     // back buffer operations
     virtual OverlayBackBuffer* createBackBuffer();
@@ -97,6 +92,17 @@ protected:
     virtual bool rotatedBufferReady(BufferMapper& mapper);
 
 protected:
+    // flush flags
+    enum {
+        PLANE_ENABLE     = 0x00000001UL,
+        PLANE_DISABLE    = 0x00000002UL,
+        UPDATE_COEF      = 0x00000004UL,
+    };
+
+    enum {
+        OVERLAY_DATA_BUFFER_COUNT = 30,
+    };
+
     // TTM data buffers
     KeyedVector<uint64_t, BufferMapper*> mTTMBuffers;
     // overlay back buffer

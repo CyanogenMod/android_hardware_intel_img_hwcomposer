@@ -78,8 +78,7 @@ bool Hwcomposer::prepare(size_t numDisplays,
     mDisplayAnalyzer->analyzeContents(numDisplays, displays);
 
     // disable reclaimed planes
-    if (mPlaneManager)
-        mPlaneManager->disableReclaimedPlanes();
+    mPlaneManager->disableReclaimedPlanes();
 
     // reclaim all allocated planes if possible
     for (size_t i = 0; i < numDisplays; i++) {
@@ -133,7 +132,7 @@ bool Hwcomposer::commit(size_t numDisplays,
         return false;
     }
 
-    mDisplayContext->commitBegin();
+    mDisplayContext->commitBegin(numDisplays, displays);
 
     for (size_t i = 0; i < numDisplays; i++) {
         IDisplayDevice *device = mDisplayDevices.itemAt(i);
@@ -154,7 +153,7 @@ bool Hwcomposer::commit(size_t numDisplays,
         }
     }
 
-    mDisplayContext->commitEnd();
+    mDisplayContext->commitEnd(numDisplays, displays);
 
     return ret;
 }
@@ -329,9 +328,8 @@ bool Hwcomposer::initialize()
 
     // create drm
     mDrm = new Drm();
-    if (!mDrm) {
-        ETRACE("failed to create DRM");
-        return false;
+    if (!mDrm || !mDrm->initialize()) {
+        DEINIT_AND_RETURN_FALSE("failed to create DRM");
     }
 
     // create display plane manager
@@ -355,9 +353,8 @@ bool Hwcomposer::initialize()
     for (int i = 0; i < IDisplayDevice::DEVICE_COUNT; i++) {
         IDisplayDevice *device = createDisplayDevice(i, *mPlaneManager);
         if (!device || !device->initialize()) {
-            ETRACE("failed to create device %d", i);
-            delete device;
-            continue;
+            DEINIT_AND_DELETE_OBJ(device);
+            DEINIT_AND_RETURN_FALSE("failed to create device %d", i);
         }
         // add this device
         mDisplayDevices.insertAt(device, i, 1);
@@ -380,60 +377,26 @@ bool Hwcomposer::initialize()
 
     mInitialized = true;
     return true;
-init_err:
-    deinitialize();
-    return false;
 }
 
 void Hwcomposer::deinitialize()
 {
     // delete mVsyncManager first as it holds reference to display devices.
-    if (mVsyncManager) {
-        delete mVsyncManager;
-        mVsyncManager = NULL;
-    }
+    DEINIT_AND_DELETE_OBJ(mVsyncManager);
 
     // destroy display devices
     for (size_t i = 0; i < mDisplayDevices.size(); i++) {
         IDisplayDevice *device = mDisplayDevices.itemAt(i);
-        if (device)
-            delete device;
+        DEINIT_AND_DELETE_OBJ(device);
     }
     mDisplayDevices.clear();
 
-    // destroy buffer manager
-    if (mBufferManager) {
-        delete mBufferManager;
-        mBufferManager = 0;
-    }
-
-    // destroy display plane manager
-    if (mPlaneManager) {
-        delete mPlaneManager;
-        mPlaneManager = 0;
-    }
-
-    if (mDisplayContext) {
-        delete mDisplayContext;
-        mDisplayContext = 0;
-    }
-
-    if (mDisplayAnalyzer) {
-        delete mDisplayAnalyzer;
-        mDisplayAnalyzer = NULL;
-    }
-
-    if (mMultiDisplayObserver) {
-        delete mMultiDisplayObserver;
-        mMultiDisplayObserver = NULL;
-    }
-
-    // destroy drm
-    if (mDrm) {
-        delete mDrm;
-        mDrm = 0;
-    }
-
+    DEINIT_AND_DELETE_OBJ(mPlaneManager);
+    DEINIT_AND_DELETE_OBJ(mDisplayContext);
+    DEINIT_AND_DELETE_OBJ(mDisplayAnalyzer);
+    DEINIT_AND_DELETE_OBJ(mMultiDisplayObserver);
+    DEINIT_AND_DELETE_OBJ(mBufferManager);
+    DEINIT_AND_DELETE_OBJ(mDrm);
     mInitialized = false;
 }
 

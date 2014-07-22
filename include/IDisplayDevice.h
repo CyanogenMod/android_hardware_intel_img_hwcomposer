@@ -97,13 +97,11 @@ public:
     virtual bool compositionComplete() = 0;
 
     virtual bool initialize() = 0;
+    virtual void deinitialize() = 0;
     virtual bool isConnected() const = 0;
     virtual const char* getName() const = 0;
     virtual int getType() const = 0;
     virtual void dump(Dump& d) = 0;
-
-protected:
-    virtual void deinitialize() = 0;
 };
 
 }

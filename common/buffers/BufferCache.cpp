@@ -34,7 +34,6 @@ namespace intel {
 BufferCache::BufferCache(int size)
 {
     mBufferPool.setCapacity(size);
-    mBufferPool.clear();
 }
 
 BufferCache::~BufferCache()

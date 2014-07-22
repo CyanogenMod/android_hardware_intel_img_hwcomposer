@@ -43,7 +43,8 @@ public:
     virtual ~BufferManager();
 
     bool initCheck() const;
-    bool initialize();
+    virtual bool initialize();
+    virtual void deinitialize();
 
     // dump interface
     void dump(Dump& d);
@@ -54,8 +55,7 @@ public:
     // map/unmap a data buffer into/from display memory
     BufferMapper* map(DataBuffer& buffer);
     void unmap(BufferMapper& mapper);
-protected:
-    void deinitialize();
+
 protected:
     virtual DataBuffer* createDataBuffer(gralloc_module_t *module,
                                              uint32_t handle) = 0;

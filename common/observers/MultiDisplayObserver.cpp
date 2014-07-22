@@ -26,8 +26,8 @@
  *
  */
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
-#include <binder/IServiceManager.h>
 #include <HwcTrace.h>
+#include <binder/IServiceManager.h>
 #include <Hwcomposer.h>
 #include <DisplayAnalyzer.h>
 #endif
@@ -108,8 +108,7 @@ MultiDisplayObserver::MultiDisplayObserver()
 
 MultiDisplayObserver::~MultiDisplayObserver()
 {
-    CTRACE();
-    deinitialize();
+    WARN_IF_NOT_DEINIT();
 }
 
 bool MultiDisplayObserver::isMDSRunning()

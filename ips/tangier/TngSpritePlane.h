@@ -47,6 +47,7 @@ public:
     virtual void* getContext() const;
 protected:
     virtual bool setDataBuffer(BufferMapper& mapper);
+    virtual bool enablePlane(bool enabled);
 protected:
     struct intel_dc_plane_ctx mContext;
 };

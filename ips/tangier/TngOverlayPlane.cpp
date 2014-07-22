@@ -48,11 +48,11 @@ TngOverlayPlane::~TngOverlayPlane()
     CTRACE();
 }
 
-bool TngOverlayPlane::flip()
+bool TngOverlayPlane::flip(void *ctx)
 {
     RETURN_FALSE_IF_NOT_INIT();
 
-    if (!DisplayPlane::flip())
+    if (!DisplayPlane::flip(ctx))
         return false;
 
     mContext.type = DC_OVERLAY_PLANE;
@@ -91,6 +91,38 @@ bool TngOverlayPlane::setDataBuffer(BufferMapper& mapper)
     return true;
 }
 
+bool TngOverlayPlane::flush(uint32_t flags)
+{
+    RETURN_FALSE_IF_NOT_INIT();
+    ATRACE("flags = %#x, type = %d, index = %d", flags, mType, mIndex);
+
+    if (!(flags & PLANE_ENABLE) && !(flags & PLANE_DISABLE))
+        return false;
+
+    struct drm_psb_register_rw_arg arg;
+    memset(&arg, 0, sizeof(struct drm_psb_register_rw_arg));
+
+    if (flags & PLANE_DISABLE)
+        arg.plane_disable_mask = 1;
+    else if (flags & PLANE_ENABLE)
+        arg.plane_enable_mask = 1;
+
+    arg.plane.type = mType;
+    arg.plane.index = mIndex;
+    arg.plane.ctx = (mBackBuffer->gttOffsetInPage << 12);
+    // pipe select
+    arg.plane.ctx |= mPipeConfig;
+
+    // issue ioctl
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+    bool ret = drm->writeReadIoctl(DRM_PSB_REGISTER_RW, &arg, sizeof(arg));
+    if (ret == false) {
+        WTRACE("overlay update failed with error code %d", ret);
+        return false;
+    }
+
+    return true;
+}
 
 } // namespace intel
 } // namespace android

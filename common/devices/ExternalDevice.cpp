@@ -47,7 +47,6 @@ ExternalDevice::ExternalDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
 ExternalDevice::~ExternalDevice()
 {
     CTRACE();
-    deinitialize();
 }
 
 bool ExternalDevice::initialize()

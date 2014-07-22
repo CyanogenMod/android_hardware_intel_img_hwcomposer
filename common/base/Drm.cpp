@@ -36,17 +36,46 @@ namespace android {
 namespace intel {
 
 Drm::Drm()
+    : mDrmFd(0),
+      mLock(),
+      mInitialized(false)
 {
-    const char *path = DrmConfig::getDrmPath();
-    int fd = open(path, O_RDWR, 0);
-    if (fd < 0) {
-        ETRACE("drmOpen failed, error: %s", strerror(errno));
+    memset(&mOutputs, 0, sizeof(mOutputs));
+}
+
+Drm::~Drm()
+{
+    WARN_IF_NOT_DEINIT();
+}
+
+bool Drm::initialize()
+{
+    if (mInitialized) {
+        WTRACE("Drm object has been initialized");
+        return true;
     }
 
-    mDrmFd = fd;
-    memset(&mOutputs, 0, sizeof(mOutputs));
+    const char *path = DrmConfig::getDrmPath();
+    mDrmFd = open(path, O_RDWR, 0);
+    if (mDrmFd < 0) {
+        ETRACE("failed to open Drm, error: %s", strerror(errno));
+        return false;
+    }
+    DTRACE("mDrmFd = %d", mDrmFd);
 
-    DTRACE("mDrmFd = %d", fd);
+    memset(&mOutputs, 0, sizeof(mOutputs));
+    mInitialized = true;
+    return true;
+}
+
+void Drm::deinitialize()
+{
+    // TODO clean up mOutputs
+    if (mDrmFd) {
+        close(mDrmFd);
+        mDrmFd = 0;
+    }
+    mInitialized = false;
 }
 
 bool Drm::detect()

@@ -41,13 +41,11 @@ public:
     virtual ~IDisplayContext() {}
 public:
     virtual bool initialize() = 0;
-    virtual bool commitBegin() = 0;
-    virtual bool commitContents(hwc_display_contents_1_t *display, HwcLayerList *layerList) = 0;
-    virtual bool commitEnd() = 0;
-    virtual bool compositionComplete() = 0;
-
-protected:
     virtual void deinitialize() = 0;
+    virtual bool commitBegin(size_t numDisplays, hwc_display_contents_1_t **displays) = 0;
+    virtual bool commitContents(hwc_display_contents_1_t *display, HwcLayerList *layerList) = 0;
+    virtual bool commitEnd(size_t numDisplays, hwc_display_contents_1_t **displays) = 0;
+    virtual bool compositionComplete() = 0;
 };
 
 }

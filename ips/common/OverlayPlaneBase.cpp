@@ -63,13 +63,13 @@ bool OverlayPlaneBase::initialize(uint32_t bufferCount)
     Drm *drm = Hwcomposer::getInstance().getDrm();
     CTRACE();
 
-    if (!drm) {
-        ETRACE("failed to get drm");
-        return false;
+    // NOTE: use overlay's data buffer count for the overlay plane
+    if (bufferCount < OVERLAY_DATA_BUFFER_COUNT) {
+        ITRACE("override overlay buffer count from %d to %d",
+             bufferCount, OVERLAY_DATA_BUFFER_COUNT);
+        bufferCount = OVERLAY_DATA_BUFFER_COUNT;
     }
-
-    // NOTE: use overlay's data buffer count for a overlay plane
-    mTTMBuffers.setCapacity(overlayDataBufferCount);
+    mTTMBuffers.setCapacity(bufferCount);
 
     // init wsbm
     mWsbm = new Wsbm(drm->getDrmFd());
@@ -86,9 +86,12 @@ bool OverlayPlaneBase::initialize(uint32_t bufferCount)
     // reset back buffer
     resetBackBuffer();
 
-    if (!DisplayPlane::initialize(overlayDataBufferCount)) {
+    if (!DisplayPlane::initialize(bufferCount)) {
         DEINIT_AND_RETURN_FALSE("failed to initialize display plane");
     }
+
+    // disable overlay when created
+    flush(PLANE_DISABLE);
     return true;
 }
 
@@ -114,11 +117,10 @@ void OverlayPlaneBase::invalidateBufferCache()
     DisplayPlane::invalidateBufferCache();
 
     // clear TTM buffer cache
-    for (size_t i = 0; i < mTTMBuffers.size(); i++) {
-        mapper = mTTMBuffers.valueAt(i);
-        // put it
-        if (mapper)
-            putTTMMapper(mapper);
+    while (mTTMBuffers.size() > 0) {
+        mapper = mTTMBuffers.valueAt(0);
+        // putTTMMapper removes mapper from cache
+        putTTMMapper(mapper);
     }
 }
 
@@ -169,9 +171,6 @@ bool OverlayPlaneBase::reset()
 bool OverlayPlaneBase::enable()
 {
     RETURN_FALSE_IF_NOT_INIT();
-
-    DTRACE("enter");
-
     OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
     if (!backBuffer)
         return false;
@@ -189,7 +188,6 @@ bool OverlayPlaneBase::enable()
 bool OverlayPlaneBase::disable()
 {
     RETURN_FALSE_IF_NOT_INIT();
-    DTRACE("enter");
     OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
     if (!backBuffer)
         return false;
@@ -201,40 +199,6 @@ bool OverlayPlaneBase::disable()
 
     // flush
     flush(PLANE_DISABLE);
-    return true;
-}
-
-
-bool OverlayPlaneBase::flush(uint32_t flags)
-{
-    RETURN_FALSE_IF_NOT_INIT();
-    ATRACE("flags = %#x, type = %d, index = %d", flags, mType, mIndex);
-
-    if (!(flags & PLANE_ENABLE) && !(flags & PLANE_DISABLE))
-        return false;
-
-    struct drm_psb_register_rw_arg arg;
-    memset(&arg, 0, sizeof(struct drm_psb_register_rw_arg));
-
-    if (flags & PLANE_DISABLE)
-        arg.plane_disable_mask = 1;
-    else if (flags & PLANE_ENABLE)
-        arg.plane_enable_mask = 1;
-
-    arg.plane.type = mType;
-    arg.plane.index = mIndex;
-    arg.plane.ctx = (mBackBuffer->gttOffsetInPage << 12);
-    // pipe select
-    arg.plane.ctx |= mPipeConfig;
-
-    // issue ioctl
-    Drm *drm = Hwcomposer::getInstance().getDrm();
-    bool ret = drm->writeReadIoctl(DRM_PSB_REGISTER_RW, &arg, sizeof(arg));
-    if (ret == false) {
-        WTRACE("overlay update failed with error code %d", ret);
-        return false;
-    }
-
     return true;
 }
 

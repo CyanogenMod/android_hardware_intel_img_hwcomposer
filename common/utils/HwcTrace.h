@@ -100,6 +100,21 @@ do { \
 } while (0)
 
 
+#define DEINIT_AND_DELETE_OBJ(X) \
+    if (X) {\
+        X->deinitialize();\
+        delete X; \
+        X = NULL; \
+    }
+
+
+#define WARN_IF_NOT_DEINIT() \
+    CTRACE(); \
+    if (mInitialized) {\
+        LOG_ALWAYS_FATAL("%s: Object is not deinitialized! Line = %d", __func__, __LINE__); \
+    }
+
+
 // _cplusplus
 #ifdef _cplusplus
 }

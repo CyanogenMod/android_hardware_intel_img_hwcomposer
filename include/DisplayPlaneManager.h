@@ -45,7 +45,8 @@ public:
     virtual ~DisplayPlaneManager();
 
     bool initCheck() const { return mInitialized; }
-    bool initialize();
+    virtual bool initialize();
+    virtual void deinitialize();
 
     // plane allocation & free
     DisplayPlane* getSpritePlane();
@@ -80,8 +81,7 @@ protected:
     int mPrimaryPlaneCount;
     int mOverlayPlaneCount;
     int mTotalPlaneCount;
-    // maximum plane count for each pipe
-    int mMaxPlaneCount;
+
     Vector<DisplayPlane*> mSpritePlanes;
     Vector<DisplayPlane*> mPrimaryPlanes;
     Vector<DisplayPlane*> mOverlayPlanes;

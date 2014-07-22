@@ -75,8 +75,6 @@ public:
 
     virtual bool initCheck() const;
     virtual bool initialize();
-
-protected:
     virtual void deinitialize();
 
 public:

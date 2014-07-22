@@ -37,6 +37,11 @@ class PlatfBufferManager : public BufferManager {
 public:
     PlatfBufferManager();
     ~PlatfBufferManager();
+
+public:
+    bool initialize();
+    void deinitialize();
+
 protected:
     DataBuffer* createDataBuffer(gralloc_module_t *module, uint32_t handle);
     BufferMapper* createBufferMapper(gralloc_module_t *module,

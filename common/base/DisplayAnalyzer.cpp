@@ -62,7 +62,7 @@ bool DisplayAnalyzer::initialize()
     return true;
 }
 
-void DisplayAnalyzer::uninitialize()
+void DisplayAnalyzer::deinitialize()
 {
     mInitialized = false;
 }

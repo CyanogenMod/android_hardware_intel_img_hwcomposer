@@ -42,7 +42,6 @@ PrimaryDevice::PrimaryDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
 PrimaryDevice::~PrimaryDevice()
 {
     CTRACE();
-    deinitialize();
 }
 
 } // namespace intel

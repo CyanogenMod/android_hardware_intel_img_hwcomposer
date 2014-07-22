@@ -43,8 +43,7 @@ BufferManager::BufferManager()
 
 BufferManager::~BufferManager()
 {
-    CTRACE();
-    deinitialize();
+    WARN_IF_NOT_DEINIT();
 }
 
 bool BufferManager::initCheck() const
@@ -91,8 +90,6 @@ void BufferManager::deinitialize()
         BufferMapper *mapper = mBufferPool->getMapper(i);
         if (mapper) {
             mapper->unmap();
-            // remove mapper from buffer pool
-            mBufferPool->removeMapper(mapper);
             // delete this mapper
             delete mapper;
         }

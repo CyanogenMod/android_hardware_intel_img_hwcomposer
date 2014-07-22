@@ -52,7 +52,10 @@ struct Output {
 class Drm {
 public:
     Drm();
+    ~Drm();
 public:
+    bool initialize();
+    void deinitialize();
     bool detect();
 
     bool writeReadIoctl(unsigned long cmd, void *data,
@@ -81,6 +84,7 @@ private:
     int mDrmFd;
     struct Output mOutputs[OUTPUT_MAX];
     Mutex mLock;
+    bool mInitialized;
 };
 
 } // namespace intel

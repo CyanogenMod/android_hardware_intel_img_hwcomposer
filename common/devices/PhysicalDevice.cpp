@@ -43,7 +43,6 @@ PhysicalDevice::PhysicalDevice(uint32_t type, Hwcomposer& hwc, DisplayPlaneManag
       mPrepareListener(0),
       mVsyncObserver(0),
       mLayerList(0),
-      mPrimaryPlane(0),
       mConnection(DEVICE_DISCONNECTED),
       mDisplayState(DEVICE_DISPLAY_ON),
       mInitialized(false)
@@ -66,8 +65,7 @@ PhysicalDevice::PhysicalDevice(uint32_t type, Hwcomposer& hwc, DisplayPlaneManag
 
 PhysicalDevice::~PhysicalDevice()
 {
-    CTRACE();
-    deinitialize();
+    WARN_IF_NOT_DEINIT();
 }
 
 void PhysicalDevice::onGeometryChanged(hwc_display_contents_1_t *list)
@@ -88,7 +86,6 @@ void PhysicalDevice::onGeometryChanged(hwc_display_contents_1_t *list)
     // create a new layer list
     mLayerList = new HwcLayerList(list,
                                   mDisplayPlaneManager,
-                                  mPrimaryPlane,
                                   mType);
     if (!mLayerList) {
         WTRACE("failed to create layer list");
@@ -477,12 +474,6 @@ bool PhysicalDevice::initialize()
         DEINIT_AND_RETURN_FALSE("failed to detect display config");
     }
 
-    // get primary plane of this device
-    mPrimaryPlane = mDisplayPlaneManager.getPrimaryPlane(mType);
-    if (!mPrimaryPlane) {
-        DEINIT_AND_RETURN_FALSE("failed to get primary plane");
-    }
-
     // create vsync control
     mVsyncControl = createVsyncControl();
     if (!mVsyncControl) {
@@ -513,6 +504,11 @@ bool PhysicalDevice::initialize()
 
 void PhysicalDevice::deinitialize()
 {
+    if (mLayerList) {
+        delete mLayerList;
+        mLayerList = 0;
+    }
+
     // destroy vsync event observer
     if (mVsyncObserver.get()) {
         mVsyncObserver->requestExit();
