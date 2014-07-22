@@ -188,6 +188,8 @@ BufferMapper* BufferManager::map(DataBuffer& buffer)
         ret = mapper->map();
         if (!ret) {
             ETRACE("failed to map");
+            delete mapper;
+            mapper = NULL;
             break;
         }
         ret = mBufferPool->addMapper(buffer.getKey(), mapper);
