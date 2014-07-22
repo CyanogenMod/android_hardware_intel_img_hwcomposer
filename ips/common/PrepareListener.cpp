@@ -25,68 +25,31 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <math.h>
+
 #include <HwcTrace.h>
 #include <Drm.h>
 #include <Hwcomposer.h>
-#include <tangier/TngOverlayPlane.h>
-#include <tangier/TngGrallocBuffer.h>
+#include <common/PrepareListener.h>
 
 namespace android {
 namespace intel {
 
-TngOverlayPlane::TngOverlayPlane(int index, int disp)
-    : OverlayPlaneBase(index, disp)
+PrepareListener::PrepareListener()
+    : IPrepareListener()
 {
-    CTRACE();
-
-    memset(&mContext, 0, sizeof(mContext));
 }
 
-TngOverlayPlane::~TngOverlayPlane()
+void PrepareListener::onProtectedLayerStart(int disp)
 {
-    CTRACE();
-}
-
-bool TngOverlayPlane::flip()
-{
-    RETURN_FALSE_IF_NOT_INIT();
-
-    mContext.type = DC_OVERLAY_PLANE;
-    mContext.ctx.ov_ctx.ovadd = 0x0;
-    mContext.ctx.ov_ctx.ovadd = (mBackBuffer->gttOffsetInPage << 12);
-    mContext.ctx.ov_ctx.index = mIndex;
-    mContext.ctx.ov_ctx.pipe = mPipeConfig;
-    mContext.ctx.ov_ctx.ovadd |= 0x1;
-
-    VTRACE("ovadd = %#x, index = %d, device = %d",
-          mContext.ctx.ov_ctx.ovadd,
-          mIndex,
-          mDevice);
-
-    return true;
-}
-
-void* TngOverlayPlane::getContext() const
-{
-    CTRACE();
-    return (void *)&mContext;
-}
-
-bool TngOverlayPlane::setDataBuffer(BufferMapper& mapper)
-{
-    if (OverlayPlaneBase::setDataBuffer(mapper) == false) {
-        return false;
+    ATRACE("disp = %d", disp);
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+    int ret = drmCommandNone(drm->getDrmFd(), DRM_PSB_HDCP_DISPLAY_IED_ON);
+    if (ret != 0) {
+        ETRACE("failed to turn on display IED");
+    } else {
+        ITRACE("display IED is turned on");
     }
-
-    if (mIsProtectedBuffer) {
-        // Bit 0: Decryption request, only allowed to change on a synchronous flip
-        // This request will be qualified with the separate decryption enable bit for OV
-        mBackBuffer->buf->OSTART_0Y |= 0x1;
-    }
-    return true;
 }
-
 
 } // namespace intel
 } // namespace android

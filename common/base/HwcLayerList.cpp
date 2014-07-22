@@ -29,6 +29,7 @@
 #include <Drm.h>
 #include <HwcLayerList.h>
 #include <Hwcomposer.h>
+#include <GraphicBuffer.h>
 #include <IDisplayDevice.h>
 #include <PlaneCapabilities.h>
 
@@ -39,9 +40,11 @@ HwcLayer::HwcLayer(int index, hwc_layer_1_t *layer)
     : mIndex(index),
       mLayer(layer),
       mPlane(0),
+      mFormat(DataBuffer::FORMAT_INVALID),
+      mIsProtected(false),
       mType(LAYER_FB)
 {
-
+    setupAttributes();
 }
 
 bool HwcLayer::attachPlane(DisplayPlane* plane)
@@ -94,6 +97,16 @@ int HwcLayer::getIndex() const
     return mIndex;
 }
 
+uint32_t HwcLayer::getFormat() const
+{
+    return mFormat;
+}
+
+bool HwcLayer::isProtected() const
+{
+    return mIsProtected;
+}
+
 hwc_layer_1_t* HwcLayer::getLayer() const
 {
     return mLayer;
@@ -110,6 +123,7 @@ bool HwcLayer::update(hwc_layer_1_t *layer, int disp)
 
     // update layer
     mLayer = layer;
+    setupAttributes();
 
     // if not a FB layer & a plane was attached update plane's data buffer
     if (mPlane) {
@@ -124,13 +138,49 @@ bool HwcLayer::update(hwc_layer_1_t *layer, int disp)
                               layer->sourceCrop.bottom - layer->sourceCrop.top);
         mPlane->setTransform(layer->transform);
         ret = mPlane->setDataBuffer((uint32_t)layer->handle);
-        if (!ret) {
-            ETRACE("failed to set data buffer");
+        if (ret == true) {
+            return true;
+        }
+        ETRACE("failed to set data buffer");
+        if (!mIsProtected) {
             return false;
+        } else {
+            // protected video has to be rendered using overlay.
+            // if buffer is not ready overlay will still be attached to this layer
+            // but rendering needs to be skipped.
+            ETRACE("ignoring result of data buffer setting for protected video");
+            return true;
         }
     }
 
     return true;
+}
+
+void HwcLayer::setupAttributes()
+{
+    if (mFormat != DataBuffer::FORMAT_INVALID) {
+        return;
+    }
+
+    if (mLayer->handle == NULL) {
+        WTRACE("invalid handle");
+        return;
+    }
+
+    BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
+    if (bm == NULL) {
+        // TODO: this check is redundant
+        return;
+    }
+
+    DataBuffer *buffer = bm->get((uint32_t)mLayer->handle);
+     if (!buffer) {
+         ETRACE("failed to get buffer");
+     } else {
+        mFormat = buffer->getFormat();
+        mIsProtected = GraphicBuffer::isProtectedBuffer((GraphicBuffer*)buffer);
+        bm->put(*buffer);
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -188,12 +238,10 @@ int HwcLayerList::HwcLayerVector::do_compare(const void* lhs,
     return l->getIndex() - r->getIndex();
 }
 //------------------------------------------------------------------------------
-bool HwcLayerList::check(int planeType, hwc_layer_1_t& layer)
+bool HwcLayerList::checkSupported(int planeType, HwcLayer *hwcLayer)
 {
     bool valid = false;
-    BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
-    DataBuffer *buffer;
-    uint32_t format;
+    hwc_layer_1_t& layer = *(hwcLayer->getLayer());
 
     // check layer flags
     if (layer.flags & HWC_SKIP_LAYER) {
@@ -201,23 +249,13 @@ bool HwcLayerList::check(int planeType, hwc_layer_1_t& layer)
         return false;
     }
 
-    if (!bm) {
-        ETRACE("failed to get buffer manager");
+    if (layer.handle == 0) {
+        WTRACE("invalid buffer handle");
         return false;
     }
-
-    // get buffer source format
-    buffer = bm->get((uint32_t)layer.handle);
-    if (!buffer) {
-        ETRACE("failed to get buffer");
-        return false;
-    }
-
-    format = buffer->getFormat();
-    bm->put(*buffer);
 
     // check buffer format
-    valid = PlaneCapabilities::isFormatSupported(planeType, format);
+    valid = PlaneCapabilities::isFormatSupported(planeType, hwcLayer->getFormat());
     if (!valid) {
         VTRACE("plane type %d: (bad buffer format)", planeType);
         goto check_out;
@@ -350,8 +388,8 @@ void HwcLayerList::revisit()
     // 1) all the other layers have been set to OVERLAY layer.
     if ((mFBLayers.size() == 1)) {
         HwcLayer *hwcLayer = mFBLayers.itemAt(0);
-        if (check(DisplayPlane::PLANE_PRIMARY, *(hwcLayer->getLayer()))) {
-            VTRACE("primary check passed for primary layer");
+        if (checkSupported(DisplayPlane::PLANE_PRIMARY, hwcLayer)) {
+            ITRACE("primary check passed for primary layer");
             // attach primary to hwc layer
             hwcLayer->attachPlane(mPrimaryPlane);
             // set the layer type to overlay
@@ -386,7 +424,7 @@ void HwcLayerList::analyze(uint32_t index)
     DisplayPlane *plane;
     Drm *drm = Hwcomposer::getInstance().getDrm();
 
-    if (!mList || index >= mLayerCount)
+    if (!mList || index >= mLayerCount || !drm)
         return;
 
     freeSpriteCount = mDisplayPlaneManager.getFreeSpriteCount();
@@ -414,10 +452,15 @@ void HwcLayerList::analyze(uint32_t index)
             continue;
         }
 
+        if (layer->handle == NULL) {
+            WTRACE("null buffer handle");
+            continue;
+        }
+
         // check whether the layer can be handled by sprite plane
         if (freeSpriteCount) {
-            if (check(DisplayPlane::PLANE_SPRITE, *layer)) {
-                VTRACE("sprite check passed for layer %d", i);
+            if (checkSupported(DisplayPlane::PLANE_SPRITE, hwcLayer)) {
+                ITRACE("sprite check passed for layer %d", i);
                 plane = mDisplayPlaneManager.getSpritePlane();
                 if (plane) {
                     // attach plane to hwc layer
@@ -426,45 +469,55 @@ void HwcLayerList::analyze(uint32_t index)
                     hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
                     // clear fb
                     layer->hints |=  HWC_HINT_CLEAR_FB;
+                } else {
+                    ETRACE("sprite plane is null, impossible");
                 }
+                mOverlayLayers.add(hwcLayer);
+                continue;
             }
         }
 
         // check whether the layer can be handled by overlay plane
         if (freeOverlayCount) {
-            if (check(DisplayPlane::PLANE_OVERLAY, *layer)) {
-                VTRACE("overlay check passed for layer %d", i);
-                plane = mDisplayPlaneManager.getOverlayPlane();
-                if (plane) {
-                    // attach plane to hwc layer
-                    hwcLayer->attachPlane(plane);
-                    // set the layer type to overlay
-                    hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
-                    // clear fb
-                    layer->hints |=  HWC_HINT_CLEAR_FB;
-                }
-
-                // handle extend video mode use case
-                // FIXME: fall back to android's native use case
-                // extend video mode & presentation mode should be triggered
-                // by layer stack configuration.
-                if (drm) {
-                    bool extConnected =
-                        drm->outputConnected(Drm::OUTPUT_EXTERNAL);
-                    if (extConnected && plane && !mDisplayIndex) {
-                        hwcLayer->detachPlane();
-                        mDisplayPlaneManager.putOverlayPlane(*plane);
+            if (checkSupported(DisplayPlane::PLANE_OVERLAY, hwcLayer)) {
+                ITRACE("overlay check passed for layer %d", i);
+                // set the layer type to overlay
+                hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
+                bool extConnected = drm->outputConnected(Drm::OUTPUT_EXTERNAL);
+                if (extConnected && !mDisplayIndex) {
+                    // handle extend video mode use case
+                    // FIXME: fall back to android's native use case
+                    // extend video mode & presentation mode should be triggered
+                    // by layer stack configuration.
+                    // TODO: remove this hack
+                } else {
+                    plane = mDisplayPlaneManager.getOverlayPlane();
+                    if (plane) {
+                        // attach plane to hwc layer
+                        hwcLayer->attachPlane(plane);
+                        // clear fb
+                        layer->hints |=  HWC_HINT_CLEAR_FB;
+                    } else {
+                        ETRACE("overlay plane is null, impossible");
                     }
-                    hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
                 }
+                mOverlayLayers.add(hwcLayer);
+                continue;
             }
         }
 
-        // if still FB layer
-        if (hwcLayer->getType() == HwcLayer::LAYER_FB)
-            mFBLayers.add(hwcLayer);
-        else
+        if (hwcLayer->isProtected()) {
+            // TODO: we need to detach overlay from non-protected layers
+            WTRACE("protected layer is skipped");
+            hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
             mOverlayLayers.add(hwcLayer);
+            continue;
+        }
+
+        // if still FB layer
+        if (hwcLayer->getType() == HwcLayer::LAYER_FB) {
+            mFBLayers.add(hwcLayer);
+        }
     } // for (ssize_t i = index; i >= 0; i--)
 
     // revisit the plane assignments
@@ -552,6 +605,18 @@ DisplayPlane* HwcLayerList::getPlane(uint32_t index) const
         return 0;
 
     return hwcLayer->getPlane();
+}
+
+bool HwcLayerList::hasProtectedLayer()
+{
+    for (size_t i = 0; i < mLayers.size(); i++) {
+        HwcLayer *hwcLayer = mLayers.itemAt(i);
+        if (hwcLayer && hwcLayer->isProtected()) {
+            ITRACE("protected layer found, layer index is %d", i);
+            return true;
+        }
+    }
+    return false;
 }
 
 void HwcLayerList::dump(Dump& d)

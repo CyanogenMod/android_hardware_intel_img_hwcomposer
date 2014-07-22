@@ -40,6 +40,7 @@ PhysicalDevice::PhysicalDevice(uint32_t type, Hwcomposer& hwc, DisplayPlaneManag
       mActiveDisplayConfig(-1),
       mVsyncControl(0),
       mBlankControl(0),
+      mPrepareListener(0),
       mVsyncObserver(0),
       mLayerList(0),
       mPrimaryPlane(0),
@@ -129,9 +130,12 @@ bool PhysicalDevice::prepare(hwc_display_contents_1_t *display)
         return true;
 
     // check if geometry is changed
-    if (display->flags & HWC_GEOMETRY_CHANGED)
+    if (display->flags & HWC_GEOMETRY_CHANGED) {
         onGeometryChanged(display);
-
+        if (mLayerList && mLayerList->hasProtectedLayer()) {
+            mPrepareListener->onProtectedLayerStart(mType);
+        }
+    }
     if (!mLayerList) {
         ETRACE("null HWC layer list");
         return false;
@@ -484,6 +488,12 @@ bool PhysicalDevice::initialize()
         DEINIT_AND_RETURN_FALSE("failed to create blank control");
     }
 
+    // create hwc prepare listener
+    mPrepareListener = createPrepareListener();
+    if (!mPrepareListener) {
+        DEINIT_AND_RETURN_FALSE("failed to create prepare listener");
+    }
+
     // create vsync event observer
     mVsyncObserver = new VsyncEventObserver(*this, *mVsyncControl);
     if (!mVsyncObserver.get()) {
@@ -512,6 +522,11 @@ void PhysicalDevice::deinitialize()
     if (mVsyncControl) {
         delete mVsyncControl;
         mVsyncControl = 0;
+    }
+
+    if (mPrepareListener) {
+        delete mPrepareListener;
+        mPrepareListener = 0;
     }
 
     // remove configs

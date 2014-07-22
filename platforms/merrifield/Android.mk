@@ -28,6 +28,7 @@ LOCAL_SRC_FILES := \
     ../../common/base/Hwcomposer.cpp \
     ../../common/base/HwcModule.cpp \
     ../../common/buffers/BufferCache.cpp \
+    ../../common/buffers/GraphicBuffer.cpp \
     ../../common/buffers/BufferManager.cpp \
     ../../common/devices/PhysicalDevice.cpp \
     ../../common/devices/PrimaryDevice.cpp \
@@ -44,6 +45,7 @@ LOCAL_SRC_FILES += \
     ../../ips/common/BlankControl.cpp \
     ../../ips/common/HotplugControl.cpp \
     ../../ips/common/VsyncControl.cpp \
+    ../../ips/common/PrepareListener.cpp \
     ../../ips/common/OverlayPlaneBase.cpp \
     ../../ips/common/SpritePlaneBase.cpp \
     ../../ips/common/PixelFormat.cpp \

@@ -29,6 +29,7 @@
 #include <PlatfPrimaryDevice.h>
 #include <common/VsyncControl.h>
 #include <common/BlankControl.h>
+#include <common/PrepareListener.h>
 
 
 namespace android {
@@ -54,6 +55,11 @@ IVsyncControl* PlatfPrimaryDevice::createVsyncControl()
 IBlankControl* PlatfPrimaryDevice::createBlankControl()
 {
     return new BlankControl();
+}
+
+IPrepareListener* PlatfPrimaryDevice::createPrepareListener()
+{
+    return new PrepareListener();
 }
 
 } // namespace intel

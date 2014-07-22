@@ -28,7 +28,7 @@
 #ifndef GRALLOC_BUFFER_BASE_H
 #define GRALLOC_BUFFER_BASE_H
 
-#include <DataBuffer.h>
+#include <GraphicBuffer.h>
 #include <hal_public.h>
 // FIXME: remove it, why define NV12_VED based on OMX's value?
 #include <OMX_IVCommon.h>
@@ -36,18 +36,14 @@
 namespace android {
 namespace intel {
 
-class GrallocBufferBase : public DataBuffer {
+class GrallocBufferBase : public GraphicBuffer {
 public:
     GrallocBufferBase(uint32_t handle);
     virtual ~GrallocBufferBase() {}
-    // gralloc buffer operation
-    uint32_t getUsage() const { return mUsage; };
+
 protected:
     // fully initialize buffer
     virtual void initialize();
-protected:
-    uint32_t mUsage;
-    uint32_t mBpp;
 };
 
 } // namespace intel

@@ -25,49 +25,37 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
-#include <common/GrallocBufferBase.h>
+#ifndef GRAPHIC_BUFFER_H
+#define GRAPHIC_BUFFER_H
+
+#include <DataBuffer.h>
+
 
 namespace android {
 namespace intel {
 
-GrallocBufferBase::GrallocBufferBase(uint32_t handle)
-    : GraphicBuffer(handle)
-{
-    ATRACE("handle = %#x", handle);
-}
+class GraphicBuffer : public DataBuffer {
+public:
+    enum {
+        USAGE_INVALID = 0xffffffff,
+    };
 
-void GrallocBufferBase::initialize()
-{
-    int yStride, uvStride;
+public:
+    GraphicBuffer(uint32_t handle);
+    virtual ~GraphicBuffer() {}
 
-    // setup stride
-    switch (mFormat) {
-    case HAL_PIXEL_FORMAT_YV12:
-    case HAL_PIXEL_FORMAT_I420:
-        yStride = align_to(align_to(mWidth, 32), 64);
-        uvStride = align_to(yStride >> 1, 64);
-        mStride.yuv.yStride = yStride;
-        mStride.yuv.uvStride = uvStride;
-        break;
-    case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:
-        yStride = align_to(align_to(mWidth, 32), 64);
-        uvStride = yStride;
-        mStride.yuv.yStride = yStride;
-        mStride.yuv.uvStride = uvStride;
-        break;
-    case HAL_PIXEL_FORMAT_YUY2:
-    case HAL_PIXEL_FORMAT_UYVY:
-        yStride = align_to((align_to(mWidth, 32) << 1), 64);
-        uvStride = 0;
-        mStride.yuv.yStride = yStride;
-        mStride.yuv.uvStride = uvStride;
-        break;
-    default:
-        mStride.rgb.stride = align_to(((mBpp >> 3) * align_to(mWidth, 32)), 64);
-        break;
-    }
-}
+    uint32_t getUsage() const { return mUsage; }
+    uint32_t getBpp() const { return mBpp; }
 
-}
-}
+    static bool isProtectedUsage(uint32_t usage);
+    static bool isProtectedBuffer(GraphicBuffer *buffer);
+
+protected:
+    uint32_t mUsage;
+    uint32_t mBpp;
+};
+
+} // namespace intel
+} // namespace android
+
+#endif /* GRAPHIC_BUFFER_H */
