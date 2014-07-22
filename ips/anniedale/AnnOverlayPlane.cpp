@@ -32,7 +32,7 @@
 #include <Hwcomposer.h>
 #include <ips/anniedale/AnnOverlayPlane.h>
 #include <ips/tangier/TngGrallocBuffer.h>
-#include <OMX_IntelVideoExt.h>
+#include <khronos/openmax/OMX_IntelVideoExt.h>
 
 namespace android {
 namespace intel {

@@ -29,7 +29,7 @@
 #include <DisplayPlane.h>
 #include <hal_public.h>
 #include <DisplayQuery.h>
-#include <OMX_IntelVideoExt.h>
+#include <khronos/openmax/OMX_IntelVideoExt.h>
 
 
 namespace android {
