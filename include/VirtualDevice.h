@@ -152,7 +152,6 @@ protected:
 protected:
     bool mInitialized;
     bool mConnected;
-    bool mCloneModeStarted;
     Hwcomposer& mHwc;
     DisplayPlaneManager& mDisplayPlaneManager;
     IVideoPayloadManager *mPayloadManager;
