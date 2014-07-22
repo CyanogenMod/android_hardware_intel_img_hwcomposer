@@ -159,14 +159,15 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
     hwc_layer_1_t* videoLayer = NULL;
 
     if (mCurrentConfig.extendedModeEnabled) {
-        for (size_t i = 0; i < display->numHwLayers-1; i++) {
-            hwc_layer_1_t& layer = display->hwLayers[i];
-
-            DisplayAnalyzer *analyzer = mHwc.getDisplayAnalyzer();
-            if (analyzer->isVideoLayer(layer)) {
-                videoFrame = layer.handle;
-                videoLayer = &layer;
-                break;
+        DisplayAnalyzer *analyzer = mHwc.getDisplayAnalyzer();
+        if (analyzer->checkVideoExtendedMode()) {
+            for (size_t i = 0; i < display->numHwLayers-1; i++) {
+                hwc_layer_1_t& layer = display->hwLayers[i];
+                if (analyzer->isVideoLayer(layer)) {
+                    videoFrame = layer.handle;
+                    videoLayer = &layer;
+                    break;
+                }
             }
         }
     }
