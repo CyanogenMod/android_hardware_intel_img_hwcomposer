@@ -151,11 +151,11 @@ bool PhysicalDevice::vsyncControl(bool enabled)
 bool PhysicalDevice::blank(bool blank)
 {
     RETURN_FALSE_IF_NOT_INIT();
-    ATRACE("Connected = %d, old blank = %d, new blank = %d", mConnected, mBlank, blank);
-    mBlank = blank;
+
     if (!mConnected)
         return false;
 
+    mBlank = blank;
     bool ret = mBlankControl->blank(mType, blank);
     if (ret == false) {
         ETRACE("failed to blank device");
