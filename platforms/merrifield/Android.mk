@@ -83,9 +83,9 @@ LOCAL_SRC_FILES += \
 
 
 LOCAL_C_INCLUDES := $(addprefix $(LOCAL_PATH)/../../../, $(SGX_INCLUDES)) \
-    frameworks/native/include/media/openmax \
-    frameworks/native/opengl/include \
-    hardware/libhardware_legacy/include/hardware_legacy \
+    $(call include-path-for, frameworks-native)/media/openmax \
+    $(call include-path-for, opengl) \
+    $(call include-path-for, libhardware_legacy)/hardware_legacy \
     vendor/intel/hardware/PRIVATE/rgx/rogue/android/graphicshal \
     vendor/intel/hardware/PRIVATE/rgx/rogue/include/ \
     vendor/intel/hardware/PRIVATE/widi/libhwcwidi/ \
