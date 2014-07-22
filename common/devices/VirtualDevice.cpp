@@ -31,6 +31,7 @@
 #include <DisplayQuery.h>
 #include <VirtualDevice.h>
 #include <IVideoPayloadManager.h>
+#include <SoftVsyncObserver.h>
 
 #include <binder/IServiceManager.h>
 #include <binder/ProcessState.h>
@@ -98,8 +99,11 @@ VirtualDevice::HeldDecoderBuffer::~HeldDecoderBuffer()
 
 VirtualDevice::VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
     : mInitialized(false),
+      mConnected(false),
       mHwc(hwc),
       mDisplayPlaneManager(dpm),
+      mPayloadManager(NULL),
+      mVsyncObserver(NULL),
       mOrigContentWidth(0),
       mOrigContentHeight(0),
       mFirstVideoFrame(true)
@@ -136,13 +140,15 @@ status_t VirtualDevice::start(sp<IFrameTypeChangeListener> typeChangeListener)
     mNextConfig.policy.ydpi = 96;
     mNextConfig.policy.refresh = 60;
     mNextConfig.extendedModeEnabled =
-        Hwcomposer::getInstance().getDisplayAnalyzer()->isVideoExtendedModeEnabled();
+        Hwcomposer::getInstance().getDisplayAnalyzer()->isVideoExtModeEnabled();
     if (mNextConfig.extendedModeEnabled)
         Hwcomposer::getInstance().getMultiDisplayObserver()->notifyWidiConnectionStatus(true);
     mVideoFramerate = 0;
     mFirstVideoFrame = true;
     mNextConfig.forceNotifyFrameType = true;
     mNextConfig.forceNotifyBufferInfo = true;
+
+    mConnected = true;
     return NO_ERROR;
 }
 
@@ -159,6 +165,7 @@ status_t VirtualDevice::stop(bool isConnected)
     mNextConfig.extendedModeEnabled = false;
     mNextConfig.forceNotifyFrameType = false;
     mNextConfig.forceNotifyBufferInfo = false;
+    mConnected = false;
     {
         Mutex::Autolock _l(mCscLock);
         mCscWidth = 0;
@@ -636,7 +643,7 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
 bool VirtualDevice::vsyncControl(bool enabled)
 {
     RETURN_FALSE_IF_NOT_INIT();
-    return true;
+    return mVsyncObserver->control(enabled);
 }
 
 bool VirtualDevice::blank(bool blank)
@@ -743,8 +750,12 @@ bool VirtualDevice::initialize()
 
     mPayloadManager = createVideoPayloadManager();
     if (!mPayloadManager) {
-        ETRACE("Failed to create payload manager");
-        return false;
+        DEINIT_AND_RETURN_FALSE("Failed to create payload manager");
+    }
+
+    mVsyncObserver = new SoftVsyncObserver(*this);
+    if (!mVsyncObserver || !mVsyncObserver->initialize()) {
+        DEINIT_AND_RETURN_FALSE("Failed to create Soft Vsync Observer");
     }
 
     // Publish frame server service with service manager
@@ -754,8 +765,7 @@ bool VirtualDevice::initialize()
         mInitialized = true;
     } else {
         ETRACE("Could not register hwc.widi with service manager, error = %d", ret);
-        delete mPayloadManager;
-        mPayloadManager = NULL;
+        deinitialize();
     }
 
     return mInitialized;
@@ -763,7 +773,7 @@ bool VirtualDevice::initialize()
 
 bool VirtualDevice::isConnected() const
 {
-    return true;
+    return mConnected;
 }
 
 const char* VirtualDevice::getName() const
@@ -776,17 +786,23 @@ int VirtualDevice::getType() const
     return DEVICE_VIRTUAL;
 }
 
+void VirtualDevice::onVsync(int64_t timestamp)
+{
+    mHwc.vsync(DEVICE_VIRTUAL, timestamp);
+}
+
 void VirtualDevice::dump(Dump& d)
 {
 }
 
 void VirtualDevice::deinitialize()
 {
-    mInitialized = false;
     if (mPayloadManager) {
         delete mPayloadManager;
         mPayloadManager = NULL;
     }
+    DEINIT_AND_DELETE_OBJ(mVsyncObserver);
+    mInitialized = false;
 }
 
 } // namespace intel

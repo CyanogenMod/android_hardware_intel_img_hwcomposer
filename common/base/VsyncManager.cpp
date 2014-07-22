@@ -78,21 +78,6 @@ bool VsyncManager::handleVsyncControl(int disp, bool enabled)
 {
     Mutex::Autolock l(mLock);
 
-    if (!mEnableDynamicVsync) {
-        IDisplayDevice *device = mDevices.itemAt(disp);
-        if (device) {
-            bool ret = device->vsyncControl(enabled);
-            if (ret) {
-                // useless to track mEnabled if vsync is controlled on a secondary display
-                mEnabled = enabled;
-            }
-            return ret;
-        } else {
-            ETRACE("invalid display %d", disp);
-            return false;
-        }
-    }
-
     if (disp != IDisplayDevice::DEVICE_PRIMARY) {
         WTRACE("vsync control on non-primary device %d", disp);
         return false;
@@ -103,18 +88,16 @@ bool VsyncManager::handleVsyncControl(int disp, bool enabled)
         return true;
     }
 
-    bool ret;
     if (!enabled) {
-        ret = disableVsync();
+        disableVsync();
+        mEnabled = false;
+        return true;
     } else {
-        ret = enableVsync();
+        mEnabled = enableVsync(getCandidate());
+        return mEnabled;
     }
 
-    if (ret) {
-        // commit the enabling state
-        mEnabled = enabled;
-    }
-    return ret;
+    return false;
 }
 
 void VsyncManager::resetVsyncSource()
@@ -130,21 +113,13 @@ void VsyncManager::resetVsyncSource()
         return;
     }
 
-    // When HDMI is connected, HDMI vsync should be the drive source for screen refresh
-    // as it is the main focus.
-    static bool warnOnce = false;
-    if (!warnOnce) {
-        WTRACE("========================================================");
-        WTRACE("vsync from external display will be the drive source");
-        WTRACE("for screen refresh. However, when reporting vsync event");
-        WTRACE("to surface flinger, primary display will be assumed as");
-        WTRACE("vsync source, see Hwcomposer::vsync for more workaround");
-        WTRACE("========================================================");
-        warnOnce = true;
+    int vsyncSource = getCandidate();
+    if (vsyncSource == mVsyncSource) {
+        return;
     }
 
     disableVsync();
-    enableVsync();
+    enableVsync(vsyncSource);
 }
 
 int VsyncManager::getVsyncSource()
@@ -163,66 +138,84 @@ void VsyncManager::enableDynamicVsync(bool enable)
     mEnableDynamicVsync = enable;
 
     if (!mEnabled) {
-        ITRACE("Vsync has been disabled");
-        mVsyncSource = IDisplayDevice::DEVICE_COUNT;
+        return;
+    }
+
+    int vsyncSource = getCandidate();
+    if (vsyncSource == mVsyncSource) {
         return;
     }
 
     disableVsync();
-    enableVsync();
+    enableVsync(vsyncSource);
 }
 
-bool VsyncManager::enableVsync()
+int VsyncManager::getCandidate()
 {
-    // TODO: extension for WiDi, no vsync control from WiDi yet.
+    if (!mEnableDynamicVsync) {
+        return IDisplayDevice::DEVICE_PRIMARY;
+    }
+
+    IDisplayDevice *device = NULL;
+    // use HDMI vsync when connected
+    device = mDevices.itemAt(IDisplayDevice::DEVICE_EXTERNAL);
+    if (device && device->isConnected()) {
+        return IDisplayDevice::DEVICE_EXTERNAL;
+    }
+
+    // use vsync from virtual display when video extended mode is entered
+    if (Hwcomposer::getInstance().getDisplayAnalyzer()->isVideoExtModeActive()) {
+        device = mDevices.itemAt(IDisplayDevice::DEVICE_VIRTUAL);
+        if (device && device->isConnected()) {
+            return IDisplayDevice::DEVICE_VIRTUAL;
+        }
+        WTRACE("Could not use vsync from secondary device");
+    }
+    return IDisplayDevice::DEVICE_PRIMARY;
+}
+
+bool VsyncManager::enableVsync(int candidate)
+{
     if (mVsyncSource != IDisplayDevice::DEVICE_COUNT) {
-        ETRACE("vsync has been enabled on %d", mVsyncSource);
+        WTRACE("vsync has been enabled on %d", mVsyncSource);
+        return true;
+    }
+
+    IDisplayDevice *device = mDevices.itemAt(candidate);
+    if (!device) {
+        ETRACE("invalid vsync source candidate %d", candidate);
         return false;
     }
 
-    IDisplayDevice *device = mDevices.itemAt(IDisplayDevice::DEVICE_EXTERNAL);
-    if (mEnableDynamicVsync && device && device->isConnected()) {
-        // When HDMI is connected, HDMI vsync should be the drive source for screen refresh
-        // as it is the main focus.
-        if (device->vsyncControl(true)) {
-            mVsyncSource = IDisplayDevice::DEVICE_EXTERNAL;
-            return true;
-        }
-        WTRACE("failed to enable vsync on the external display");
-        // fall through to enable vsync on the primary display
+    if (device->vsyncControl(true)) {
+        mVsyncSource = candidate;
+        return true;
     }
 
-    device = mDevices.itemAt(IDisplayDevice::DEVICE_PRIMARY);
-    if (device) {
-        if (device->vsyncControl(true)) {
+    if (candidate != IDisplayDevice::DEVICE_PRIMARY) {
+        WTRACE("failed to enable vsync on display %d, fall back to primary", candidate);
+        device = mDevices.itemAt(IDisplayDevice::DEVICE_PRIMARY);
+        if (device && device->vsyncControl(true)) {
             mVsyncSource = IDisplayDevice::DEVICE_PRIMARY;
             return true;
         }
-        ETRACE("failed to enable vsync on the primary display");
-        return false;
     }
-
+    ETRACE("failed to enable vsync on the primary display");
     return false;
 }
 
-bool VsyncManager::disableVsync()
+void VsyncManager::disableVsync()
 {
     if (mVsyncSource == IDisplayDevice::DEVICE_COUNT) {
-        ETRACE("vsync has been disabled");
-        return false;
+        WTRACE("vsync has been disabled");
+        return;
     }
 
     IDisplayDevice *device = mDevices.itemAt(mVsyncSource);
-    if (device) {
-        if (device->vsyncControl(false)) {
-            mVsyncSource = IDisplayDevice::DEVICE_COUNT;
-            return true;
-        } else {
-            ETRACE("failed to disable vsync on device %d", mVsyncSource);
-            return false;
-        }
+    if (device && !device->vsyncControl(false)) {
+        WTRACE("failed to disable vsync on device %d", mVsyncSource);
     }
-    return false;
+    mVsyncSource = IDisplayDevice::DEVICE_COUNT;
 }
 
 } // namespace intel

@@ -102,6 +102,7 @@ public:
     virtual bool isConnected() const = 0;
     virtual const char* getName() const = 0;
     virtual int getType() const = 0;
+    virtual void onVsync(int64_t timestamp) = 0;
     virtual void dump(Dump& d) = 0;
 };
 

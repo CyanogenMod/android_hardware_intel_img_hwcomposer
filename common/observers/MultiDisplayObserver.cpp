@@ -78,6 +78,7 @@ status_t MultiDisplayCallback::setHdmiTiming(const MDSHdmiTiming& timing)
 status_t MultiDisplayCallback::updateInputState(bool state)
 {
     ITRACE("input state: %d", state);
+    mDispObserver->updateInputState(state);
     return NO_ERROR;
 }
 
@@ -329,6 +330,13 @@ status_t MultiDisplayObserver::setHdmiTiming(const MDSHdmiTiming& timing)
     mExternalHdmiTiming = true;
     return 0;
 }
+
+status_t MultiDisplayObserver::updateInputState(bool active)
+{
+    Hwcomposer::getInstance().getDisplayAnalyzer()->postInputEvent(active);
+    return 0;
+}
+
 
 /// Public interfaces
 

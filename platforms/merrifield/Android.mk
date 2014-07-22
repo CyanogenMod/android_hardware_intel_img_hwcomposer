@@ -40,6 +40,7 @@ LOCAL_SRC_FILES := \
     ../../common/devices/VirtualDevice.cpp \
     ../../common/observers/HotplugEventObserver.cpp \
     ../../common/observers/VsyncEventObserver.cpp \
+    ../../common/observers/SoftVsyncObserver.cpp \
     ../../common/observers/MultiDisplayObserver.cpp \
     ../../common/planes/DisplayPlane.cpp \
     ../../common/planes/DisplayPlaneManager.cpp \

@@ -576,24 +576,7 @@ void HwcLayerList::preProccess()
 
         if (checkSupported(DisplayPlane::PLANE_OVERLAY, hwcLayer)) {
             // video play back has 'special' cases, do more checks!!!
-
-            // use case #1: bypass overlay layers of primary device
-            // if in extend video mode
-            if (mDisplayIndex == IDisplayDevice::DEVICE_PRIMARY) {
-                // check if HWC is in video extended mode
-                if (DisplayQuery::isVideoFormat(hwcLayer->getFormat()) &&
-                    hwc.getDisplayAnalyzer()->checkVideoExtendedMode()) {
-                    VTRACE("video is skipped in extended mode");
-                    // remove it from fb layer list first
-                    mFBLayers.remove(hwcLayer);
-                    // layer has been skipped
-                    hwcLayer->setType(HwcLayer::LAYER_SKIPPED);
-                    mSkippedLayers.add(hwcLayer);
-                    continue;
-                }
-            }
-
-            // use case #2: overlay is not allowed at the moment, use 3D for it
+            // use case #1: overlay is not allowed at the moment, use 3D for it
             if (!(hwc.getDisplayAnalyzer()->isOverlayAllowed())) {
                 ITRACE("overlay is not allowed");
                 continue;

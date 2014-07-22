@@ -37,6 +37,7 @@ namespace intel {
 class Hwcomposer;
 class DisplayPlaneManager;
 class IVideoPayloadManager;
+class SoftVsyncObserver;
 
 class VirtualDevice : public IDisplayDevice, public BnFrameServer {
 protected:
@@ -120,6 +121,7 @@ public:
     virtual bool isConnected() const;
     virtual const char* getName() const;
     virtual int getType() const;
+    virtual void onVsync(int64_t timestamp);
     virtual void dump(Dump& d);
 
     // IFrameServer methods
@@ -132,9 +134,11 @@ protected:
 
 protected:
     bool mInitialized;
+    bool mConnected;
     Hwcomposer& mHwc;
     DisplayPlaneManager& mDisplayPlaneManager;
     IVideoPayloadManager *mPayloadManager;
+    SoftVsyncObserver *mVsyncObserver;
     uint32_t mOrigContentWidth;
     uint32_t mOrigContentHeight;
     bool mFirstVideoFrame;

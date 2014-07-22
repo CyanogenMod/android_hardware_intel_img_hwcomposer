@@ -88,7 +88,7 @@ private:
     status_t blankSecondaryDisplay(bool blank);
     status_t updateVideoState(int sessionId, MDS_VIDEO_STATE state);
     status_t setHdmiTiming(const MDSHdmiTiming& timing);
-    status_t setInputState(bool state);
+    status_t updateInputState(bool active);
     friend class MultiDisplayCallback;
 
 private:
