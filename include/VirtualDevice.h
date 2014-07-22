@@ -66,10 +66,17 @@ protected:
         sp<IFrameTypeChangeListener> typeChangeListener;
         sp<IFrameListener> frameListener;
         FrameProcessingPolicy policy;
+        bool frameServerActive;
         bool extendedModeEnabled;
         bool forceNotifyFrameType;
         bool forceNotifyBufferInfo;
     };
+    struct ied_block {
+        uint8_t data[16];
+    };
+    ied_block mBlackY;
+    ied_block mBlackUV;
+
     Mutex mConfigLock;
     Configuration mCurrentConfig;
     Configuration mNextConfig;
@@ -101,6 +108,8 @@ protected:
     bool mDoOnFrameReady;
     bool mCancelOnFrameReady;
 
+    bool mProtectedMode;
+
     FrameInfo mLastInputFrameInfo;
     FrameInfo mLastOutputFrameInfo;
 
@@ -111,8 +120,14 @@ protected:
     android::KeyedVector<uint32_t, android::sp<android::RefBase> > mHeldBuffers;
 
 private:
+    void clearCscBuffers();
     android::sp<CachedBuffer> getMappedBuffer(uint32_t handle);
     bool sendToWidi(const hwc_layer_1_t& layer, bool isProtected);
+
+    static void fill(uint8_t* ptr, const ied_block& data, size_t len);
+    void copyVideo(buffer_handle_t videoHandle, uint8_t* destPtr, uint32_t destWidth, uint32_t destHeight);
+    bool vanillaPrepare(hwc_display_contents_1_t *display);
+    bool vanillaCommit(hwc_display_contents_1_t *display);
 
 public:
     VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm);
@@ -151,7 +166,6 @@ protected:
 
 protected:
     bool mInitialized;
-    bool mConnected;
     Hwcomposer& mHwc;
     DisplayPlaneManager& mDisplayPlaneManager;
     IVideoPayloadManager *mPayloadManager;

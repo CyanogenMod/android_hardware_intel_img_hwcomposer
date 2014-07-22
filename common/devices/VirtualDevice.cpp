@@ -104,8 +104,8 @@ VirtualDevice::VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
     : mDoBlit(false),
       mDoOnFrameReady(false),
       mCancelOnFrameReady(false),
+      mProtectedMode(false),
       mInitialized(false),
-      mConnected(false),
       mHwc(hwc),
       mDisplayPlaneManager(dpm),
       mPayloadManager(NULL),
@@ -116,6 +116,9 @@ VirtualDevice::VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
       mCachedBufferCapcity(16)
 {
     CTRACE();
+    mNextConfig.frameServerActive = false;
+    memset(mBlackY.data, 0x10, sizeof(mBlackY.data));
+    memset(mBlackUV.data, 0x80, sizeof(mBlackUV.data));
 }
 
 VirtualDevice::~VirtualDevice()
@@ -208,10 +211,10 @@ status_t VirtualDevice::start(sp<IFrameTypeChangeListener> typeChangeListener)
         Hwcomposer::getInstance().getMultiDisplayObserver()->notifyWidiConnectionStatus(true);
     mVideoFramerate = 0;
     mFirstVideoFrame = true;
+    mNextConfig.frameServerActive = true;
     mNextConfig.forceNotifyFrameType = true;
     mNextConfig.forceNotifyBufferInfo = true;
 
-    mConnected = true;
     if (mThread == NULL) {
         mThread = new WidiBlitThread(this);
         mThread->run("WidiBlit", PRIORITY_URGENT_DISPLAY);
@@ -224,15 +227,16 @@ status_t VirtualDevice::stop(bool isConnected)
     ITRACE();
     Mutex::Autolock _l(mConfigLock);
     mNextConfig.typeChangeListener = NULL;
+    mNextConfig.frameListener = NULL;
     mNextConfig.policy.scaledWidth = 0;
     mNextConfig.policy.scaledHeight = 0;
     mNextConfig.policy.xdpi = 96;
     mNextConfig.policy.ydpi = 96;
     mNextConfig.policy.refresh = 60;
+    mNextConfig.frameServerActive = false;
     mNextConfig.extendedModeEnabled = false;
     mNextConfig.forceNotifyFrameType = false;
     mNextConfig.forceNotifyBufferInfo = false;
-    mConnected = false;
     {
         Mutex::Autolock _l(mCscLock);
         mCscWidth = 0;
@@ -265,6 +269,18 @@ status_t VirtualDevice::setResolution(const FrameProcessingPolicy& policy, sp<IF
     return NO_ERROR;
 }
 
+void VirtualDevice::clearCscBuffers()
+{
+    if (!mAvailableCscBuffers.empty()) {
+        // iterate the list and call freeGraphicBuffer
+        for (List<uint32_t>::iterator i = mAvailableCscBuffers.begin(); i != mAvailableCscBuffers.end(); ++i) {
+            VTRACE("Deleting the gralloc buffer associated with handle (%d)", (*i));
+            mHwc.getBufferManager()->freeGrallocBuffer(*i);
+        }
+        mAvailableCscBuffers.clear();
+    }
+}
+
 bool VirtualDevice::prePrepare(hwc_display_contents_1_t *display)
 {
     RETURN_FALSE_IF_NOT_INIT();
@@ -275,30 +291,28 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
 {
     RETURN_FALSE_IF_NOT_INIT();
 
-    if (!display) {
-        return true;
-    }
-
     mRenderTimestamp = systemTime();
     {
         Mutex::Autolock _l(mConfigLock);
         mCurrentConfig = mNextConfig;
     }
 
-    if (mCurrentConfig.typeChangeListener == NULL) {
-        //clear the buffer queues if any from the previous Widi session
+    if (!display) {
+        // No image. We're done with any mappings and CSC buffers.
         mMappedBufferCache.clear();
-        {
-            Mutex::Autolock _l(mCscLock);
-            if (!mAvailableCscBuffers.empty()) {
-                for (List<uint32_t>::iterator i = mAvailableCscBuffers.begin(); i != mAvailableCscBuffers.end(); ++i) {
-                    VTRACE("Deleting the gralloc buffer associated with handle (%d)", (*i));
-                    mHwc.getBufferManager()->freeGrallocBuffer(*i);
-                }
-                mAvailableCscBuffers.clear();
-            }
-        }
+        Mutex::Autolock _l(mCscLock);
+        clearCscBuffers();
         return true;
+    }
+
+    if (!mCurrentConfig.frameServerActive) {
+        {
+            // We're done with CSC buffers, since we blit to outbuf in this mode.
+            // We want to keep mappings cached, so we don't clear mMappedBufferCache.
+            Mutex::Autolock _l(mCscLock);
+            clearCscBuffers();
+        }
+        return vanillaPrepare(display);
     }
 
     // by default send the FRAMEBUFFER_TARGET layer (composited image)
@@ -390,6 +404,9 @@ bool VirtualDevice::commit(hwc_display_contents_1_t *display, IDisplayContext *c
 
     if (!display)
         return true;
+
+    if (!mCurrentConfig.frameServerActive)
+        return vanillaCommit(display);
 
     DisplayAnalyzer *analyzer = mHwc.getDisplayAnalyzer();
 
@@ -579,12 +596,7 @@ bool VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
             if (mCscWidth != mCurrentConfig.policy.scaledWidth || mCscHeight != mCurrentConfig.policy.scaledHeight) {
                 ITRACE("CSC buffers changing from %dx%d to %dx%d",
                       mCscWidth, mCscHeight, mCurrentConfig.policy.scaledWidth, mCurrentConfig.policy.scaledHeight);
-                // iterate the list and call freeGraphicBuffer
-                for (List<uint32_t>::iterator i = mAvailableCscBuffers.begin(); i != mAvailableCscBuffers.end(); ++i) {
-                    VTRACE("Deleting the gralloc buffer associated with handle (%d)", (*i));
-                    mgr->freeGrallocBuffer(*i);
-                }
-                mAvailableCscBuffers.clear();
+                clearCscBuffers();
                 mCscWidth = mCurrentConfig.policy.scaledWidth;
                 mCscHeight = mCurrentConfig.policy.scaledHeight;
                 mCscBuffersToCreate = NUM_CSC_BUFFERS;
@@ -703,6 +715,165 @@ bool VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
         mExtLastKhandle = handle;
         mExtLastTimestamp = mediaTimestamp;
     }
+    return true;
+}
+
+void VirtualDevice::fill(uint8_t* ptr, const ied_block& data, size_t len) {
+    for (size_t offset = 0; offset < len; offset += 16) {
+        *reinterpret_cast<ied_block*>(ptr + offset) = data;
+    }
+}
+
+void VirtualDevice::copyVideo(buffer_handle_t videoHandle, uint8_t* destPtr, uint32_t destWidth, uint32_t destHeight)
+{
+    sp<CachedBuffer> videoCachedBuffer = getMappedBuffer((uint32_t) videoHandle);
+    if (videoCachedBuffer == NULL) {
+        ETRACE("Couldn't map video handle %p", videoHandle);
+        return;
+    }
+    if (videoCachedBuffer->mapper == NULL) {
+        ETRACE("Src mapper gone");
+        return;
+    }
+    IVideoPayloadManager::MetaData metadata;
+    if (!mPayloadManager->getMetaData(videoCachedBuffer->mapper, &metadata)) {
+        ETRACE("Failed to map video payload info");
+        return;
+    }
+    uint8_t* srcPtr = (uint8_t*)videoCachedBuffer->mapper->getCpuAddress(0);
+
+    if (srcPtr == NULL || destPtr == NULL) {
+        ETRACE("Unable to map a buffer");
+        return;
+    }
+
+    uint32_t srcWidth = metadata.lumaStride;
+    uint32_t srcHeight = metadata.height;
+    uint32_t blitWidth = metadata.crop_width;
+    uint32_t blitHeight = metadata.crop_height;
+
+    if (blitWidth > destWidth)
+        blitWidth = destWidth;
+    if (blitHeight > destHeight)
+        blitHeight = destHeight;
+
+    uint32_t outY = (destHeight - blitHeight)/2;
+    outY = (outY+1) & ~1;
+
+    // clear top bar
+    fill(destPtr, mBlackY, outY*destWidth);
+    fill(destPtr + destWidth*destHeight, mBlackUV, outY*destWidth/2);
+
+    // clear bottom bar
+    fill(destPtr + (outY+blitHeight)*destWidth, mBlackY, (destHeight-outY-blitHeight)*destWidth);
+    fill(destPtr + destWidth*destHeight + (outY+blitHeight)*destWidth/2, mBlackUV, (destHeight-outY-blitHeight)*destWidth/2);
+
+    if (srcWidth == destWidth) {
+        // copy whole Y plane
+        memcpy(destPtr+outY*destWidth, srcPtr, srcWidth*blitHeight);
+        // copy whole UV plane
+        memcpy(destPtr+(destHeight+outY/2)*destWidth, srcPtr+srcWidth*srcHeight, srcWidth*blitHeight/2);
+    } else {
+        uint32_t outX = (destWidth - blitWidth)/2;
+        outX = (outX+8) & ~15;
+        blitWidth = blitWidth & ~15;
+
+        // clear left and right bars, Y plane
+        for (uint32_t y = 0; y < blitHeight; y++) {
+            fill(destPtr + (outY + y)*destWidth, mBlackY, outX);
+            fill(destPtr + (outY + y)*destWidth+outX+blitWidth, mBlackY, destWidth-outX-blitWidth);
+        }
+
+        // clear left and right bars, UV plane
+        for (uint32_t y = 0; y < blitHeight/2; y++) {
+            fill(destPtr + (destHeight + outY/2 + y)*destWidth, mBlackUV, outX);
+            fill(destPtr + (destHeight + outY/2 + y)*destWidth+outX+blitWidth, mBlackUV, destWidth-outX-blitWidth);
+        }
+
+        // copy Y plane one row at a time
+        for (uint32_t row = 0; row < blitHeight; row++)
+            memcpy(destPtr+(row+outY)*destWidth+outX, srcPtr + row*srcWidth, blitWidth);
+        // copy UV plane one row at a time
+        for (uint32_t row = 0; row < blitHeight/2; row++)
+            memcpy(destPtr+(destHeight+row+outY/2)*destWidth+outX, srcPtr+(srcHeight+row)*srcWidth, blitWidth);
+    }
+}
+
+bool VirtualDevice::vanillaPrepare(hwc_display_contents_1_t *display)
+{
+    DisplayAnalyzer *analyzer = mHwc.getDisplayAnalyzer();
+
+    // by default send the FRAMEBUFFER_TARGET layer (composited image)
+    mLayerToSend = display->numHwLayers-1;
+    mProtectedMode = false;
+
+    for (size_t i = 0; i < display->numHwLayers-1; i++) {
+        hwc_layer_1_t& layer = display->hwLayers[i];
+        if (analyzer->isVideoLayer(layer) && analyzer->isProtectedLayer(layer)) {
+            // can't support something below QCIF resolution
+            uint32_t vidContentWidth = layer.sourceCropf.right - layer.sourceCropf.left;
+            uint32_t vidContentHeight = layer.sourceCropf.bottom - layer.sourceCropf.top;
+            if (vidContentWidth >= QCIF_WIDTH && vidContentHeight >= QCIF_HEIGHT) {
+                layer.compositionType = HWC_OVERLAY;
+                mLayerToSend = i;
+                mProtectedMode = true;
+                break;
+            }
+        }
+    }
+
+    int32_t compositionType = mProtectedMode ? HWC_OVERLAY : HWC_FRAMEBUFFER;
+    for (size_t i = 0; i < display->numHwLayers-1; i++)
+        display->hwLayers[i].compositionType = compositionType;
+
+    if (mProtectedMode) {
+        // protected content
+        sp<CachedBuffer> destCachedBuffer = getMappedBuffer((uint32_t) display->outbuf);
+        if (destCachedBuffer == NULL) {
+            ETRACE("Couldn't map dest handle %x", (uint32_t) display->outbuf);
+            return false;
+        }
+        if (destCachedBuffer->mapper == NULL) {
+            ETRACE("Dest mapper gone");
+            return false;
+        }
+        uint8_t* destPtr = (uint8_t*)destCachedBuffer->mapper->getCpuAddress(0);
+
+        hwc_layer_1_t& targetFb = display->hwLayers[display->numHwLayers-1];
+        uint32_t outWidth = targetFb.sourceCropf.right - targetFb.sourceCropf.left;
+        uint32_t outHeight = targetFb.sourceCropf.bottom - targetFb.sourceCropf.top;
+        copyVideo(display->hwLayers[mLayerToSend].handle, destPtr, outWidth, outHeight);
+    } else {
+        // We map buffers for protected content.
+        // We don't need them anymore when back in clone mode.
+        mMappedBufferCache.clear();
+    }
+
+    return true;
+}
+
+bool VirtualDevice::vanillaCommit(hwc_display_contents_1_t *display)
+{
+    if (mProtectedMode)
+        return true;
+
+    // clone mode
+    hwc_layer_1_t& layer = display->hwLayers[mLayerToSend];
+    crop_t cropInfo;
+    cropInfo.x = 0;
+    cropInfo.y = 0;
+    cropInfo.w = layer.sourceCropf.right - layer.sourceCropf.left;
+    cropInfo.h = layer.sourceCropf.bottom - layer.sourceCropf.top;
+    BufferManager* mgr = mHwc.getBufferManager();
+    uint32_t srcHandle = (uint32_t) layer.handle;
+    uint32_t destHandle = (uint32_t) display->outbuf;
+    if (srcHandle == 0 || destHandle == 0)
+        return false;
+    if (!(mgr->convertRGBToNV12(srcHandle, destHandle, cropInfo, 0))) {
+        ETRACE("color space conversion from RGB to NV12 failed");
+        return false;
+    }
+
     return true;
 }
 
@@ -839,7 +1010,7 @@ bool VirtualDevice::initialize()
 
 bool VirtualDevice::isConnected() const
 {
-    return mConnected;
+    return true;
 }
 
 const char* VirtualDevice::getName() const
