@@ -249,6 +249,7 @@ void ExternalDevice::hotplugListener()
 
     if (mConnected == false) {
         mHotplugEventPending = false;
+        mHwc.getVsyncManager()->resetVsyncSource();
         mHdcpControl->stopHdcp();
         mHwc.hotplug(mType, mConnected);
     } else {

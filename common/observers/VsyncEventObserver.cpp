@@ -129,11 +129,12 @@ bool VsyncEventObserver::threadLoop()
         }
     } while (0);
 
-    if(mEnabled){
+    if(mEnabled && mDisplayDevice.isConnected()) {
         int64_t timestamp;
         bool ret = mVsyncControl->wait(mDevice, timestamp);
         if (ret == false) {
             WTRACE("failed to wait for vsync on display %d, vsync enabled %d", mDevice, mEnabled);
+            usleep(16000);
             return true;
         }
 
