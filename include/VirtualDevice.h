@@ -115,6 +115,7 @@ protected:
     // fence info
     int mSyncTimelineFd;
     unsigned mNextSyncPoint;
+    bool mExpectAcquireFences;
 
     // async blit info
     DECLARE_THREAD(WidiBlitThread, VirtualDevice);

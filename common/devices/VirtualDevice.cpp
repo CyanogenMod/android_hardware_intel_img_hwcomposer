@@ -53,6 +53,45 @@ namespace intel {
 
 static const bool VSP_FOR_CLEAR_VIDEO = false; // debug feature
 
+static void my_close_fence(const char* func, const char* fenceName, int& fenceFd)
+{
+    if (fenceFd != -1) {
+        VTRACE("%s: closing fence %s (fd=%d)", func, fenceName, fenceFd);
+        int err = close(fenceFd);
+        if (err < 0) {
+            ETRACE("%s: fence %s close error %d: %s", func, fenceName, err, strerror(errno));
+        }
+        fenceFd = -1;
+    }
+}
+
+static void my_sync_wait_and_close(const char* func, const char* fenceName, int& fenceFd)
+{
+    if (fenceFd != -1) {
+        VTRACE("%s: waiting on fence %s (fd=%d)", func, fenceName, fenceFd);
+        int err = sync_wait(fenceFd, 300);
+        if (err < 0) {
+            ETRACE("%s: fence %s sync_wait error %d: %s", func, fenceName, err, strerror(errno));
+        }
+        my_close_fence(func, fenceName, fenceFd);
+    }
+}
+
+static void my_timeline_inc(const char* func, const char* timelineName, int& syncTimelineFd)
+{
+    if (syncTimelineFd != -1) {
+        VTRACE("%s: incrementing timeline %s (fd=%d)", func, timelineName, syncTimelineFd);
+        int err = sw_sync_timeline_inc(syncTimelineFd, 1);
+        if (err < 0)
+            ETRACE("%s sync timeline %s increment error %d: %s", func, timelineName, errno, strerror(errno));
+        syncTimelineFd = -1;
+    }
+}
+
+#define CLOSE_FENCE(fenceName)          my_close_fence(__func__, #fenceName, fenceName)
+#define SYNC_WAIT_AND_CLOSE(fenceName)  my_sync_wait_and_close(__func__, #fenceName, fenceName)
+#define TIMELINE_INC(timelineName)      my_timeline_inc(__func__, #timelineName, timelineName)
+
 class MappedSurface {
 public:
     MappedSurface(VADisplay dpy, VASurfaceID surf)
@@ -262,6 +301,23 @@ struct VirtualDevice::RenderTask : public VirtualDevice::Task {
 };
 
 struct VirtualDevice::ComposeTask : public VirtualDevice::RenderTask {
+    ComposeTask()
+        : yuvAcquireFenceFd(-1),
+          rgbAcquireFenceFd(-1),
+          outbufAcquireFenceFd(-1),
+          syncTimelineFd(-1) { }
+
+    virtual ~ComposeTask() {
+        // If queueCompose() creates this object and sets up fences,
+        // but aborts before enqueuing the task, or if the task runs
+        // but errors out, make sure our acquire fences get closed
+        // and any release fences get signaled.
+        CLOSE_FENCE(yuvAcquireFenceFd);
+        CLOSE_FENCE(rgbAcquireFenceFd);
+        CLOSE_FENCE(outbufAcquireFenceFd);
+        TIMELINE_INC(syncTimelineFd);
+    }
+
     virtual void run(VirtualDevice& vd) {
         VASurfaceID videoInSurface;
 
@@ -288,6 +344,8 @@ struct VirtualDevice::ComposeTask : public VirtualDevice::RenderTask {
             videoStride = videoMetadata.lumaStride;
             videoBufHeight = videoMetadata.height;
         }
+
+        SYNC_WAIT_AND_CLOSE(yuvAcquireFenceFd);
 
         if (displayFrame.left == 0 && displayFrame.top == 0 &&
             displayFrame.right == outWidth && displayFrame.bottom == outHeight &&
@@ -335,10 +393,10 @@ struct VirtualDevice::ComposeTask : public VirtualDevice::RenderTask {
               videoMetadata.scaling_khandle,
               videoMetadata.scaling_luma_stride, videoMetadata.scaling_height,
               videoMetadata.scaling_width, videoMetadata.scaling_height);
-        if (rgbAcquireFenceFd != -1) {
-            sync_wait(rgbAcquireFenceFd, 100);
-            close(rgbAcquireFenceFd);
-        }
+
+        SYNC_WAIT_AND_CLOSE(rgbAcquireFenceFd);
+        SYNC_WAIT_AND_CLOSE(outbufAcquireFenceFd);
+
         VAMappedHandle mappedRgbIn(vd.va_dpy, rgbHandle, outWidth, outHeight, true);
         if (mappedRgbIn.surface == 0) {
             ETRACE("Unable to map RGB surface");
@@ -351,14 +409,8 @@ struct VirtualDevice::ComposeTask : public VirtualDevice::RenderTask {
         }
 
         vd.vspCompose(videoInSurface, mappedRgbIn.surface, mappedVideoOut.surface);
+        TIMELINE_INC(syncTimelineFd);
         successful = true;
-    }
-    virtual ~ComposeTask() {
-        if (syncTimelineFd != -1) {
-            int err = sw_sync_timeline_inc(syncTimelineFd, 1);
-            if (err < 0)
-                ETRACE("Sync increment failed: %d", err);
-        }
     }
     buffer_handle_t videoHandle;
     hwc_rect_t displayFrame;
@@ -369,7 +421,9 @@ struct VirtualDevice::ComposeTask : public VirtualDevice::RenderTask {
     sp<CachedBuffer> videoCachedBuffer;
     sp<RefBase> heldVideoBuffer;
     IVideoPayloadManager::MetaData videoMetadata;
+    int yuvAcquireFenceFd;
     int rgbAcquireFenceFd;
+    int outbufAcquireFenceFd;
     int syncTimelineFd;
 };
 
@@ -380,22 +434,36 @@ struct VirtualDevice::DisableVspTask : public VirtualDevice::Task {
 };
 
 struct VirtualDevice::BlitTask : public VirtualDevice::RenderTask {
+    BlitTask()
+        : srcAcquireFenceFd(-1),
+          destAcquireFenceFd(-1) { }
+
+    virtual ~BlitTask()
+    {
+        // If queueColorConvert() creates this object and sets up fences,
+        // but aborts before enqueuing the task, or if the task runs
+        // but errors out, make sure our acquire fences get closed
+        // and any release fences get signaled.
+        CLOSE_FENCE(srcAcquireFenceFd);
+        CLOSE_FENCE(destAcquireFenceFd);
+        TIMELINE_INC(syncTimelineFd);
+    }
+
     virtual void run(VirtualDevice& vd) {
+        SYNC_WAIT_AND_CLOSE(srcAcquireFenceFd);
+        SYNC_WAIT_AND_CLOSE(destAcquireFenceFd);
         BufferManager* mgr = vd.mHwc.getBufferManager();
         if (!(mgr->convertRGBToNV12((uint32_t)srcHandle, (uint32_t)destHandle, cropInfo, 0))) {
             ETRACE("color space conversion from RGB to NV12 failed");
         }
         else
             successful = true;
-        if (syncTimelineFd != -1) {
-            int err = sw_sync_timeline_inc(syncTimelineFd, 1);
-            if (err < 0)
-                ETRACE("Sync increment failed: %d", err);
-        }
+        TIMELINE_INC(syncTimelineFd);
     }
     buffer_handle_t srcHandle;
     buffer_handle_t destHandle;
-    int acquireFenceFd;
+    int srcAcquireFenceFd;
+    int destAcquireFenceFd;
     int syncTimelineFd;
     crop_t cropInfo;
 };
@@ -636,6 +704,7 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
 
     mRenderTimestamp = systemTime();
     mVspInUse = false;
+    mExpectAcquireFences = false;
 
     {
         Mutex::Autolock _l(mConfigLock);
@@ -645,6 +714,9 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
     bool shouldBeConnected = (display != NULL && (!mCurrentConfig.frameServerActive ||
                                                   mCurrentConfig.extendedModeEnabled));
     if (shouldBeConnected != mLastConnectionStatus) {
+        // calling this will reload the property 'hwc.video.extmode.enable'
+        Hwcomposer::getInstance().getDisplayAnalyzer()->isVideoExtModeEnabled();
+
         Hwcomposer::getInstance().getMultiDisplayObserver()->notifyWidiConnectionStatus(shouldBeConnected);
         mLastConnectionStatus = shouldBeConnected;
     }
@@ -752,6 +824,10 @@ finish:
     if (result) {
         mRgbLayer = -1;
         mYuvLayer = -1;
+        // Extended mode is successful.
+        // Fences aren't set in prepare, and we don't need them here, but they'll
+        // be set later and we have to close them. Don't log a warning in this case.
+        mExpectAcquireFences = true;
     } else {
         // if error in playback file , switch to clone mode
         WTRACE("Error, falling back to clone mode");
@@ -778,6 +854,25 @@ bool VirtualDevice::commit(hwc_display_contents_1_t *display, IDisplayContext *c
         Mutex::Autolock _l(mCscLock);
         mTasks.push(disableVsp);
         mVspEnabled = false;
+    }
+
+    if (display != NULL) {
+        // All acquire fences should be copied somewhere else or closed by now
+        // and set to -1 in these structs except in the case of extended mode.
+        // Make sure the fences are closed and log a warning if not in extended mode.
+        if (display->outbufAcquireFenceFd != -1) {
+            if (!mExpectAcquireFences)
+                WTRACE("outbuf acquire fence (fd=%d) not yet saved or closed", display->outbufAcquireFenceFd);
+            CLOSE_FENCE(display->outbufAcquireFenceFd);
+        }
+        for (size_t i = 0; i < display->numHwLayers; i++) {
+            hwc_layer_1_t& layer = display->hwLayers[i];
+            if (layer.acquireFenceFd != -1) {
+                if (!mExpectAcquireFences)
+                    WTRACE("layer %d acquire fence (fd=%d) not yet saved or closed", i, layer.acquireFenceFd);
+                CLOSE_FENCE(layer.acquireFenceFd);
+            }
+        }
     }
 
     return true;
@@ -897,8 +992,15 @@ bool VirtualDevice::queueCompose(hwc_display_contents_1_t *display)
         }
     }
 
+    composeTask->yuvAcquireFenceFd = display->hwLayers[mYuvLayer].acquireFenceFd;
+    display->hwLayers[mYuvLayer].acquireFenceFd = -1;
+
     composeTask->rgbAcquireFenceFd = display->hwLayers[mRgbLayer].acquireFenceFd;
     display->hwLayers[mRgbLayer].acquireFenceFd = -1;
+
+    composeTask->outbufAcquireFenceFd = display->outbufAcquireFenceFd;
+    display->outbufAcquireFenceFd = -1;
+
     int retireFd = sw_sync_fence_create(mSyncTimelineFd, "widi_compose_retire", mNextSyncPoint);
     display->hwLayers[mRgbLayer].releaseFenceFd = retireFd;
     display->hwLayers[mYuvLayer].releaseFenceFd = dup(retireFd);
@@ -932,7 +1034,7 @@ bool VirtualDevice::queueCompose(hwc_display_contents_1_t *display)
 
         queueFrameTypeInfo(inputFrameInfo);
         if (mCurrentConfig.policy.scaledWidth == 0 || mCurrentConfig.policy.scaledHeight == 0)
-            return false;
+            return true; // This isn't a failure, WiDi just doesn't want frames right now.
         queueBufferInfo(outputFrameInfo);
 
         sp<OnFrameReadyTask> frameReadyTask = new OnFrameReadyTask();
@@ -969,16 +1071,8 @@ bool VirtualDevice::queueColorConvert(hwc_display_contents_1_t *display)
             (nativeSrcHandle->iFormat == HAL_PIXEL_FORMAT_BGRA_8888 &&
             nativeDestHandle->iFormat == HAL_PIXEL_FORMAT_RGBA_8888))
         {
-            if (layer.acquireFenceFd != -1) {
-                sync_wait(layer.acquireFenceFd, 100);
-                close(layer.acquireFenceFd);
-                layer.acquireFenceFd = -1;
-            }
-            if (display->outbufAcquireFenceFd != -1) {
-                sync_wait(display->outbufAcquireFenceFd, 100);
-                close(display->outbufAcquireFenceFd);
-                display->outbufAcquireFenceFd = -1;
-            }
+            SYNC_WAIT_AND_CLOSE(layer.acquireFenceFd);
+            SYNC_WAIT_AND_CLOSE(display->outbufAcquireFenceFd);
             display->retireFenceFd = -1;
 
             // synchronous in this case
@@ -1000,20 +1094,26 @@ bool VirtualDevice::queueColorConvert(hwc_display_contents_1_t *display)
 
     Mutex::Autolock _l(mCscLock);
 
+    blitTask->srcAcquireFenceFd = layer.acquireFenceFd;
+    layer.acquireFenceFd = -1;
+
+    blitTask->syncTimelineFd = mSyncTimelineFd;
+    // Framebuffer after BlitTask::run() calls sw_sync_timeline_inc().
+    layer.releaseFenceFd = sw_sync_fence_create(mSyncTimelineFd, "widi_blit_retire", mNextSyncPoint);
+
     if (mCurrentConfig.frameServerActive) {
         blitTask->destHandle = (buffer_handle_t)getCscBuffer(blitTask->cropInfo.w, blitTask->cropInfo.h);
-        blitTask->acquireFenceFd = -1;
-        blitTask->syncTimelineFd = -1;
+        blitTask->destAcquireFenceFd = -1;
+
+        // we use our own buffer, so just close this fence without a wait
+        CLOSE_FENCE(display->outbufAcquireFenceFd);
     }
     else {
         blitTask->destHandle = display->outbuf;
-        blitTask->acquireFenceFd = display->outbufAcquireFenceFd;
-        blitTask->syncTimelineFd = mSyncTimelineFd;
+        blitTask->destAcquireFenceFd = display->outbufAcquireFenceFd;
         // don't let TngDisplayContext::commitEnd() close this
         display->outbufAcquireFenceFd = -1;
-        // create fence which will signal when BlitTask::run() calls sw_sync_timeline_inc(),
-        // give it to SurfaceFlinger
-        display->retireFenceFd = sw_sync_fence_create(mSyncTimelineFd, "widi_blit_retire", mNextSyncPoint);
+        display->retireFenceFd = dup(layer.releaseFenceFd);
         mNextSyncPoint++;
     }
 
@@ -1050,7 +1150,7 @@ bool VirtualDevice::queueColorConvert(hwc_display_contents_1_t *display)
 
         queueFrameTypeInfo(inputFrameInfo);
         if (mCurrentConfig.policy.scaledWidth == 0 || mCurrentConfig.policy.scaledHeight == 0)
-            return false;
+            return true; // This isn't a failure, WiDi just doesn't want frames right now.
         queueBufferInfo(outputFrameInfo);
 
         sp<OnFrameReadyTask> frameReadyTask = new OnFrameReadyTask();
@@ -1194,7 +1294,7 @@ bool VirtualDevice::handleExtendedMode(hwc_display_contents_1_t *display)
 
     queueFrameTypeInfo(inputFrameInfo);
     if (mCurrentConfig.policy.scaledWidth == 0 || mCurrentConfig.policy.scaledHeight == 0)
-        return false;
+        return true; // This isn't a failure, WiDi just doesn't want frames right now.
     queueBufferInfo(outputFrameInfo);
 
     if (handle == mExtLastKhandle && mediaTimestamp == mExtLastTimestamp) {
@@ -1615,6 +1715,7 @@ bool VirtualDevice::initialize()
 
     mSyncTimelineFd = sw_sync_timeline_create();
     mNextSyncPoint = 1;
+    mExpectAcquireFences = false;
 
     mThread = new WidiBlitThread(this);
     mThread->run("WidiBlit", PRIORITY_URGENT_DISPLAY);
