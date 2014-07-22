@@ -439,6 +439,11 @@ DisplayPlane* PlatfDisplayPlaneManager::getRealPlane(int dsp,
         return 0;
     }
 
+    if (slot < 0 || slot >= 4) {
+        VTRACE("Invalid slot %d\n", slot);
+        return 0;
+    }
+
     switch (type) {
     case DisplayPlane::PLANE_OVERLAY:
         realType = REAL_PLANE_OVERLAY;
