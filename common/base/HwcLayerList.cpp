@@ -545,7 +545,7 @@ void HwcLayerList::preProccess()
                 // check if HWC is in video extended mode
                 if (DisplayQuery::isVideoFormat(hwcLayer->getFormat()) &&
                     hwc.getDisplayAnalyzer()->checkVideoExtendedMode()) {
-                    ITRACE("video is skipped in extended mode");
+                    VTRACE("video is skipped in extended mode");
                     // remove it from fb layer list first
                     mFBLayers.remove(hwcLayer);
                     // layer has been skipped
@@ -743,7 +743,7 @@ void HwcLayerList::revisit()
         // set a layer to layer overlay and add it back to overlay layer list
         if (layer->getType() != HwcLayer::LAYER_OVERLAY &&
             layer->isProtected()) {
-            ITRACE("skip protected layer %d", layer->getIndex());
+            WTRACE("skip protected layer %d", layer->getIndex());
             layer->setType(HwcLayer::LAYER_SKIPPED);
             // move it from FB layer list to overlay layer list
             mFBLayers.remove(layer);
@@ -1169,7 +1169,7 @@ bool HwcLayerList::hasProtectedLayer()
     for (size_t i = 0; i < mLayers.size(); i++) {
         HwcLayer *hwcLayer = mLayers.itemAt(i);
         if (hwcLayer && hwcLayer->isProtected()) {
-            ITRACE("protected layer found, layer index is %d", i);
+            VTRACE("protected layer found, layer index is %d", i);
             return true;
         }
     }

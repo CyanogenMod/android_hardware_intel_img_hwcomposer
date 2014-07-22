@@ -156,7 +156,7 @@ bool OverlayPlaneBase::assignToDevice(int disp)
     uint32_t pipeConfig = 0;
 
     RETURN_FALSE_IF_NOT_INIT();
-    DTRACE("overlay %d assigned to disp %d", mIndex, disp);
+    VTRACE("overlay %d assigned to disp %d", mIndex, disp);
 
     switch (disp) {
     case IDisplayDevice::DEVICE_EXTERNAL:

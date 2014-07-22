@@ -76,7 +76,7 @@ bool BufferManager::initialize()
 
     gralloc_open(module, &mAllocDev);
     if (!mAllocDev) {
-        DEINIT_AND_RETURN_FALSE("failed to open alloc device");
+        WTRACE("failed to open alloc device");
     }
 
     // create a dummy data buffer
@@ -231,6 +231,11 @@ uint32_t BufferManager::allocFrameBuffer(int width, int height, int *stride)
 {
     RETURN_NULL_IF_NOT_INIT();
 
+    if (!mAllocDev) {
+        WTRACE("Alloc device is not available");
+        return 0;
+    }
+
     if (!width || !height || !stride) {
         ETRACE("invalid input parameter");
         return 0;
@@ -299,6 +304,12 @@ uint32_t BufferManager::allocFrameBuffer(int width, int height, int *stride)
 void BufferManager::freeFrameBuffer(uint32_t kHandle)
 {
     RETURN_VOID_IF_NOT_INIT();
+
+    if (!mAllocDev) {
+        WTRACE("Alloc device is not available");
+        return;
+    }
+
     ssize_t index = mFrameBuffers.indexOfKey(kHandle);
     if (index < 0) {
         ETRACE("invalid kernel handle");
@@ -316,6 +327,11 @@ void BufferManager::freeFrameBuffer(uint32_t kHandle)
 uint32_t BufferManager::allocGrallocBuffer(uint32_t width, uint32_t height, uint32_t format, uint32_t usage)
 {
     RETURN_NULL_IF_NOT_INIT();
+
+    if (!mAllocDev) {
+        WTRACE("Alloc device is not available");
+        return 0;
+    }
 
     if (!width || !height) {
         ETRACE("invalid input parameter");
@@ -344,6 +360,11 @@ uint32_t BufferManager::allocGrallocBuffer(uint32_t width, uint32_t height, uint
 void BufferManager::freeGrallocBuffer(uint32_t handle)
 {
     RETURN_VOID_IF_NOT_INIT();
+    if (!mAllocDev) {
+        WTRACE("Alloc device is not available");
+        return;
+    }
+
     if (handle)
         mAllocDev->free(mAllocDev, (buffer_handle_t)handle);
 }
