@@ -87,6 +87,8 @@ void DisplayAnalyzer::detectTrickMode(hwc_display_contents_1_t *list)
         hwc_layer_1_t *layer = &list->hwLayers[i];
         if (layer && (layer->flags & HWC_TRICK_MODE)) {
             detected = true;
+            // reset the type
+            layer->compositionType = HWC_FRAMEBUFFER;
             break;
         }
     }
@@ -139,7 +141,7 @@ void DisplayAnalyzer::detectVideoExtendedMode(
     // exclude the frame buffer target layer
     for (int j = 0; j < (int)content->numHwLayers - 1; j++) {
         videoLayerExist = isVideoLayer(content->hwLayers[j]);
-        if (videoLayerExist == true) {
+        if (videoLayerExist) {
             videoHandle = (uint32_t)content->hwLayers[j].handle;
             break;
         }
@@ -163,7 +165,9 @@ void DisplayAnalyzer::detectVideoExtendedMode(
         for (int j = 0; j < (int)content->numHwLayers - 1; j++) {
             if ((uint32_t)content->hwLayers[j].handle == videoHandle) {
                 ITRACE("video layer exists in device %d", i);
-                mVideoExtendedMode = true;
+                if (!isVideoEmbedded(content->hwLayers[j])) {
+                    mVideoExtendedMode = true;
+                }
                 return;
             }
         }
@@ -187,6 +191,35 @@ bool DisplayAnalyzer::isVideoLayer(hwc_layer_1_t &layer)
         bm->put(*buffer);
     }
     return ret;
+}
+
+bool DisplayAnalyzer::isVideoEmbedded(hwc_layer_1_t &layer)
+{
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+    drmModeModeInfo modeInfo;
+    if (!drm->getModeInfo(IDisplayDevice::DEVICE_EXTERNAL, modeInfo)) {
+        ETRACE("failed to get mode info");
+        return false;
+    }
+    drmModeModeInfoPtr mode = &modeInfo;
+
+    int dstW = layer.displayFrame.right - layer.displayFrame.left;
+    int dstH = layer.displayFrame.bottom - layer.displayFrame.top;
+
+    VTRACE("Src[w]:%d[h]:%d Dest[w]:%d[h]:%d Mode[w]:%d[h]:%d Trans:%d",
+            layer.sourceCrop.right - layer.sourceCrop.left,
+            layer.sourceCrop.bottom - layer.sourceCrop.top,
+            dstW, dstH,
+            mode->hdisplay, mode->vdisplay,
+            layer.transform);
+
+    bool embedded = false;
+    if (dstW < mode->hdisplay - 1 &&
+        dstH < mode->vdisplay - 1) {
+        embedded = true;
+    }
+
+    return embedded;
 }
 
 bool DisplayAnalyzer::blankSecondaryDevice(bool blank)
