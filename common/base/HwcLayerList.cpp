@@ -464,8 +464,13 @@ void HwcLayerList::preProccess()
                     continue;
                 }
             }
-
-            if (hwc.getDisplayAnalyzer()->isOverlayAllowed()) {
+            if (mList->flags & HWC_ROTATION_IN_PROGRESS) {
+                // If device is rotated during video playback,
+                // Screenshot(RGB) and YUV layers are created at the same time.
+                // but the position, width or height of YUV layer may be calculated wrong by APP/SF,
+                // so skip these YUV layers
+                plane = NULL;
+            } else if (hwc.getDisplayAnalyzer()->isOverlayAllowed()) {
                 plane = mDisplayPlaneManager.getOverlayPlane();
             } else {
                 WTRACE("overlay use is not allowed.");
