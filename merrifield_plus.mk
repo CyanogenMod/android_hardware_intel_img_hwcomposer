@@ -93,6 +93,7 @@ LOCAL_C_INCLUDES := \
     $(TARGET_OUT_HEADERS)/libwsbm/wsbm \
     $(TARGET_OUT_HEADERS)/libttm \
     frameworks/native/include/media/openmax \
+    vendor/intel/moorefield/prebuilts/hardware/rgx/include \
     vendor/intel/hardware/anniedale/rgx/include \
     vendor/intel/hardware/PRIVATE/rgx/rogue/android/graphicshal
 
