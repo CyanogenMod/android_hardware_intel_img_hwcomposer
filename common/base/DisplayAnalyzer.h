@@ -122,8 +122,10 @@ private:
     enum
     {
         // number of idle flips before display can enter idle mode
-        // minimum delay is 1
-        DELAY_BEFORE_IDLE_ENTRY = 2,
+        // we can set maxfifo even with more than one plane is active,
+        // display controller will check whether condition is met to
+        // enter into maxfifo, so no need to delay.
+        DELAY_BEFORE_IDLE_ENTRY = 0,
 
         // number of flips before display can be powered off in video extended mode
         DELAY_BEFORE_DPMS_OFF = 0,
