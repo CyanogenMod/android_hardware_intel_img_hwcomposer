@@ -210,7 +210,12 @@ void DisplayAnalyzer::detectVideoExtendedMode()
         for (int j = 0; j < (int)content->numHwLayers - 1; j++) {
             if ((uint32_t)content->hwLayers[j].handle == videoHandle) {
                 ITRACE("video layer exists in device %d", i);
-                mVideoExtendedMode = isVideoFullScreen(i, content->hwLayers[j]);
+                if (i == IDisplayDevice::DEVICE_VIRTUAL) {
+                    // WiDi exception: always in video extended mode
+                    mVideoExtendedMode = true;
+                } else {
+                    mVideoExtendedMode = isVideoFullScreen(i, content->hwLayers[j]);
+                }
                 return;
             }
         }
