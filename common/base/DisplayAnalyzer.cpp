@@ -285,14 +285,7 @@ bool DisplayAnalyzer::isVideoFullScreen(int device, hwc_layer_1_t &layer)
     // any of above condition is met on either primary display or secondary display
     int dstW = layer.displayFrame.right - layer.displayFrame.left;
     int dstH = layer.displayFrame.bottom - layer.displayFrame.top;
-    // If device is rotate, switch width and height;
-    if (layer.transform == HAL_TRANSFORM_ROT_90 ||
-            layer.transform == HAL_TRANSFORM_ROT_270) {
-        VTRACE("extended mode in rotate : %dx%d", dstW, dstH);
-        int temp = dstW;
-        dstW = dstH;
-        dstH = temp;
-    }
+
     if (dstW < width - 1 &&
         dstH < height - 1 &&
         dstW * dstH * 10 < width * height * 9) {
