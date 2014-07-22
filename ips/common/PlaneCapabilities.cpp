@@ -35,7 +35,7 @@
 namespace android {
 namespace intel {
 
-bool PlaneCapabilities::isFormatSupported(int planeType, uint32_t format)
+bool PlaneCapabilities::isFormatSupported(int planeType, uint32_t format, uint32_t trans)
 {
     if (planeType == DisplayPlane::PLANE_SPRITE || planeType == DisplayPlane::PLANE_PRIMARY) {
         switch (format) {
@@ -44,7 +44,7 @@ bool PlaneCapabilities::isFormatSupported(int planeType, uint32_t format)
         case HAL_PIXEL_FORMAT_RGBA_8888:
         case HAL_PIXEL_FORMAT_RGBX_8888:
         case HAL_PIXEL_FORMAT_RGB_565:
-            return true;
+            return trans ? false : true;
         default:
             VTRACE("unsupported format %#x", format);
             return false;
@@ -52,6 +52,7 @@ bool PlaneCapabilities::isFormatSupported(int planeType, uint32_t format)
     } else if (planeType == DisplayPlane::PLANE_OVERLAY) {
         switch (format) {
         case HAL_PIXEL_FORMAT_YV12:
+            return trans ? false : true;
         case HAL_PIXEL_FORMAT_I420:
         case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:
         case HAL_PIXEL_FORMAT_YUY2:
