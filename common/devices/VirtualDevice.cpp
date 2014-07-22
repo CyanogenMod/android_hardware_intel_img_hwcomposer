@@ -713,6 +713,9 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
         hwc_layer_1_t& layer = display->hwLayers[i];
         if (analyzer->isVideoLayer(layer) && (mCurrentConfig.extendedModeEnabled || VSP_FOR_CLEAR_VIDEO || analyzer->isProtectedLayer(layer))) {
             if (mCurrentConfig.extendedModeEnabled && mCurrentConfig.frameServerActive) {
+                // If composed in surface flinger, then stream fbtarget.
+                if (layer.flags & HWC_SKIP_LAYER) continue;
+
                 /* If the resolution of the video layer is less than QCIF, then we are going to play it in clone mode only.*/
                 uint32_t vidContentWidth = layer.sourceCropf.right - layer.sourceCropf.left;
                 uint32_t vidContentHeight = layer.sourceCropf.bottom - layer.sourceCropf.top;
