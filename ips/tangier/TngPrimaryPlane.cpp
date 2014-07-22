@@ -39,8 +39,6 @@ TngPrimaryPlane::TngPrimaryPlane(int index, int disp)
 {
     CTRACE();
     mType = PLANE_PRIMARY;
-    mForceBottom = true;
-    mAbovePrimary = false;
 }
 
 TngPrimaryPlane::~TngPrimaryPlane()
@@ -51,11 +49,6 @@ TngPrimaryPlane::~TngPrimaryPlane()
 void TngPrimaryPlane::setFramebufferTarget(DataBuffer& buf)
 {
     CTRACE();
-
-    mNextDataBuffer = buf.getHandle();
-
-    if (mCurrentDataBuffer == mNextDataBuffer)
-        return;
 
     // don't need to map data buffer for primary plane
     mContext.type = DC_PRIMARY_PLANE;
@@ -79,7 +72,6 @@ bool TngPrimaryPlane::setDataBuffer(uint32_t handle)
 {
     TngGrallocBuffer tmpBuf(handle);
     uint32_t usage;
-    bool ret;
 
     ATRACE("handle = %#x", handle);
 
@@ -89,26 +81,11 @@ bool TngPrimaryPlane::setDataBuffer(uint32_t handle)
         return true;
     }
 
-    // use primary as a sprite
-    ret = DisplayPlane::setDataBuffer(handle);
-    if (ret == false) {
-        ETRACE("failed to set data buffer");
-        return ret;
-    }
-
-    mContext.type = DC_PRIMARY_PLANE;
-    return true;
+    return DisplayPlane::setDataBuffer(handle);
 }
 
 bool TngPrimaryPlane::assignToDevice(int disp)
 {
-    return true;
-}
-
-// override disable
-bool TngPrimaryPlane::disable()
-{
-    CTRACE();
     return true;
 }
 

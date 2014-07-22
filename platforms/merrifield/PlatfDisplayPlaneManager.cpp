@@ -49,16 +49,17 @@ void PlatfDisplayPlaneManager::detect()
 {
     CTRACE();
 
-    mSpritePlaneCount = 1;
+    mSpritePlaneCount = 0;
     mPrimaryPlaneCount = 3;
-    mOverlayPlaneCount = 2;
+    mOverlayPlaneCount = 1;
     mTotalPlaneCount = mSpritePlaneCount + mPrimaryPlaneCount + mOverlayPlaneCount;
 
-    mFreeSpritePlanes = 0x1;
+    // Platform dependent, no sprite plane on Medfield
+    mFreeSpritePlanes = 0x0;
     // plane A, B & C
     mFreePrimaryPlanes = 0x7;
     // both overlay A & C
-    mFreeOverlayPlanes = 0x3;
+    mFreeOverlayPlanes = 0x1;
 }
 
 DisplayPlane* PlatfDisplayPlaneManager::allocPlane(int index, int type)

@@ -64,7 +64,6 @@ public:
     bool outputConnected(int device);
     bool setDpmsMode(int device, int mode);
     int getDrmFd() const;
-    drmModeModeInfoPtr getModeInfo(int device);
 
 private:
     // map device type to output index, return -1 if not mapped

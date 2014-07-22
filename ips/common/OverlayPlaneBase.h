@@ -48,9 +48,12 @@ typedef struct {
 class OverlayPlaneBase : public DisplayPlane {
     // flush flags
     enum {
-        PLANE_ENABLE     = 0x00000001UL,
-        PLANE_DISABLE    = 0x00000002UL,
+        FLUSH_NEEDED     = 0x00000001UL,
+        WAIT_VBLANK      = 0x00000002UL,
         UPDATE_COEF      = 0x00000004UL,
+        BOB_DEINTERLACE  = 0x00000008UL,
+        DELAY_DISABLE    = 0x00000010UL,
+        WMS_NEEDED       = 0x00000020UL,
     };
     static const uint32_t overlayDataBufferCount = 30;
 public:

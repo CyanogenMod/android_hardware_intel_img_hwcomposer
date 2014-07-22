@@ -48,8 +48,7 @@ void GrallocBufferBase::initialize()
     case HAL_PIXEL_FORMAT_YV12:
     case HAL_PIXEL_FORMAT_I420:
         uint32_t yStride_align;
-        yStride_align = DisplayQuery::getOverlayLumaStrideAlignment(mFormat);
-        if (yStride_align > 0)
+        if (yStride_align = DisplayQuery::getOverlayLumaStrideAlignment(mFormat))
         {
             yStride = align_to(align_to(mWidth, 32), yStride_align);
         }
