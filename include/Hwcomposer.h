@@ -37,6 +37,7 @@
 #include <IDisplayContext.h>
 #include <Drm.h>
 #include <DisplayPlaneManager.h>
+#include <DisplayAnalyzer.h>
 
 namespace android {
 namespace intel {
@@ -71,6 +72,7 @@ public:
 
     virtual bool initCheck() const;
     virtual bool initialize();
+
 protected:
     virtual void deinitialize();
 
@@ -79,6 +81,7 @@ public:
     DisplayPlaneManager* getPlaneManager();
     BufferManager* getBufferManager();
     IDisplayContext* getDisplayContext();
+    DisplayAnalyzer* getDisplayAnalyzer();
 
 protected:
     Hwcomposer();
@@ -110,6 +113,7 @@ protected:
     Drm *mDrm;
     DisplayPlaneManager *mPlaneManager;
     BufferManager *mBufferManager;
+    DisplayAnalyzer *mDisplayAnalyzer;
     Vector<IDisplayDevice*> mDisplayDevices;
     IDisplayContext *mDisplayContext;
     Mutex mLock;

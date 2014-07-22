@@ -76,6 +76,7 @@ public:
     virtual void onVsync(int64_t timestamp);
 
     virtual void dump(Dump& d);
+
 protected:
     virtual void deinitialize();
 
@@ -113,6 +114,8 @@ protected:
     // lock
     Mutex mLock;
 
+    // DPMS on (1) or off (0)
+    int mDisplayState;
     bool mInitialized;
 };
 

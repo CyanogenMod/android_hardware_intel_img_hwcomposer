@@ -39,6 +39,7 @@ Hwcomposer::Hwcomposer()
       mDrm(0),
       mPlaneManager(0),
       mBufferManager(0),
+      mDisplayAnalyzer(0),
       mDisplayContext(0),
       mInitialized(false)
 {
@@ -71,6 +72,8 @@ bool Hwcomposer::prepare(size_t numDisplays,
         ETRACE("invalid parameters");
         return false;
     }
+
+    mDisplayAnalyzer->analyzeContents(numDisplays, displays);
 
     // disable reclaimed planes
     if (mPlaneManager)
@@ -355,6 +358,11 @@ bool Hwcomposer::initialize()
         mDisplayDevices.insertAt(device, i, 1);
     }
 
+    mDisplayAnalyzer = new DisplayAnalyzer();
+    if (!mDisplayAnalyzer || !mDisplayAnalyzer->initialize()) {
+        DEINIT_AND_RETURN_FALSE("failed to initialize display analyzer");
+    }
+
     mInitialized = true;
     return true;
 init_err:
@@ -389,6 +397,11 @@ void Hwcomposer::deinitialize()
         mDisplayContext = 0;
     }
 
+    if (mDisplayAnalyzer) {
+        delete mDisplayAnalyzer;
+        mDisplayAnalyzer = NULL;
+    }
+
     // destroy drm
     if (mDrm) {
         delete mDrm;
@@ -416,6 +429,11 @@ BufferManager* Hwcomposer::getBufferManager()
 IDisplayContext* Hwcomposer::getDisplayContext()
 {
     return mDisplayContext;
+}
+
+DisplayAnalyzer* Hwcomposer::getDisplayAnalyzer()
+{
+    return mDisplayAnalyzer;
 }
 
 } // namespace intel

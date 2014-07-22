@@ -30,6 +30,7 @@
 #include <HwcTrace.h>
 #include <Drm.h>
 #include <Hwcomposer.h>
+#include <PhysicalDevice.h>
 #include <common/OverlayPlaneBase.h>
 #include <common/TTMBufferMapper.h>
 #include <common/GrallocSubBuffer.h>
@@ -317,7 +318,7 @@ void OverlayPlaneBase::resetBackBuffer()
 
     memset(backBuffer, 0, sizeof(OverlayBackBufferBlk));
 
-    /*reset overlay*/
+    // reset overlay
     backBuffer->OCLRC0 = (OVERLAY_INIT_CONTRAST << 18) |
                          (OVERLAY_INIT_BRIGHTNESS & 0xff);
     backBuffer->OCLRC1 = OVERLAY_INIT_SATURATION;
@@ -515,23 +516,10 @@ bool OverlayPlaneBase::rotatedBufferReady(BufferMapper& mapper)
 
 void OverlayPlaneBase::checkPosition(int& x, int& y, int& w, int& h)
 {
-    int outputIndex = -1;
     struct Output *output;
     drmModeModeInfoPtr mode;
     drmModeCrtcPtr drmCrtc;
     Drm *drm = Hwcomposer::getInstance().getDrm();
-
-    switch (mDevice) {
-    case IDisplayDevice::DEVICE_PRIMARY:
-        outputIndex = Drm::OUTPUT_PRIMARY;
-        break;
-    case IDisplayDevice::DEVICE_EXTERNAL:
-        outputIndex = Drm::OUTPUT_EXTERNAL;
-        break;
-    }
-
-    if (outputIndex < 0)
-        return;
 
     if (!drm) {
         ETRACE("failed to get drm");
@@ -539,7 +527,7 @@ void OverlayPlaneBase::checkPosition(int& x, int& y, int& w, int& h)
     }
 
     // get output
-    output = drm->getOutput(outputIndex);
+    output = drm->getOutput(mDevice);
     if (!output) {
         ETRACE("failed to get output");
         return;
@@ -602,36 +590,34 @@ bool OverlayPlaneBase::bufferOffsetSetup(BufferMapper& mapper)
     backBuffer->OSTART_1V = backBuffer->OSTART_0V;
 
     switch(format) {
-    case HAL_PIXEL_FORMAT_YV12:    /*YV12*/
+    case HAL_PIXEL_FORMAT_YV12:    // YV12
         backBuffer->OBUF_0Y = 0;
         backBuffer->OBUF_0V = yStride * h;
         backBuffer->OBUF_0U = backBuffer->OBUF_0V + (uvStride * (h / 2));
         backBuffer->OCMD |= OVERLAY_FORMAT_PLANAR_YUV420;
         break;
-    case HAL_PIXEL_FORMAT_I420:    /*I420*/
+    case HAL_PIXEL_FORMAT_I420:    // I420
         backBuffer->OBUF_0Y = 0;
         backBuffer->OBUF_0U = yStride * h;
         backBuffer->OBUF_0V = backBuffer->OBUF_0U + (uvStride * (h / 2));
         backBuffer->OCMD |= OVERLAY_FORMAT_PLANAR_YUV420;
         break;
-    /**
-     * NOTE: this is the decoded video format, align the height to 32B
-     * as it's defined by video driver
-     */
-    case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:    /*NV12*/
+    // NOTE: this is the decoded video format, align the height to 32B
+    //as it's defined by video driver
+    case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:    // NV12
         backBuffer->OBUF_0Y = 0;
         backBuffer->OBUF_0U = yStride * align_to(h, 32);
         backBuffer->OBUF_0V = 0;
         backBuffer->OCMD |= OVERLAY_FORMAT_PLANAR_NV12_2;
         break;
-    case HAL_PIXEL_FORMAT_YUY2:    /*YUY2*/
+    case HAL_PIXEL_FORMAT_YUY2:    // YUY2
         backBuffer->OBUF_0Y = 0;
         backBuffer->OBUF_0U = 0;
         backBuffer->OBUF_0V = 0;
         backBuffer->OCMD |= OVERLAY_FORMAT_PACKED_YUV422;
         backBuffer->OCMD |= OVERLAY_PACKED_ORDER_YUY2;
         break;
-    case HAL_PIXEL_FORMAT_UYVY:    /*UYVY*/
+    case HAL_PIXEL_FORMAT_UYVY:    // UYVY
         backBuffer->OBUF_0Y = 0;
         backBuffer->OBUF_0U = 0;
         backBuffer->OBUF_0V = 0;
@@ -690,12 +676,12 @@ bool OverlayPlaneBase::coordinateSetup(BufferMapper& mapper)
     uint32_t offsetu = backBuffer->OBUF_0U;
 
     switch (format) {
-    case HAL_PIXEL_FORMAT_YV12:              /*YV12*/
-    case HAL_PIXEL_FORMAT_I420:              /*I420*/
-    case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:          /*NV12*/
+    case HAL_PIXEL_FORMAT_YV12:              // YV12
+    case HAL_PIXEL_FORMAT_I420:              // I420
+    case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:          // NV12
         break;
-    case HAL_PIXEL_FORMAT_YUY2:              /*YUY2*/
-    case HAL_PIXEL_FORMAT_UYVY:              /*UYVY*/
+    case HAL_PIXEL_FORMAT_YUY2:              // YUY2
+    case HAL_PIXEL_FORMAT_UYVY:              // UYVY
         width <<= 1;
         break;
     default:
@@ -758,7 +744,7 @@ bool OverlayPlaneBase::setCoeffRegs(double *coeff, int mantSize,
         pCoeff[pos].mantissa = icoeff << res;
         *coeff = (double)icoeff / (double)(maxVal / 2);
     } else {
-        /* Coeff out of range */
+        // Coeff out of range
         return false;
     }
 
@@ -793,13 +779,13 @@ void OverlayPlaneBase::updateCoeff(int taps, double fCutoff,
         else
             sinc = sin(val) / val;
 
-        /* Hamming window */
+        // Hamming window
         window = (0.54 - 0.46 * cos(2 * i * pi / (2 * num - 1)));
         rawCoeff[i] = sinc * window;
     }
 
     for (i = 0; i < N_PHASES; i++) {
-        /* Normalise the coefficients. */
+        // Normalise the coefficients
         sum = 0.0;
         for (j = 0; j < taps; j++) {
             pos = i + j * 32;
@@ -810,7 +796,7 @@ void OverlayPlaneBase::updateCoeff(int taps, double fCutoff,
             coeffs[i][j] = rawCoeff[pos] / sum;
         }
 
-        /* Set the register values. */
+        // Set the register values
         for (j = 0; j < taps; j++) {
             pos = j + i * taps;
             if ((j == (taps - 1) / 2) && !isVertAndUV)
@@ -825,7 +811,7 @@ void OverlayPlaneBase::updateCoeff(int taps, double fCutoff,
             tapAdjust[++j1] = tapAdjust[0] + j;
         }
 
-        /* Adjust the coefficients. */
+        // Adjust the coefficients
         sum = 0.0;
         for (j = 0; j < taps; j++)
             sum += coeffs[i][j];
@@ -856,7 +842,7 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
     int xscaleIntUV, xscaleFractUV;
     int yscaleIntUV, yscaleFractUV;
     int deinterlace_factor = 1;
-    /* UV is half the size of Y -- YUV420 */
+    // UV is half the size of Y -- YUV420
     int uvratio = 2;
     uint32_t newval;
     coeffRec xcoeffY[N_HORIZ_Y_TAPS * N_PHASES];
@@ -897,9 +883,8 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
     VTRACE("src (%dx%d), dst (%dx%d)",
           srcWidth, srcHeight,
           dstWidth, dstHeight);
-    /*
-     * Y down-scale factor as a multiple of 4096.
-     */
+
+     // Y down-scale factor as a multiple of 4096
     if (srcWidth == dstWidth && srcHeight == dstHeight) {
         xscaleFract = (1 << 12);
         yscaleFract = (1 << 12)/deinterlace_factor;
@@ -908,31 +893,30 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
         yscaleFract = ((srcHeight - 1) << 12) / (dstHeight * deinterlace_factor);
     }
 
-    /* Calculate the UV scaling factor. */
+    // Calculate the UV scaling factor
     xscaleFractUV = xscaleFract / uvratio;
     yscaleFractUV = yscaleFract / uvratio;
 
-    /*
-     * To keep the relative Y and UV ratios exact, round the Y scales
-     * to a multiple of the Y/UV ratio.
-     */
+
+    // To keep the relative Y and UV ratios exact, round the Y scales
+    // to a multiple of the Y/UV ratio.
     xscaleFract = xscaleFractUV * uvratio;
     yscaleFract = yscaleFractUV * uvratio;
 
-    /* Integer (un-multiplied) values. */
+    // Integer (un-multiplied) values
     xscaleInt = xscaleFract >> 12;
     yscaleInt = yscaleFract >> 12;
 
     xscaleIntUV = xscaleFractUV >> 12;
     yscaleIntUV = yscaleFractUV >> 12;
 
-    /* Check scaling ratio */
+    // Check scaling ratio
     if (xscaleInt > INTEL_OVERLAY_MAX_SCALING_RATIO) {
         ETRACE("xscaleInt > %d", INTEL_OVERLAY_MAX_SCALING_RATIO);
         return false;
     }
 
-    /* shouldn't get here */
+    // shouldn't get here
     if (xscaleIntUV > INTEL_OVERLAY_MAX_SCALING_RATIO) {
         ETRACE("xscaleIntUV > %d", INTEL_OVERLAY_MAX_SCALING_RATIO);
         return false;
@@ -958,10 +942,8 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
         backBuffer->UVSCALEV = newval;
     }
 
-    /* Recalculate coefficients if the scaling changed. */
-    /*
-     * Only Horizontal coefficients so far.
-     */
+    // Recalculate coefficients if the scaling changed
+    // Only Horizontal coefficients so far.
     if (scaleChanged) {
         double fCutoffY;
         double fCutoffUV;
@@ -969,7 +951,7 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
         fCutoffY = xscaleFract / 4096.0;
         fCutoffUV = xscaleFractUV / 4096.0;
 
-        /* Limit to between 1.0 and 3.0. */
+        // Limit to between 1.0 and 3.0
         if (fCutoffY < MIN_CUTOFF_FREQ)
             fCutoffY = MIN_CUTOFF_FREQ;
         if (fCutoffY > MAX_CUTOFF_FREQ)

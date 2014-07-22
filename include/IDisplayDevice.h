@@ -74,6 +74,10 @@ public:
         DEVICE_DISCONNECTED = 0,
         DEVICE_CONNECTED,
     };
+    enum {
+        DEVICE_DISPLAY_OFF = 0,
+        DEVICE_DISPLAY_ON,
+    };
 public:
     IDisplayDevice() {}
     virtual ~IDisplayDevice() {}

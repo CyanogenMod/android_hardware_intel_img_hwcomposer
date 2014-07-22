@@ -26,8 +26,10 @@
  *
  */
 #include <HwcTrace.h>
-#include <DrmConfig.h>
+#include <IDisplayDevice.h>
 #include <Drm.h>
+#include <DrmConfig.h>
+
 
 namespace android {
 namespace intel {
@@ -37,11 +39,11 @@ const char* DrmConfig::getDrmPath()
     return "/dev/card0";
 }
 
-uint32_t DrmConfig::getDrmConnector(int32_t output)
+uint32_t DrmConfig::getDrmConnector(int device)
 {
-    if (output == Drm::OUTPUT_PRIMARY)
+    if (device == IDisplayDevice::DEVICE_PRIMARY)
         return DRM_MODE_CONNECTOR_MIPI;
-    else if (output == Drm::OUTPUT_EXTERNAL)
+    else if (device == IDisplayDevice::DEVICE_EXTERNAL)
         return DRM_MODE_CONNECTOR_DVID;
 
     return DRM_MODE_CONNECTOR_Unknown;

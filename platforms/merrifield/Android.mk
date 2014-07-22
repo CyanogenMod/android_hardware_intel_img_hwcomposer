@@ -27,6 +27,7 @@ LOCAL_SRC_FILES := \
     ../../common/base/HwcLayerList.cpp \
     ../../common/base/Hwcomposer.cpp \
     ../../common/base/HwcModule.cpp \
+    ../../common/base/DisplayAnalyzer.cpp \
     ../../common/buffers/BufferCache.cpp \
     ../../common/buffers/GraphicBuffer.cpp \
     ../../common/buffers/BufferManager.cpp \
@@ -63,6 +64,7 @@ LOCAL_SRC_FILES += \
     ../../ips/tangier/TngOverlayPlane.cpp \
     ../../ips/tangier/TngPrimaryPlane.cpp \
     ../../ips/tangier/TngSpritePlane.cpp \
+    ../../ips/tangier/TngDisplayQuery.cpp \
     ../../ips/tangier/TngDisplayContext.cpp
 
 
