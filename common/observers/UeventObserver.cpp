@@ -183,12 +183,11 @@ bool UeventObserver::threadLoop()
         if (count > 0) {
             onUevent();
         }
-    } else {
-        if (fds[1].revents) {
-            close(mExitRDFd);
-            mExitRDFd = -1;
-        }
+    } else if (fds[1].revents) {
+        close(mExitRDFd);
+        mExitRDFd = -1;
         ITRACE("exiting wait");
+        return false;
     }
     // always looping
     return true;
