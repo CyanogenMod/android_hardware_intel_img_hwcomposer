@@ -461,6 +461,7 @@ void HwcLayerList::preProccess()
                     ITRACE("video is skipped in extended mode");
                     hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
                     mOverlayLayers.add(hwcLayer);
+
                     continue;
                 }
             }
@@ -471,7 +472,7 @@ void HwcLayerList::preProccess()
                 // so skip these YUV layers
                 plane = NULL;
             } else if (hwc.getDisplayAnalyzer()->isOverlayAllowed()) {
-                plane = mDisplayPlaneManager.getOverlayPlane();
+                plane = mDisplayPlaneManager.getOverlayPlane(mDisplayIndex);
             } else {
                 WTRACE("overlay use is not allowed.");
                 plane = NULL;
