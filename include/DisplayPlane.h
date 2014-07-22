@@ -101,6 +101,7 @@ public:
     virtual void setPosition(int x, int y, int w, int h);
     virtual void setSourceCrop(int x, int y, int w, int h);
     virtual void setTransform(int transform);
+    virtual void setPlaneAlpha(uint8_t alpha);
 
     // data source
     virtual bool setDataBuffer(uint32_t handle);
@@ -156,6 +157,7 @@ protected:
     crop_t mSrcCrop;
     bool mIsProtectedBuffer;
     int mTransform;
+    uint8_t mPlaneAlpha;
     uint32_t mCurrentDataBuffer;
     uint32_t mUpdateMasks;
 };

@@ -44,6 +44,7 @@ DisplayPlane::DisplayPlane(int index, int type, int disp)
       mCacheCapacity(0),
       mIsProtectedBuffer(false),
       mTransform(PLANE_TRANSFORM_0),
+      mPlaneAlpha(0),
       mCurrentDataBuffer(0),
       mUpdateMasks(0)
 {
@@ -162,6 +163,15 @@ void DisplayPlane::setTransform(int trans)
     }
 
     mUpdateMasks |= PLANE_TRANSFORM_CHANGED;
+}
+
+void DisplayPlane::setPlaneAlpha(uint8_t alpha)
+{
+    ATRACE("plane alpha = 0x%x", alpha);
+
+    if (mPlaneAlpha != alpha) {
+        mPlaneAlpha = alpha;
+    }
 }
 
 bool DisplayPlane::setDataBuffer(uint32_t handle)

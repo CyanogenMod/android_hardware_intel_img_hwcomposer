@@ -55,6 +55,7 @@ bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
     uint32_t spriteFormat;
     uint32_t stride;
     uint32_t linoff;
+    uint32_t planeAlpha;
 
     CTRACE();
 
@@ -78,6 +79,14 @@ bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
     stride = mapper.getStride().rgb.stride;
     linoff = srcY * stride + srcX * bpp;
 
+    // setup plane alpha
+    if ((mPlaneAlpha > 0) && (mPlaneAlpha < 0xff)) {
+       planeAlpha = mPlaneAlpha | 0x80000000;
+    } else {
+       // disable plane alpha to offload HW
+       planeAlpha = 0;
+    }
+
     // unlikely happen, but still we need make sure linoff is valid
     if (linoff > (stride * mapper.getHeight())) {
         ETRACE("invalid source crop");
@@ -95,16 +104,18 @@ bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
     mContext.ctx.sp_ctx.pos = (dstY & 0xfff) << 16 | (dstX & 0xfff);
     mContext.ctx.sp_ctx.size =
         ((dstH - 1) & 0xfff) << 16 | ((dstW - 1) & 0xfff);
+    mContext.ctx.sp_ctx.contalpa = planeAlpha;
     mContext.ctx.sp_ctx.update_mask = SPRITE_UPDATE_ALL;
 
     VTRACE("cntr = %#x, linoff = %#x, stride = %#x,"
-          "surf = %#x, pos = %#x, size = %#x",
+          "surf = %#x, pos = %#x, size = %#x, contalpa = %#x",
           mContext.ctx.sp_ctx.cntr,
           mContext.ctx.sp_ctx.linoff,
           mContext.ctx.sp_ctx.stride,
           mContext.ctx.sp_ctx.surf,
           mContext.ctx.sp_ctx.pos,
-          mContext.ctx.sp_ctx.size);
+          mContext.ctx.sp_ctx.size,
+          mContext.ctx.sp_ctx.contalpa);
     return true;
 }
 
