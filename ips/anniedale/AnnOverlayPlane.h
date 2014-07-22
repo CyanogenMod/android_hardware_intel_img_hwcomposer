@@ -100,7 +100,7 @@ protected:
 
     enum {
         OVERLAY_BACK_BUFFER_COUNT = 3,
-        OVERLAY_DATA_BUFFER_COUNT = 10,
+        OVERLAY_DATA_BUFFER_COUNT = 30,
     };
 
     // overlay back buffer
