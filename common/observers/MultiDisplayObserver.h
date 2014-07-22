@@ -79,6 +79,10 @@ public:
     int  getVideoSessionNumber();
     bool isExternalDeviceTimingFixed() const;
     status_t notifyWidiConnectionStatus(bool connected);
+    status_t setDecoderOutputResolution(int sessionID,
+            int32_t width, int32_t height,
+            int32_t offX,  int32_t offY,
+            int32_t bufWidth, int32_t bufHeight);
 
 private:
     bool isMDSRunning();
@@ -101,6 +105,7 @@ private:
     sp<IMultiDisplayCallbackRegistrar> mMDSCbRegistrar;
     sp<IMultiDisplayInfoProvider> mMDSInfoProvider;
     sp<IMultiDisplayConnectionObserver> mMDSConnObserver;
+    sp<IMultiDisplayDecoderConfig> mMDSDecoderConfig;
     sp<MultiDisplayCallback> mMDSCallback;
     mutable Mutex mLock;
     Condition mCondition;
@@ -129,6 +134,10 @@ public:
     int  getVideoSessionNumber() { return 0; }
     bool isExternalDeviceTimingFixed() const { return false; }
     status_t notifyWidiConnectionStatus(bool connected) { return NO_ERROR; }
+    status_t setDecoderOutputResolution(
+            int sessionID,
+            int32_t width, int32_t height,
+            int32_t, int32_t, int32_t, int32_t) { return NO_ERROR; }
 };
 
 #endif //TARGET_HAS_MULTIPLE_DISPLAY

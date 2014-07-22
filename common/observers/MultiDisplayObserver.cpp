@@ -103,6 +103,7 @@ MultiDisplayObserver::MultiDisplayObserver()
       mMDSInfoProvider(NULL),
       mMDSConnObserver(NULL),
       mMDSCallback(NULL),
+      mMDSDecoderConfig(NULL),
       mLock(),
       mCondition(),
       mThreadLoopCount(0),
@@ -172,6 +173,11 @@ bool MultiDisplayObserver::initMDSClient()
         ETRACE("failed to create mds video Client");
         return false;
     }
+    mMDSDecoderConfig = mds->getDecoderConfig();
+    if (mMDSDecoderConfig.get() == NULL) {
+        ETRACE("failed to create mds decoder Client");
+        return false;
+    }
 
     status_t ret = mMDSCbRegistrar->registerCallback(mMDSCallback);
     if (ret != NO_ERROR) {
@@ -197,6 +203,7 @@ void MultiDisplayObserver::deinitMDSClient()
     mMDSInfoProvider = NULL;
     mMDSCallback = NULL;
     mMDSConnObserver = NULL;
+    mMDSDecoderConfig = NULL;
 }
 
 bool MultiDisplayObserver::initMDSClientAsync()
@@ -408,6 +415,31 @@ status_t MultiDisplayObserver::notifyWidiConnectionStatus( bool connected)
     }
     return mMDSConnObserver->updateWidiConnectionStatus(connected);
 }
+
+status_t MultiDisplayObserver::setDecoderOutputResolution(
+        int sessionID,
+        int32_t width, int32_t height,
+        int32_t offX, int32_t offY,
+        int32_t bufWidth, int32_t bufHeight)
+{
+    Mutex::Autolock _l(mLock);
+    if (mMDSDecoderConfig.get() == NULL) {
+        return NO_INIT;
+    }
+    if (width <= 0 || height <= 0 ||
+            offX < 0 || offY < 0 ||
+            bufWidth <= 0 || bufHeight <= 0) {
+        ETRACE(" Invalid parameter: %dx%d, %dx%d, %dx%d", width, height, offX, offY, bufWidth, bufHeight);
+        return UNKNOWN_ERROR;
+    }
+
+    status_t ret = mMDSDecoderConfig->setDecoderOutputResolution(sessionID, width, height, offX, offY, bufWidth, bufHeight);
+    if (ret == NO_ERROR) {
+        ITRACE("Video Session[%d] output resolution %dx%d ", sessionID, width, height);
+    }
+    return ret;
+}
+
 
 #endif //TARGET_HAS_MULTIPLE_DISPLAY
 

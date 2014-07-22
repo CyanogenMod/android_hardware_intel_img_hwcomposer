@@ -35,6 +35,7 @@
 
 #include <binder/IServiceManager.h>
 #include <binder/ProcessState.h>
+#include <cutils/properties.h>
 
 #include <sync/sync.h>
 
@@ -113,7 +114,8 @@ VirtualDevice::VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
       mOrigContentWidth(0),
       mOrigContentHeight(0),
       mFirstVideoFrame(true),
-      mCachedBufferCapcity(16)
+      mCachedBufferCapcity(16),
+      mDScalingEnabled(false)
 {
     CTRACE();
     mNextConfig.frameServerActive = false;
@@ -207,13 +209,22 @@ status_t VirtualDevice::start(sp<IFrameTypeChangeListener> typeChangeListener)
     mNextConfig.policy.refresh = 60;
     mNextConfig.extendedModeEnabled =
         Hwcomposer::getInstance().getDisplayAnalyzer()->isVideoExtModeEnabled();
-    if (mNextConfig.extendedModeEnabled)
-        Hwcomposer::getInstance().getMultiDisplayObserver()->notifyWidiConnectionStatus(true);
+    MultiDisplayObserver* mds = mHwc.getMultiDisplayObserver();
+    if (mds != NULL)
+        mds->notifyWidiConnectionStatus(true);
     mVideoFramerate = 0;
     mFirstVideoFrame = true;
     mNextConfig.frameServerActive = true;
     mNextConfig.forceNotifyFrameType = true;
     mNextConfig.forceNotifyBufferInfo = true;
+    char prop[PROPERTY_VALUE_MAX];
+    if (property_get("widi.video.dscaling.enable", prop, NULL) > 0 &&
+            strncmp(prop, "true", PROPERTY_VALUE_MAX) == 0) {
+        ITRACE("widi.video.dscaling is enabled, %s", prop);
+        mDScalingEnabled = true;
+    } else {
+        ITRACE("widi.video.dscaling is disabled");
+    }
 
     if (mThread == NULL) {
         mThread = new WidiBlitThread(this);
@@ -266,6 +277,7 @@ status_t VirtualDevice::setResolution(const FrameProcessingPolicy& policy, sp<IF
     Mutex::Autolock _l(mConfigLock);
     mNextConfig.frameListener = listener;
     mNextConfig.policy = policy;
+    // setDownScalingSize(policy.scaledWidth, policy.scaledHeight);
     return NO_ERROR;
 }
 
@@ -337,6 +349,20 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
                 mLayerToSend = 0;
                 VTRACE("Layer (%d) is Presentation layer", mLayerToSend);
             }
+        }
+    }
+    // FIXME: It isn't resonable to set downscaling at here
+    for (size_t i = 0; i < display->numHwLayers-1; i++) {
+        hwc_layer_1_t& layer = display->hwLayers[i];
+        if (analyzer->isVideoLayer(layer)) {
+            int dswidth  = 1280;//mCurrentConfig.policy.scaledWidth;
+            int dsheight = 720; //mCurrentConfig.policy.scaledHeight;
+            int offX = 0;
+            int offY = 0;
+            int bufWidth  = 1920;
+            int bufHeight = 1080;
+            setDownScaling(dswidth, dsheight, offX, offY, bufWidth, bufHeight);
+            break;
         }
     }
 
@@ -544,13 +570,32 @@ bool VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
             outputFrameInfo.bufferFormat = metadata.format;
 
             handleType = HWC_HANDLE_TYPE_KBUF;
-            if (metadata.kHandle != 0) {
+            bool isRotated = false;
+            if (metadata.transform == HAL_TRANSFORM_ROT_90 ||
+                    metadata.transform == HAL_TRANSFORM_ROT_180 ||
+                    metadata.transform == HAL_TRANSFORM_ROT_270) {
+                isRotated = true;
+            }
+            if (!isRotated && metadata.scaling_khandle) {
+                handle = metadata.scaling_khandle;
+                outputFrameInfo.bufferWidth = metadata.scaling_width;
+                outputFrameInfo.bufferHeight = ((metadata.scaling_height + 0x1f) & (~0x1f));
+                outputFrameInfo.lumaUStride = metadata.scaling_luma_stride;
+                outputFrameInfo.chromaUStride = metadata.scaling_chroma_u_stride;
+                outputFrameInfo.chromaVStride = metadata.scaling_chroma_v_stride;
+                outputFrameInfo.contentWidth = metadata.scaling_width;
+                outputFrameInfo.contentHeight =((metadata.scaling_height + 0x1f) & (~0x1f));
+            } else if (metadata.kHandle != 0) {
                 handle = metadata.kHandle;
                 outputFrameInfo.bufferWidth = metadata.width;
                 outputFrameInfo.bufferHeight = ((metadata.height + 0x1f) & (~0x1f));
                 outputFrameInfo.lumaUStride = metadata.lumaStride;
                 outputFrameInfo.chromaUStride = metadata.chromaUStride;
                 outputFrameInfo.chromaVStride = metadata.chromaVStride;
+                if (metadata.scaling_khandle && isRotated) {
+                    outputFrameInfo.contentWidth = metadata.scaling_height;
+                    outputFrameInfo.contentHeight = ((metadata.scaling_width + 0x1f) & (~0x1f));
+                }
             } else {
                 ETRACE("Couldn't get any khandle");
                 return false;
@@ -686,7 +731,6 @@ bool VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
         if (handleType == HWC_HANDLE_TYPE_GRALLOC)
             mMappedBufferCache.clear();
     }
-
     if (handleType == HWC_HANDLE_TYPE_KBUF &&
         handle == mExtLastKhandle && mediaTimestamp == mExtLastTimestamp) {
         return true; // Do not switch to clone mode here.
@@ -1040,6 +1084,32 @@ void VirtualDevice::deinitialize()
     }
     DEINIT_AND_DELETE_OBJ(mVsyncObserver);
     mInitialized = false;
+}
+
+// Shold make sure below 4 conditions are met,
+// 1: only for video playback case
+// 2: only be called ONE time
+// 3: is called before video driver begin to decode
+// 4: offX & offY are 64 aligned
+status_t VirtualDevice::setDownScaling(
+        int dswidth, int dsheight,
+        int offX, int offY,
+        int bufWidth, int bufHeight) {
+    status_t ret = UNKNOWN_ERROR;
+    if (!mDScalingEnabled)
+        return ret;
+    int sessionID = mHwc.getDisplayAnalyzer()->getFirstVideoInstanceSessionID();
+    if (sessionID >= 0 && mFirstVideoFrame) {
+        MultiDisplayObserver* mds = mHwc.getMultiDisplayObserver();
+        ret = mds->setDecoderOutputResolution(sessionID, dswidth, dsheight, offX, offY, bufWidth, bufHeight);
+        if (ret == NO_ERROR) {
+            ITRACE("set video down scaling: %dx%d, %dx%d, %dx%d",
+                    dswidth, dsheight, offX, offY, bufWidth, bufHeight);
+        } else {
+            WTRACE("Failed to set video down scaling");
+        }
+    }
+    return ret;
 }
 
 } // namespace intel
