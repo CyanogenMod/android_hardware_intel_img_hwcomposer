@@ -143,6 +143,7 @@ protected:
     uint32_t mOrigContentWidth;
     uint32_t mOrigContentHeight;
     bool mFirstVideoFrame;
+    uint32_t mCachedBufferCapcity;
 };
 
 }

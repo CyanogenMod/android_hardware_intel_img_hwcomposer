@@ -110,7 +110,8 @@ VirtualDevice::VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
       mOrigContentWidth(0),
       mOrigContentHeight(0),
       mFirstVideoFrame(true),
-      mCloneModeStarted(false)
+      mCloneModeStarted(false),
+      mCachedBufferCapcity(16)
 {
     CTRACE();
 }
@@ -125,11 +126,15 @@ sp<VirtualDevice::CachedBuffer> VirtualDevice::getMappedBuffer(uint32_t handle)
     ssize_t index = mMappedBufferCache.indexOfKey(handle);
     sp<CachedBuffer> cachedBuffer;
     if (index == NAME_NOT_FOUND) {
+        if (mMappedBufferCache.size() > mCachedBufferCapcity)
+            mMappedBufferCache.clear();
+
         cachedBuffer = new CachedBuffer(mHwc.getBufferManager(), handle);
         mMappedBufferCache.add(handle, cachedBuffer);
     } else {
         cachedBuffer = mMappedBufferCache[index];
     }
+
     return cachedBuffer;
 }
 
