@@ -25,7 +25,6 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <hal_public.h>
 #include <common/utils/HwcTrace.h>
 #include <ips/tangier/TngDisplayContext.h>
 #include <ips/common/PowerManager.h>

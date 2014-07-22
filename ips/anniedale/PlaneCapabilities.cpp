@@ -27,11 +27,11 @@
 
 #include <common/utils/HwcTrace.h>
 #include <DisplayPlane.h>
-#include <hal_public.h>
-#include <OMX_IVCommon.h>
 #include <PlaneCapabilities.h>
 #include <ips/common/OverlayHardware.h>
 #include <common/base/HwcLayer.h>
+#include <OMX_IntelVideoExt.h>
+#include <hal_public.h>
 
 #define SPRITE_PLANE_MAX_STRIDE_TILED      16384
 #define SPRITE_PLANE_MAX_STRIDE_LINEAR     16384

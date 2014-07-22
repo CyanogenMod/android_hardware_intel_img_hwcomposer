@@ -29,7 +29,6 @@
 #define OVERLAY_PLANE_BASE_H
 
 #include <utils/KeyedVector.h>
-#include <hal_public.h>
 #include <DisplayPlane.h>
 #include <BufferMapper.h>
 #include <ips/common/Wsbm.h>

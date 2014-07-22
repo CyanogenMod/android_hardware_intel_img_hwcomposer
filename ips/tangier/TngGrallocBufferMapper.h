@@ -29,7 +29,6 @@
 #define TNG_GRALLOC_BUFFER_MAPPER_H
 
 #include <BufferMapper.h>
-#include <hal_public.h>
 #include <ips/common/GrallocBufferMapperBase.h>
 #include <ips/tangier/TngGrallocBuffer.h>
 

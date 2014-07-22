@@ -29,7 +29,6 @@
 #define ANN_RGB_PLANE_H
 
 #include <utils/KeyedVector.h>
-#include <hal_public.h>
 #include <Hwcomposer.h>
 #include <common/buffers/BufferCache.h>
 #include <DisplayPlane.h>

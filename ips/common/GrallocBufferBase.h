@@ -29,9 +29,6 @@
 #define GRALLOC_BUFFER_BASE_H
 
 #include <GraphicBuffer.h>
-#include <hal_public.h>
-// FIXME: remove it, why define NV12_VED based on OMX's value?
-#include <OMX_IVCommon.h>
 
 namespace android {
 namespace intel {
