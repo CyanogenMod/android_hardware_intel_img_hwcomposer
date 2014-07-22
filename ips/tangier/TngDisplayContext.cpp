@@ -101,16 +101,21 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
         }
 
         // check layer parameters
-        if (!display->hwLayers[i].handle)
+        if (!display->hwLayers[i].handle) {
+            close(display->hwLayers[i].acquireFenceFd);
             continue;
+        }
 
         DisplayPlane* plane = layerList->getPlane(i);
-        if (!plane)
+        if (!plane) {
+            close(display->hwLayers[i].acquireFenceFd);
             continue;
+        }
 
         ret = plane->flip(NULL);
         if (ret == false) {
             VTRACE("failed to flip plane %d", i);
+            close(display->hwLayers[i].acquireFenceFd);
             continue;
         }
 
@@ -146,6 +151,8 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
 
 bool TngDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t **displays)
 {
+    int releaseFenceFd = -1;
+
     VTRACE("count = %d", mCount);
 
     // nothing need to be submitted
@@ -153,13 +160,33 @@ bool TngDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t *
         return true;
 
     if (mIMGDisplayDevice) {
-        int err = mIMGDisplayDevice->post(mIMGDisplayDevice, mImgLayers, mCount);
+        int err = mIMGDisplayDevice->post(mIMGDisplayDevice,
+                                          mImgLayers,
+                                          mCount,
+                                          &releaseFenceFd);
         if (err) {
             ETRACE("post failed, err = %d", err);
             return false;
         }
     }
 
+    // update release fence
+    for (int i = 0; i < numDisplays; i++) {
+        if (!displays[i]) {
+            continue;
+        }
+
+        for (int j = 0; j < displays[i]->numHwLayers; j++) {
+            displays[i]->hwLayers[j].releaseFenceFd = dup(releaseFenceFd);
+            VTRACE("handle %#x, acquiredFD %d, releaseFD %d",
+                 (uint32_t)displays[i]->hwLayers[j].handle,
+                 displays[i]->hwLayers[j].acquireFenceFd,
+                 displays[i]->hwLayers[j].releaseFenceFd);
+        }
+    }
+
+    // close original release fence fd
+    close(releaseFenceFd);
     return true;
 }
 
