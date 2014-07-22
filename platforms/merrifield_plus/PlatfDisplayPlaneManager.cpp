@@ -331,7 +331,7 @@ bool PlatfDisplayPlaneManager::setZOrderConfig(ZOrderConfig& zorderConfig)
         int slot = i;
         // WA for HW issue
         if (!primaryPlaneActive(zorderConfig)) {
-            ITRACE("primary plane is NOT active");
+            VTRACE("primary plane is NOT active");
             slot += 1;
         }
 
@@ -558,13 +558,13 @@ void PlatfDisplayPlaneManager::disableReclaimedRealPlanes()
                     // reset plane
                     if (ret)
                         ret = plane->reset();
+                    if (ret) {
+                        // only merge into free bitmap if it is successfully disabled and reset
+                        // otherwise, plane will be disabled and reset again.
+                        mFreeRealPlanes[i] |= bit;
+                        mReclaimedRealPlanes[i] &= ~bit;
+                    }
                 }
-            }
-
-            if (ret) {
-                // merge into free bitmap
-                mFreeRealPlanes[i] |= mReclaimedRealPlanes[i];
-                mReclaimedRealPlanes[i] = 0;
             }
         }
     }
