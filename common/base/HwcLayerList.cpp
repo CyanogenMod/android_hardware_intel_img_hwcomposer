@@ -599,15 +599,6 @@ void HwcLayerList::preProccess()
                 continue;
             }
 
-            // use case #3: don't use overlay for video layer during rotation
-            // TODO: review this change for it's NOT AOSP compatible!!!
-            if (mList->flags & HWC_ROTATION_IN_PROGRESS &&
-                !hwcLayer->isProtected() &&
-                (mDisplayIndex == IDisplayDevice::DEVICE_EXTERNAL)) {
-                // TODO: remove HWC_ROTATION_IN_PROGRESS
-                continue;
-            }
-
             // found a overlay candidate, add it to candidate & overlay
             // candidate list
             mCandidates.add(hwcLayer);
