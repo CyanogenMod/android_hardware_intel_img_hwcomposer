@@ -173,12 +173,12 @@ bool TngDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t *
     }
 
     // update release fence
-    for (int i = 0; i < numDisplays; i++) {
+    for (size_t i = 0; i < numDisplays; i++) {
         if (!displays[i]) {
             continue;
         }
 
-        for (int j = 0; j < displays[i]->numHwLayers; j++) {
+        for (size_t j = 0; j < displays[i]->numHwLayers; j++) {
             displays[i]->hwLayers[j].releaseFenceFd = dup(releaseFenceFd);
             VTRACE("handle %#x, acquiredFD %d, releaseFD %d",
                  (uint32_t)displays[i]->hwLayers[j].handle,

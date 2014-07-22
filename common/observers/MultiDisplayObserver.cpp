@@ -307,11 +307,8 @@ status_t MultiDisplayObserver::blankSecondaryDisplay(bool blank)
 
 status_t MultiDisplayObserver::updateVideoState(int sessionId, MDS_VIDEO_STATE state)
 {
-    bool preparing = (state == MDS_VIDEO_PREPARING || state == MDS_VIDEO_UNPREPARING);
-    bool playing = (state != MDS_VIDEO_UNPREPARED);
-    VTRACE("video state: preparing %d, playing %d", preparing, playing);
     Hwcomposer::getInstance().getDisplayAnalyzer()->postVideoEvent(
-        sessionId, preparing, playing);
+        sessionId, (int)state);
     return 0;
 }
 
@@ -335,17 +332,13 @@ status_t MultiDisplayObserver::setHdmiTiming(const MDSHdmiTiming& timing)
 
 /// Public interfaces
 
-status_t MultiDisplayObserver::notifyHotPlug(int disp, bool connected)
+status_t MultiDisplayObserver::notifyHotPlug( bool connected)
 {
     Mutex::Autolock _l(mLock);
     if (mMDSConnObserver.get() == NULL) {
         return NO_INIT;
     }
 
-    if (disp != IDisplayDevice::DEVICE_EXTERNAL) {
-        WTRACE("Only hanlding external display hotplug");
-        return NO_ERROR;
-    }
     if (connected == mDeviceConnected) {
         WTRACE("hotplug event ignored");
         return NO_ERROR;
