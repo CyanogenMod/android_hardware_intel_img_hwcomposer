@@ -194,9 +194,6 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
         return false;
     }
 
-    // update buffer's source crop
-    buffer->setCrop(mSrcCrop.x, mSrcCrop.y, mSrcCrop.w, mSrcCrop.h);
-
     mIsProtectedBuffer = GraphicBuffer::isProtectedBuffer((GraphicBuffer*)buffer);
     // map buffer if it's not in cache
     index = mDataBuffers.indexOfKey(buffer->getKey());
@@ -211,9 +208,10 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
     } else {
         VTRACE("got mapper in saved data buffers and update source Crop");
         mapper = mDataBuffers.valueAt(index);
-        mapper->setCrop(mSrcCrop.x, mSrcCrop.y, mSrcCrop.w, mSrcCrop.h);
-
     }
+
+    // always update source crop to mapper
+    mapper->setCrop(mSrcCrop.x, mSrcCrop.y, mSrcCrop.w, mSrcCrop.h);
 
     // unlock buffer after getting mapper
     bm->unlockDataBuffer(buffer);
