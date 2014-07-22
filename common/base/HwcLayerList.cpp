@@ -258,7 +258,8 @@ void HwcLayer::setupAttributes()
         mTransform != mLayer->transform ||
         mSourceCrop != mLayer->sourceCrop ||
         mDisplayFrame != mLayer->displayFrame ||
-        mHandle != (uint32_t)mLayer->handle) {
+        mHandle != (uint32_t)mLayer->handle ||
+        DisplayQuery::isVideoFormat(mFormat)) {
         // TODO: same handle does not mean there is always no update
         mUpdated = true;
     }
