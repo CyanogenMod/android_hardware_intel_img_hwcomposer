@@ -312,12 +312,14 @@ void HwcLayerList::setZOrder()
     ZOrderConfig zorder;
     int primaryIndex;
     int overlayCount;
+    int spriteCount;
     int planeCount;
     bool primaryAvailable;
 
     // set the primary to bottom by default;
     primaryIndex = -1;
     overlayCount = 0;
+    spriteCount = 0;
     planeCount = 0;
     primaryAvailable = true;
     for (int i = mOverlayLayers.size() - 1; i >= 0; i--) {
@@ -332,9 +334,10 @@ void HwcLayerList::setZOrder()
 
         switch (plane->getType()) {
         case DisplayPlane::PLANE_SPRITE:
+            zorder.spriteIndexes[spriteCount++] = hwcLayer->getIndex();
             break;
         case DisplayPlane::PLANE_OVERLAY:
-            zorder.overlayIndexes[overlayCount++] = i;
+            zorder.overlayIndexes[overlayCount++] = hwcLayer->getIndex();
             break;
         case DisplayPlane::PLANE_PRIMARY:
             primaryIndex = i;
@@ -351,6 +354,7 @@ void HwcLayerList::setZOrder()
     zorder.layerCount = mLayers.size();
     zorder.planeCount = planeCount;
     zorder.overlayCount = overlayCount;
+    zorder.spriteCount = spriteCount;
     zorder.primaryIndex = primaryIndex;
 
     for (int i = mOverlayLayers.size() - 1; i >= 0; i--) {
