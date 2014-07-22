@@ -77,6 +77,7 @@ public:
     enum {
         DEVICE_DISPLAY_OFF = 0,
         DEVICE_DISPLAY_ON,
+        DEVICE_DISPLAY_STANDBY,
     };
 public:
     IDisplayDevice() {}

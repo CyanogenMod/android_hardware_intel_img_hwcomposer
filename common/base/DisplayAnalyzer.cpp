@@ -624,14 +624,28 @@ void DisplayAnalyzer::handleDpmsEvent(int delayCount)
 
     if (Hwcomposer::getInstance().getVsyncManager()->getVsyncSource() ==
         IDisplayDevice::DEVICE_PRIMARY) {
-        ETRACE("primary display is source of vsync, it can't be powered off");
+            Hwcomposer::getInstance().getDrm()->setDpmsMode(
+            IDisplayDevice::DEVICE_PRIMARY,
+                IDisplayDevice::DEVICE_DISPLAY_STANDBY);
+        ETRACE("primary display is source of vsync, we only dim backlight");
         return;
     }
 
+    /* FIXME: We workaround on Saltbay because touch panel share the power
+     * supply with LCD. So all we can do is to dim backlight to save power.
+     * We can move the logic into kernel in future. */
+    ETRACE("primary display coupled with touch on Saltbay, only dim backlight");
+    Hwcomposer::getInstance().getDrm()->setDpmsMode(
+               IDisplayDevice::DEVICE_PRIMARY,
+               IDisplayDevice::DEVICE_DISPLAY_STANDBY);
+    return;
+
+/*
     ITRACE("powering off primary display...");
     Hwcomposer::getInstance().getDrm()->setDpmsMode(
         IDisplayDevice::DEVICE_PRIMARY,
         IDisplayDevice::DEVICE_DISPLAY_OFF);
+*/
 }
 
 
