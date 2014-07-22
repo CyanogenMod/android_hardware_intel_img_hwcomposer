@@ -256,10 +256,10 @@ bool DisplayDevice::getDisplayAttributes(uint32_t configs,
             values[i] = config->getHeight();
             break;
         case HWC_DISPLAY_DPI_X:
-            values[i] = config->getDpiX();
+            values[i] = config->getDpiX() * 1000.0f;
             break;
         case HWC_DISPLAY_DPI_Y:
-            values[i] = config->getDpiY();
+            values[i] = config->getDpiY() * 1000.0f;
             break;
         default:
             LOGE("getDisplayAttributes: unknown attribute %d", attributes[i]);
