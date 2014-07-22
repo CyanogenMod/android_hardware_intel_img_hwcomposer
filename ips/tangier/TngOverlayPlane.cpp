@@ -100,14 +100,9 @@ bool TngOverlayPlane::initialize(uint32_t bufferCount)
     }
 
     // setup rotation buffer
-    if (!mRotationBufProvider) {
-        mRotationBufProvider = new RotationBufferProvider(mWsbm);
-        if (mRotationBufProvider == NULL)
-            return false;
-        if (!mRotationBufProvider->initialize()) {
-            ETRACE("failed to initialize RotationBufferProvider");
-            return false;
-        }
+    mRotationBufProvider = new RotationBufferProvider(mWsbm);
+    if (!mRotationBufProvider || !mRotationBufProvider->initialize()) {
+        DEINIT_AND_RETURN_FALSE("failed to initialize RotationBufferProvider");
     }
     return true;
 }

@@ -100,6 +100,20 @@ static struct _WsbmVNodeFuncs vNodeFuncs = {
     .clear  = pvrClear,
 };
 
+void psbWsbmTakedown()
+{
+    CTRACE();
+
+    if (mainPool) {
+        wsbmPoolTakeDown(mainPool);
+        mainPool = NULL;
+    }
+
+    if (wsbmIsInitialized()) {
+        wsbmTakedown();
+    }
+}
+
 int psbWsbmInitialize(int drmFD)
 {
     union drm_psb_extension_arg arg;
@@ -145,17 +159,10 @@ int psbWsbmInitialize(int drmFD)
     return 0;
 
 out:
-    wsbmTakedown();
+    psbWsbmTakedown();
     return ret;
 }
 
-void psbWsbmTakedown()
-{
-    CTRACE();
-
-    wsbmPoolTakeDown(mainPool);
-    wsbmTakedown();
-}
 
 int psbWsbmAllocateTTMBuffer(uint32_t size, uint32_t align, void ** buf)
 {
