@@ -36,7 +36,9 @@ public:
     IVsyncControl() {};
     virtual ~IVsyncControl() {};
 public:
-    virtual bool control(int disp, int enabled) = 0;
+    virtual bool initialize() = 0;
+    virtual void deinitialize() = 0;
+    virtual bool control(int disp, bool enabled) = 0;
     virtual bool wait(int disp, int64_t& timestamp) = 0;
 };
 

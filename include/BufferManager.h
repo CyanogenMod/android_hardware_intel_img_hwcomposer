@@ -32,6 +32,7 @@
 #include <DataBuffer.h>
 #include <BufferMapper.h>
 #include <BufferCache.h>
+#include <utils/Mutex.h>
 
 namespace android {
 namespace intel {
@@ -49,16 +50,24 @@ public:
     // dump interface
     void dump(Dump& d);
 
+    // lockDataBuffer and unlockDataBuffer must be used in serial
+    // nested calling of them will cause a deadlock
+    DataBuffer* lockDataBuffer(uint32_t handle);
+    void unlockDataBuffer(DataBuffer *buffer);
+
+    // get and put interfaces are deprecated
+    // use lockDataBuffer and unlockDataBuffer instead
     DataBuffer* get(uint32_t handle);
-    void put(DataBuffer& buffer);
+    void put(DataBuffer *buffer);
 
     // map/unmap a data buffer into/from display memory
     BufferMapper* map(DataBuffer& buffer);
-    void unmap(BufferMapper& mapper);
+    void unmap(BufferMapper *mapper);
 
-    // frame buffer
-    uint32_t allocFrameBuffer(int width, int height, int *stride);
-    void freeFrameBuffer(uint32_t kHandle);
+    // frame buffer management
+    //return 0 if allocation fails
+    virtual uint32_t allocFrameBuffer(int width, int height, int *stride);
+    virtual void freeFrameBuffer(uint32_t kHandle);
 
 protected:
     virtual DataBuffer* createDataBuffer(gralloc_module_t *module,
@@ -75,6 +84,8 @@ private:
     alloc_device_t *mAllocDev;
     KeyedVector<uint32_t, BufferMapper*> mFrameBuffers;
     BufferCache *mBufferPool;
+    DataBuffer *mDataBuffer;
+    Mutex mDataBufferLock;
     bool mInitialized;
 };
 

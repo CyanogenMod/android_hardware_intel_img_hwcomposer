@@ -45,7 +45,6 @@ protected:
         CachedBuffer(BufferManager *mgr, buffer_handle_t handle);
         ~CachedBuffer();
         BufferManager *manager;
-        DataBuffer *buffer;
         BufferMapper *mapper;
     };
     struct Configuration {
@@ -82,8 +81,8 @@ public:
     virtual bool commit(hwc_display_contents_1_t *display,
                           IDisplayContext *context);
 
-    virtual bool vsyncControl(int enabled);
-    virtual bool blank(int blank);
+    virtual bool vsyncControl(bool enabled);
+    virtual bool blank(bool blank);
     virtual bool getDisplayConfigs(uint32_t *configs,
                                        size_t *numConfigs);
     virtual bool getDisplayAttributes(uint32_t config,

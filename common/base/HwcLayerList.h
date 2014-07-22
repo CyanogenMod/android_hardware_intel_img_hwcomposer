@@ -47,6 +47,7 @@ public:
     };
 public:
     HwcLayer(int index, hwc_layer_1_t *layer);
+    virtual ~HwcLayer();
 
     // plane operations
     bool attachPlane(DisplayPlane *plane);
@@ -58,6 +59,7 @@ public:
     int getIndex() const;
     uint32_t getFormat() const;
     uint32_t getUsage() const;
+    uint32_t getHandle() const;
     bool isProtected() const;
     hwc_layer_1_t* getLayer() const;
     DisplayPlane* getPlane() const;
@@ -73,6 +75,7 @@ private:
     DisplayPlane *mPlane;
     uint32_t mFormat;
     uint32_t mUsage;
+    uint32_t mHandle;
     bool mIsProtected;
     uint32_t mType;
 };

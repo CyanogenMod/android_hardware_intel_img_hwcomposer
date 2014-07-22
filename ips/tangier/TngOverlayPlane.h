@@ -44,7 +44,7 @@ class TngOverlayPlane : public OverlayPlaneBase {
 
 public:
     TngOverlayPlane(int index, int disp);
-    ~TngOverlayPlane();
+    virtual ~TngOverlayPlane();
 
     virtual bool flip(void *ctx);
     virtual void* getContext() const;

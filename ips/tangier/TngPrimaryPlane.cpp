@@ -48,12 +48,9 @@ TngPrimaryPlane::~TngPrimaryPlane()
     CTRACE();
 }
 
-void TngPrimaryPlane::setFramebufferTarget(DataBuffer& buf)
+void TngPrimaryPlane::setFramebufferTarget(uint32_t handle)
 {
-    uint32_t handle;
     CTRACE();
-
-    handle = buf.getHandle();
 
     // do not need to update the buffer handle
     if (mCurrentDataBuffer != handle)
@@ -87,6 +84,11 @@ void TngPrimaryPlane::setFramebufferTarget(DataBuffer& buf)
 
 bool TngPrimaryPlane::setDataBuffer(uint32_t handle)
 {
+    if (!handle) {
+        setFramebufferTarget(handle);
+        return true;
+    }
+
     TngGrallocBuffer tmpBuf(handle);
     uint32_t usage;
     bool ret;
@@ -94,8 +96,8 @@ bool TngPrimaryPlane::setDataBuffer(uint32_t handle)
     ATRACE("handle = %#x", handle);
 
     usage = tmpBuf.getUsage();
-    if (!handle || (GRALLOC_USAGE_HW_FB & usage)) {
-        setFramebufferTarget(tmpBuf);
+    if (GRALLOC_USAGE_HW_FB & usage) {
+        setFramebufferTarget(handle);
         return true;
     }
 

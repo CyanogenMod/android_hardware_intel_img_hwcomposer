@@ -36,7 +36,9 @@ public:
     IHotplugControl() {}
     virtual ~IHotplugControl() {}
 public:
-    virtual bool wait(int disp, int& event) = 0;
+    virtual bool initialize() = 0;
+    virtual void deinitialize() = 0;
+    virtual bool waitForEvent() = 0;
 };
 
 } // namespace intel

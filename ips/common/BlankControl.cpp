@@ -36,14 +36,17 @@ namespace intel {
 BlankControl::BlankControl()
     : IBlankControl()
 {
-
 }
 
-bool BlankControl::blank(int disp, int blank)
+BlankControl::~BlankControl()
 {
-    ATRACE("disp = %d, blank = %d", disp, blank);
+}
+
+bool BlankControl::blank(int disp, bool blank)
+{
     // current do nothing but return true
     // use PM to trigger screen blank/unblank
+    VTRACE("blank is not supported yet, disp %d, blank %d", disp, blank);
     return true;
 }
 

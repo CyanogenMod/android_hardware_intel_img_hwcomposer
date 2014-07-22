@@ -37,7 +37,7 @@ namespace intel {
 class TngDisplayContext : public IDisplayContext {
 public:
     TngDisplayContext();
-    ~TngDisplayContext();
+    virtual ~TngDisplayContext();
 public:
     bool initialize();
     void deinitialize();

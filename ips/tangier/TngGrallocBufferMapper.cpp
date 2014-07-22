@@ -53,12 +53,11 @@ bool TngGrallocBufferMapper::gttMap(void *vaddr,
                                       int *offset)
 {
     struct psb_gtt_mapping_arg arg;
-    Drm *drm = Hwcomposer::getInstance().getDrm();
     bool ret;
 
     ATRACE("vaddr = %p, size = %d", vaddr, size);
 
-    if (!vaddr || !size || !offset || !drm) {
+    if (!vaddr || !size || !offset) {
         VTRACE("invalid parameters");
         return false;
     }
@@ -68,6 +67,7 @@ bool TngGrallocBufferMapper::gttMap(void *vaddr,
     arg.vaddr = (uint32_t)vaddr;
     arg.size = size;
 
+    Drm *drm = Hwcomposer::getInstance().getDrm();
     ret = drm->writeReadIoctl(DRM_PSB_GTT_MAP, &arg, sizeof(arg));
     if (ret == false) {
         ETRACE("gtt mapping failed");
@@ -82,12 +82,11 @@ bool TngGrallocBufferMapper::gttMap(void *vaddr,
 bool TngGrallocBufferMapper::gttUnmap(void *vaddr)
 {
     struct psb_gtt_mapping_arg arg;
-    Drm *drm = Hwcomposer::getInstance().getDrm();
     bool ret;
 
     ATRACE("vaddr = %p", vaddr);
 
-    if(!vaddr || !drm) {
+    if (!vaddr) {
         ETRACE("invalid parameter");
         return false;
     }
@@ -95,8 +94,9 @@ bool TngGrallocBufferMapper::gttUnmap(void *vaddr)
     arg.type = PSB_GTT_MAP_TYPE_VIRTUAL;
     arg.vaddr = (uint32_t)vaddr;
 
+    Drm *drm = Hwcomposer::getInstance().getDrm();
     ret = drm->writeIoctl(DRM_PSB_GTT_UNMAP, &arg, sizeof(arg));
-    if(ret == false) {
+    if (ret == false) {
         ETRACE("gtt unmapping failed");
         return false;
     }
@@ -121,7 +121,7 @@ bool TngGrallocBufferMapper::map()
                                           size);
     if (err) {
         ETRACE("failed to map. err = %d", err);
-        goto map_err;
+        return false;
     }
 
     for (i = 0; i < SUB_BUFFER_MAX; i++) {
@@ -133,21 +133,27 @@ bool TngGrallocBufferMapper::map()
         ret = gttMap(vaddr[i], size[i], 0, &gttOffsetInPage);
         if (!ret) {
             VTRACE("failed to map %d into gtt", i);
-            goto gtt_err;
+            break;
         }
 
         mCpuAddress[i] = vaddr[i];
         mSize[i] = size[i];
         mGttOffsetInPage[i] = gttOffsetInPage;
+        // TODO:  set kernel handle
+        mKHandle[i] = 0;
     }
 
-    return true;
-gtt_err:
-    for (i = 0; i < SUB_BUFFER_MAX; i++) {
-        if (mCpuAddress[i])
-            gttUnmap(mCpuAddress[i]);
+    if (i == SUB_BUFFER_MAX) {
+        return true;
     }
-map_err:
+
+    // error handling
+    for (i = 0; i < SUB_BUFFER_MAX; i++) {
+        if (mCpuAddress[i]) {
+            gttUnmap(mCpuAddress[i]);
+        }
+    }
+
     err = mIMGGrallocModule.putCpuAddress(&mIMGGrallocModule,
                                     (buffer_handle_t)getHandle());
     return false;

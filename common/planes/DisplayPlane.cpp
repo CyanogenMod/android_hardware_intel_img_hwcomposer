@@ -195,10 +195,11 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
         mUpdateMasks &= ~PLANE_BUFFER_CHANGED;
 
     // if no update then do Not need set data buffer
+    // TODO: this design assumes position/transform/sourcecrop are all set
     if (!mUpdateMasks)
         return true;
 
-    buffer = bm->get(handle);
+    buffer = bm->lockDataBuffer(handle);
     if (!buffer) {
         ETRACE("failed to get buffer");
         return false;
@@ -223,7 +224,7 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
             mapper = mapBuffer(buffer);
             if (!mapper) {
                 ETRACE("failed to map buffer %#x", handle);
-                bm->put(*buffer);
+                bm->unlockDataBuffer(buffer);
                 return false;
             }
         }
@@ -232,8 +233,9 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
         mapper = mDataBuffers.valueAt(index);
     }
 
-    // put buffer after getting mapper
-    bm->put(*buffer);
+    // unlock buffer after getting mapper
+    bm->unlockDataBuffer(buffer);
+    buffer = NULL;
 
     ret = setDataBuffer(*mapper);
     if (ret) {
@@ -241,7 +243,7 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
         // update active buffers
         updateActiveBuffers(mapper);
     }
-    return true;;
+    return ret;
 }
 
 BufferMapper* DisplayPlane::mapBuffer(DataBuffer *buffer)
@@ -257,7 +259,7 @@ BufferMapper* DisplayPlane::mapBuffer(DataBuffer *buffer)
     ssize_t index = mDataBuffers.add(buffer->getKey(), mapper);
     if (index < 0) {
         ETRACE("failed to add mapper");
-        bm->unmap(*mapper);
+        bm->unmap(mapper);
         return NULL;
     }
 
@@ -284,7 +286,7 @@ void DisplayPlane::updateActiveBuffers(BufferMapper *mapper)
     // unmap the first entry (oldest buffer)
     if (mActiveBuffers.size() >= MIN_DATA_BUFFER_COUNT) {
         BufferMapper *oldest = mActiveBuffers.itemAt(0);
-        bm->unmap(*oldest);
+        bm->unmap(oldest);
         mActiveBuffers.removeAt(0);
     }
 
@@ -307,7 +309,7 @@ void DisplayPlane::invalidateActiveBuffers()
     for (size_t i = 0; i < mActiveBuffers.size(); i++) {
         mapper = mActiveBuffers.itemAt(i);
         // unmap it
-        bm->unmap(*mapper);
+        bm->unmap(mapper);
     }
 
     // clear recorded data buffers
@@ -323,9 +325,7 @@ void DisplayPlane::invalidateBufferCache()
 
     for (size_t i = 0; i < mDataBuffers.size(); i++) {
         mapper = mDataBuffers.valueAt(i);
-        // unmap it
-        if (mapper)
-            bm->unmap(*mapper);
+        bm->unmap(mapper);
     }
 
     mDataBuffers.clear();

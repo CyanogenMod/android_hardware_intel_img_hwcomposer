@@ -36,21 +36,48 @@ namespace intel {
 
 class PhysicalDevice;
 
-class VsyncEventObserver : public Thread {
+class VsyncEventObserver {
 public:
-    VsyncEventObserver(PhysicalDevice& disp, IVsyncControl& vsync);
+    VsyncEventObserver(PhysicalDevice& disp);
     virtual ~VsyncEventObserver();
-    void control(int enabled);
+
+public:
+    virtual bool initialize();
+    virtual void deinitialize();
+    bool control(bool enabled);
+
 private:
+    class WorkingThread: public Thread {
+    public:
+        WorkingThread(VsyncEventObserver *owner) {
+            mOwner = owner;
+        }
+        WorkingThread() {
+            mOwner = NULL;
+         }
+
+    private:
+        virtual bool threadLoop() {
+            return mOwner->threadLoop();
+        }
+
+    private:
+        VsyncEventObserver *mOwner;
+    };
+
+    friend class WorkingThread;
     bool threadLoop();
-    status_t readyToRun();
-    void onFirstRef();
+
 private:
     mutable Mutex mLock;
     Condition mCondition;
     PhysicalDevice& mDisplayDevice;
-    IVsyncControl& mVsync;
-    int mEnabled;
+    IVsyncControl *mVsyncControl;
+    sp<WorkingThread> mThread;
+    int  mDevice;
+    bool mEnabled;
+    bool mExitThread;
+    bool mInitialized;
 };
 
 } // namespace intel

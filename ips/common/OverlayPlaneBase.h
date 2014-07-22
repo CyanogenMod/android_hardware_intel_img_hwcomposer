@@ -48,7 +48,7 @@ typedef struct {
 class OverlayPlaneBase : public DisplayPlane {
 public:
     OverlayPlaneBase(int index, int disp);
-    ~OverlayPlaneBase();
+    virtual ~OverlayPlaneBase();
 
     virtual void invalidateBufferCache();
 

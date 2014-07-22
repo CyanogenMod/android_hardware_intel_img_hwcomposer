@@ -32,10 +32,15 @@ namespace android {
 namespace intel {
 
 GraphicBuffer::GraphicBuffer(uint32_t handle)
-    : DataBuffer(handle),
-      mUsage(USAGE_INVALID),
-      mBpp(0)
+    : DataBuffer(handle)
 {
+    initBuffer(handle);
+}
+
+void GraphicBuffer::resetBuffer(uint32_t handle)
+{
+    DataBuffer::resetBuffer(handle);
+    initBuffer(handle);
 }
 
 bool GraphicBuffer::isProtectedUsage(uint32_t usage)
@@ -56,6 +61,11 @@ bool GraphicBuffer::isProtectedBuffer(GraphicBuffer *buffer)
     return isProtectedUsage(buffer->mUsage);
 }
 
+void GraphicBuffer::initBuffer(uint32_t handle)
+{
+    mUsage = USAGE_INVALID;
+    mBpp = 0;
+}
 
 }
 }

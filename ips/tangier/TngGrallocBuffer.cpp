@@ -34,6 +34,21 @@ namespace intel {
 TngGrallocBuffer::TngGrallocBuffer(uint32_t handle)
     :GrallocBufferBase(handle)
 {
+    initBuffer(handle);
+}
+
+TngGrallocBuffer::~TngGrallocBuffer()
+{
+}
+
+void TngGrallocBuffer::resetBuffer(uint32_t handle)
+{
+    GrallocBufferBase::resetBuffer(handle);
+    initBuffer(handle);
+}
+
+void TngGrallocBuffer::initBuffer(uint32_t handle)
+{
     TngIMGGrallocBuffer *grallocHandle = (TngIMGGrallocBuffer *)handle;
 
     CTRACE();
@@ -50,8 +65,10 @@ TngGrallocBuffer::TngGrallocBuffer(uint32_t handle)
     mKey = grallocHandle->ui64Stamp;
     mBpp = grallocHandle->uiBpp;
 
-    initialize();
+    // stride can only be initialized after format is set
+    initStride();
 }
+
 
 }
 }

@@ -44,7 +44,7 @@ namespace intel {
 class Drm {
 public:
     Drm();
-    ~Drm();
+    virtual ~Drm();
 public:
     bool initialize();
     void deinitialize();

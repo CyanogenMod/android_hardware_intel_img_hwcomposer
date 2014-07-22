@@ -38,7 +38,7 @@ class PlatfExternalDevice : public ExternalDevice {
 public:
     PlatfExternalDevice(Hwcomposer& hwc,
                         DisplayPlaneManager& dpm);
-    ~PlatfExternalDevice();
+    virtual ~PlatfExternalDevice();
 
 protected:
     IVsyncControl* createVsyncControl();

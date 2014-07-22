@@ -118,14 +118,14 @@ bool Drm::detect(int device)
             continue;
         }
 
-        output->connector = connector;
-
         if (connector->connection != DRM_MODE_CONNECTED) {
             ITRACE("device %d is not connected", device);
+            drmModeFreeConnector(connector);
             ret = true;
             break;
         }
 
+        output->connector = connector;
         output->connected = true;
 
         // get proper encoder for the given connector
@@ -487,28 +487,30 @@ bool Drm::setDrmMode(int index, drmModeModeInfoPtr mode)
         return false;
     }
 
+    int ret = 0;
     // add frame buffer
-    int ret = drmModeAddFB(
-            mDrmFd,
-            mode->hdisplay,
-            mode->vdisplay,
-            DrmConfig::getFrameBufferDepth(),
-            DrmConfig::getFrameBufferBpp(),
-            stride,
-            output->fbHandle,
-            &output->fbId);
+    ret = drmModeAddFB(
+        mDrmFd,
+        mode->hdisplay,
+        mode->vdisplay,
+        DrmConfig::getFrameBufferDepth(),
+        DrmConfig::getFrameBufferBpp(),
+        stride,
+        output->fbHandle,
+        &output->fbId);
+    if (ret != 0) {
+        ETRACE("drmModeAddFB failed, error: %d", ret);
+        return false;
+    }
+
+    // set CRTC
+    ret = drmModeSetCrtc(mDrmFd, output->crtc->crtc_id, output->fbId, 0, 0,
+                   &output->connector->connector_id, 1, mode);
     if (ret == 0) {
-        // set CRTC
-        ret = drmModeSetCrtc(mDrmFd, output->crtc->crtc_id, output->fbId, 0, 0,
-                       &output->connector->connector_id, 1, mode);
-        if (ret == 0) {
-            //save mode
-            memcpy(&output->mode, mode, sizeof(drmModeModeInfo));
-        } else {
-            ETRACE("drmModeSetCrtc failed");
-        }
+        //save mode
+        memcpy(&output->mode, mode, sizeof(drmModeModeInfo));
     } else {
-        ETRACE("drmModeAddFB failed");
+        ETRACE("drmModeSetCrtc failed. error: %d", ret);
     }
 
     return ret == 0;

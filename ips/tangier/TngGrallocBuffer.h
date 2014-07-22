@@ -41,6 +41,12 @@ typedef IMG_native_handle_t TngIMGGrallocBuffer;
 class TngGrallocBuffer : public GrallocBufferBase {
 public:
     TngGrallocBuffer(uint32_t handle);
+    virtual ~TngGrallocBuffer();
+
+    void resetBuffer(uint32_t handle);
+
+private:
+    void initBuffer(uint32_t handle);
 };
 
 } // namespace intel

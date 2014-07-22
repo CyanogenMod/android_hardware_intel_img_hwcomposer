@@ -57,9 +57,8 @@ protected:
     virtual IHdcpControl* createHdcpControl() = 0;
 
 protected:
-    IHotplugControl *mHotplugControl;
     IHdcpControl *mHdcpControl;
-    sp<HotplugEventObserver> mHotplugObserver;
+    HotplugEventObserver *mHotplugObserver;
     friend class HotplugEventObserver;
 
 private:

@@ -42,6 +42,7 @@ public:
     Wsbm(int drmFD);
     ~Wsbm();
     bool initialize();
+    void deinitialize();
     bool allocateTTMBuffer(uint32_t size, uint32_t align,void ** buf);
     bool destroyTTMBuffer(void * buf);
     void * getCPUAddress(void * buf);
@@ -50,6 +51,8 @@ public:
     bool unreferenceTTMBuffer(void *buf);
     bool waitIdleTTMBuffer(void *buf);
     uint32_t getKBufHandle(void *buf);
+private:
+    bool mInitialized;
 };
 
 #endif /*__INTEL_WSBM_H__*/

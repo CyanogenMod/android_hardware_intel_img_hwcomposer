@@ -87,8 +87,8 @@ public:
     virtual bool commit(hwc_display_contents_1_t *display,
                           IDisplayContext *context) = 0;
 
-    virtual bool vsyncControl(int enabled) = 0;
-    virtual bool blank(int blank) = 0;
+    virtual bool vsyncControl(bool enabled) = 0;
+    virtual bool blank(bool blank) = 0;
     virtual bool getDisplayConfigs(uint32_t *configs,
                                        size_t *numConfigs) = 0;
     virtual bool getDisplayAttributes(uint32_t config,

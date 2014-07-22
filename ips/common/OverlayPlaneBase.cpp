@@ -109,11 +109,7 @@ void OverlayPlaneBase::deinitialize()
         invalidateActiveTTMBuffers();
     }
 
-    // delete wsbm
-    if (mWsbm) {
-        delete mWsbm;
-        mWsbm = 0;
-    }
+    DEINIT_AND_DELETE_OBJ(mWsbm);
 }
 
 void OverlayPlaneBase::invalidateBufferCache()
@@ -219,35 +215,27 @@ bool OverlayPlaneBase::disable()
 
 OverlayBackBuffer* OverlayPlaneBase::createBackBuffer()
 {
-    int size;
-    int alignment;
-    void *wsbmBufferObject;
-    void *virtAddr;
-    uint32_t gttOffsetInPage;
-    uint32_t handle;
-    OverlayBackBuffer *backBuffer;
-    bool ret;
-
     CTRACE();
 
-    size = sizeof(OverlayBackBufferBlk);
-    alignment = 64 * 1024;
-    wsbmBufferObject = 0;
-    ret = mWsbm->allocateTTMBuffer(size, alignment, &wsbmBufferObject);
+    // create back buffer
+    OverlayBackBuffer *backBuffer = (OverlayBackBuffer *)malloc(sizeof(OverlayBackBuffer));
+    if (!backBuffer) {
+        ETRACE("failed to allocate back buffer");
+        return 0;
+    }
+
+
+    int size = sizeof(OverlayBackBufferBlk);
+    int alignment = 64 * 1024;
+    void *wsbmBufferObject = 0;
+    bool ret = mWsbm->allocateTTMBuffer(size, alignment, &wsbmBufferObject);
     if (ret == false) {
         ETRACE("failed to allocate buffer");
         return 0;
     }
 
-    virtAddr = mWsbm->getCPUAddress(wsbmBufferObject);
-    gttOffsetInPage = mWsbm->getGttOffset(wsbmBufferObject);
-
-    // create back buffer
-    backBuffer = (OverlayBackBuffer *)malloc(sizeof(OverlayBackBuffer));
-    if (!backBuffer) {
-        ETRACE("failed to allocate back buffer");
-        goto alloc_err;
-    }
+    void *virtAddr = mWsbm->getCPUAddress(wsbmBufferObject);
+    uint32_t gttOffsetInPage = mWsbm->getGttOffset(wsbmBufferObject);
 
     backBuffer->buf = (OverlayBackBufferBlk *)virtAddr;
     backBuffer->gttOffsetInPage = gttOffsetInPage;
@@ -256,21 +244,15 @@ OverlayBackBuffer* OverlayPlaneBase::createBackBuffer()
     VTRACE("cpu %p, gtt %d", virtAddr, gttOffsetInPage);
 
     return backBuffer;
-alloc_err:
-    mWsbm->destroyTTMBuffer(wsbmBufferObject);
-    return 0;
 }
 
 void OverlayPlaneBase::deleteBackBuffer()
 {
-    void *wsbmBufferObject;
-    bool ret;
-
     if (!mBackBuffer)
         return;
 
-    wsbmBufferObject = (void *)mBackBuffer->bufObject;
-    ret = mWsbm->destroyTTMBuffer(wsbmBufferObject);
+    void *wsbmBufferObject = (void *)mBackBuffer->bufObject;
+    bool ret = mWsbm->destroyTTMBuffer(wsbmBufferObject);
     if (ret == false) {
         WTRACE("failed to delete back buffer");
     }
@@ -281,17 +263,12 @@ void OverlayPlaneBase::deleteBackBuffer()
 
 void OverlayPlaneBase::resetBackBuffer()
 {
-    OverlayBackBufferBlk *backBuffer;
-
     CTRACE();
 
-    if (!mBackBuffer)
+    if (!mBackBuffer || !mBackBuffer->buf)
         return;
 
-    if (!mBackBuffer->buf)
-        return;
-
-    backBuffer = mBackBuffer->buf;
+    OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
 
     memset(backBuffer, 0, sizeof(OverlayBackBufferBlk));
 
@@ -334,11 +311,6 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
     index = mTTMBuffers.indexOfKey(khandle);
     if (index < 0) {
         VTRACE("unmapped TTM buffer, will map it");
-        buf = new DataBuffer(khandle);
-        if (!buf) {
-            ETRACE("failed to create buffer");
-            return 0;
-        }
 
         w = payload->rotated_width;
         h = payload->rotated_height;
@@ -406,34 +378,49 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
             break;
         }
 
+        DataBuffer buf(khandle);
         // update buffer
-        buf->setStride(stride);
-        buf->setWidth(w);
-        buf->setHeight(h);
-        buf->setCrop(srcX, srcY, srcW, srcH);
-        buf->setFormat(grallocMapper.getFormat());
+        buf.setStride(stride);
+        buf.setWidth(w);
+        buf.setHeight(h);
+        buf.setCrop(srcX, srcY, srcW, srcH);
+        buf.setFormat(grallocMapper.getFormat());
 
         // create buffer mapper
-        mapper = new TTMBufferMapper(*mWsbm, *buf);
-        if (!mapper) {
-            ETRACE("failed to allocate mapper");
-            goto mapper_err;
-        }
-        // map ttm buffer
-        ret = mapper->map();
-        if (!ret) {
-            ETRACE("failed to map");
-            goto map_err;
-        }
+        bool res = false;
+        do {
+            mapper = new TTMBufferMapper(*mWsbm, buf);
+            if (!mapper) {
+                ETRACE("failed to allocate mapper");
+                break;
+            }
+            // map ttm buffer
+            ret = mapper->map();
+            if (!ret) {
+                ETRACE("failed to map");
+                break;
+            }
 
-        // increase mapper refCount
-        mapper->incRef();
+            // add mapper
+            index = mTTMBuffers.add(khandle, mapper);
+            if (index < 0) {
+                ETRACE("failed to add TTMMapper");
+                break;
+            }
 
-        // add mapper
-        index = mTTMBuffers.add(khandle, mapper);
-        if (index < 0) {
-            ETRACE("failed to add TTMMapper");
-            goto add_err;
+            // increase mapper refCount since it is added to mTTMBuffers
+            mapper->incRef();
+            res = true;
+        } while (0);
+
+        if (!res) {
+            // error handling
+            if (mapper) {
+                mapper->unmap();
+                delete mapper;
+                mapper = NULL;
+            }
+            return 0;
         }
     } else {
         VTRACE("got mapper in saved ttm buffers");
@@ -441,16 +428,7 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
     }
 
     XTRACE();
-
     return mapper;
-add_err:
-    mapper->unmap();
-map_err:
-    delete mapper;
-    return 0;
-mapper_err:
-    delete buf;
-    return 0;
 }
 
 void OverlayPlaneBase::putTTMMapper(BufferMapper* mapper)

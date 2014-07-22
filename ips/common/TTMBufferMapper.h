@@ -38,7 +38,7 @@ namespace intel {
 class TTMBufferMapper : public BufferMapper {
 public:
     TTMBufferMapper(Wsbm& wsbm, DataBuffer& buffer);
-    ~TTMBufferMapper();
+    virtual ~TTMBufferMapper();
 public:
     bool map();
     bool unmap();

@@ -37,9 +37,21 @@ GrallocBufferBase::GrallocBufferBase(uint32_t handle)
     : GraphicBuffer(handle)
 {
     ATRACE("handle = %#x", handle);
+    initBuffer(handle);
 }
 
-void GrallocBufferBase::initialize()
+void GrallocBufferBase::resetBuffer(uint32_t handle)
+{
+    GraphicBuffer::resetBuffer(handle);
+    initBuffer(handle);
+}
+
+void GrallocBufferBase::initBuffer(uint32_t handle)
+{
+    // nothing to initialize
+}
+
+void GrallocBufferBase::initStride()
 {
     int yStride, uvStride;
 
