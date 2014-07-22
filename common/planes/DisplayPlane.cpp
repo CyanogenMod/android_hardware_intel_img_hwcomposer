@@ -332,11 +332,8 @@ bool DisplayPlane::flip(void *ctx)
 {
     RETURN_FALSE_IF_NOT_INIT();
 
-    // don't flip if no updates
-    if (!mUpdateMasks)
-        return false;
-    else
-        return true;
+    // always flip
+    return true;
 }
 
 void DisplayPlane::postFlip()
