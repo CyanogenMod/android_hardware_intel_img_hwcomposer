@@ -33,6 +33,7 @@
 #include <SimpleThread.h>
 #else
 #include <utils/Errors.h>
+#include <string.h>
 #endif
 
 namespace android {
