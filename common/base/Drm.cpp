@@ -202,6 +202,12 @@ bool Drm::detect(int device)
     }
 
     if (!ret) {
+        if (output->connector == NULL && outputIndex != OUTPUT_PRIMARY) {
+            // a fatal failure on primary device
+            // non fatal on secondary device
+            WTRACE("device %d is disabled?", device);
+            ret = true;
+        }
          resetOutput(outputIndex);
     } else if (output->connected) {
         ITRACE("mode is: %dx%d@%dHz", output->mode.hdisplay, output->mode.vdisplay, output->mode.vrefresh);
