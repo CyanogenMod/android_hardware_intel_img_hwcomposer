@@ -315,7 +315,6 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
     for (size_t i = 0; i < display->numHwLayers-1; i++) {
         hwc_layer_1_t& layer = display->hwLayers[i];
         layer.compositionType = HWC_OVERLAY;
-        layer.flags |= HWC_HINT_DISABLE_ANIMATION;
     }
 
     VTRACE("Extended mode");
@@ -413,9 +412,8 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
                 mOrigContentWidth = inputFrameInfo.contentWidth;
                 mOrigContentHeight = inputFrameInfo.contentHeight;
 
-                int sessionID = -1;
-                if (layer.flags & HWC_HAS_VIDEO_SESSION_ID)
-                    sessionID = ((layer.flags & GRALLOC_USAGE_MDS_SESSION_ID_MASK) >> 24);
+                // For the first video session by default
+                int sessionID = Hwcomposer::getInstance().getDisplayAnalyzer()->getFirstVideoInstanceSessionID();
                 if (sessionID >= 0) {
                     ITRACE("Session id = %d", sessionID);
                     VideoSourceInfo videoInfo;

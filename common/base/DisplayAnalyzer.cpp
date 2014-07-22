@@ -803,6 +803,13 @@ void DisplayAnalyzer::setCompositionType(int device, int type, bool reset)
     setCompositionType(content, type);
 }
 
+int DisplayAnalyzer::getFirstVideoInstanceSessionID() {
+    if (mVideoStateMap.size() >= 1) {
+        return mVideoStateMap.keyAt(0);
+    }
+    return -1;
+}
+
 } // namespace intel
 } // namespace android
 
