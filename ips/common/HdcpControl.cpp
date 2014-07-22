@@ -59,6 +59,14 @@ bool HdcpControl::startHdcp()
     // this is a blocking and synchronous call
     Mutex::Autolock lock(mMutex);
 
+    char prop[PROPERTY_VALUE_MAX];
+    if (property_get("debug.hwc.hdcp.enable", prop, "1") > 0) {
+        if (atoi(prop) == 0) {
+            WTRACE("HDCP is disabled");
+            return false;
+        }
+    }
+
     if (!mStopped) {
         WTRACE("HDCP has been started");
         return true;

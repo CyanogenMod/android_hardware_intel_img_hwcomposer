@@ -46,6 +46,7 @@ public:
     virtual bool initialize();
     virtual void deinitialize();
     virtual bool setDrmMode(drmModeModeInfo& value);
+    virtual void setRefreshRate(int hz);
 
 protected:
     virtual void onHotplug();
