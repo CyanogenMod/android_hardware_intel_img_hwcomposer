@@ -101,7 +101,10 @@ VirtualDevice::HeldDecoderBuffer::~HeldDecoderBuffer()
 }
 
 VirtualDevice::VirtualDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
-    : mInitialized(false),
+    : mDoBlit(false),
+      mDoOnFrameReady(false),
+      mCancelOnFrameReady(false),
+      mInitialized(false),
       mConnected(false),
       mHwc(hwc),
       mDisplayPlaneManager(dpm),
@@ -138,6 +141,58 @@ sp<VirtualDevice::CachedBuffer> VirtualDevice::getMappedBuffer(uint32_t handle)
     return cachedBuffer;
 }
 
+bool VirtualDevice::threadLoop()
+{
+    crop_t cropInfo;
+    cropInfo.x = 0;
+    cropInfo.y = 0;
+    uint32_t srcHandle;
+    uint32_t destHandle;
+    {
+        Mutex::Autolock _l(mCscLock);
+        while (!mDoBlit) {
+            mRequestQueued.wait(mCscLock);
+        }
+        cropInfo.w = mBlitCropWidth;
+        cropInfo.h = mBlitCropHeight;
+        srcHandle = mBlitSrcHandle;
+        destHandle = mBlitDestHandle;
+    }
+    BufferManager* mgr = mHwc.getBufferManager();
+    status_t result = OK;
+    if (!(mgr->convertRGBToNV12(srcHandle, destHandle, cropInfo, 0))) {
+        ETRACE("color space conversion from RGB to NV12 failed");
+        result = UNKNOWN_ERROR;
+    }
+
+    int64_t renderTimestamp;
+    {
+        Mutex::Autolock _l(mCscLock);
+        mDoBlit = false;
+        mRequestProcessed.signal();
+        while (!mDoOnFrameReady) {
+            mRequestQueued.wait(mCscLock);
+        }
+        renderTimestamp = mFrameReadyRenderTs;
+        if (mCancelOnFrameReady)
+            result = UNKNOWN_ERROR;
+        mCancelOnFrameReady = false;
+    }
+    if (result == OK)
+        result = mCurrentConfig.frameListener->onFrameReady((int32_t)destHandle, HWC_HANDLE_TYPE_GRALLOC, renderTimestamp, -1);
+    if (result != OK) {
+        Mutex::Autolock _l(mHeldBuffersLock);
+        mHeldBuffers.removeItem(destHandle);
+    }
+    {
+        Mutex::Autolock _l(mCscLock);
+        mDoOnFrameReady = false;
+        mRequestProcessed.signal();
+    }
+
+    return true;
+}
+
 status_t VirtualDevice::start(sp<IFrameTypeChangeListener> typeChangeListener)
 {
     ITRACE();
@@ -158,6 +213,10 @@ status_t VirtualDevice::start(sp<IFrameTypeChangeListener> typeChangeListener)
     mNextConfig.forceNotifyBufferInfo = true;
 
     mConnected = true;
+    if (mThread == NULL) {
+        mThread = new WidiBlitThread(this);
+        mThread->run("WidiBlit", PRIORITY_URGENT_DISPLAY);
+    }
     return NO_ERROR;
 }
 
@@ -379,6 +438,7 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
 
     FrameInfo outputFrameInfo;
     outputFrameInfo = inputFrameInfo;
+    bool queueOnFrameReady = false;
 
     if (mHwc.getDisplayAnalyzer()->isVideoLayer((hwc_layer_1_t&)layer)) {
         sp<CachedBuffer> cachedBuffer;
@@ -505,6 +565,10 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
         uint32_t grallocHandle = 0;
         {
             Mutex::Autolock _l(mCscLock);
+            while (mDoBlit) {
+                // wait for previous frame's blit if it hasn't completed
+                mRequestProcessed.wait(mCscLock);
+            }
             // Blit only support 1:1 so until we get upscale/downsacle ,source & destination will be of same size.
             if ((layer.compositionType == HWC_FRAMEBUFFER_TARGET) &&
                 ((mCurrentConfig.policy.scaledWidth != inputFrameInfo.contentWidth) ||
@@ -547,16 +611,14 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
             }
             grallocHandle = *mAvailableCscBuffers.begin();
             mAvailableCscBuffers.erase(mAvailableCscBuffers.begin());
-        }
-        heldBuffer = new HeldCscBuffer(this, grallocHandle);
-        crop_t cropInfo;
-        cropInfo.w = mCurrentConfig.policy.scaledWidth;
-        cropInfo.h = mCurrentConfig.policy.scaledHeight;
-        cropInfo.x = 0;
-        cropInfo.y = 0;
-        if (!(mgr->convertRGBToNV12(handle, grallocHandle, cropInfo, 0))) {
-            ETRACE("color space conversion from RGB to NV12 failed");
-            return;
+
+            heldBuffer = new HeldCscBuffer(this, grallocHandle);
+            mBlitDestHandle = grallocHandle;
+            mBlitSrcHandle = handle;
+            mBlitCropWidth = mCurrentConfig.policy.scaledWidth;
+            mBlitCropHeight = mCurrentConfig.policy.scaledHeight;
+            mDoBlit = true;
+            mRequestQueued.signal();
         }
         handle = grallocHandle;
         outputFrameInfo.contentWidth = mCurrentConfig.policy.scaledWidth;
@@ -570,6 +632,14 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
         outputFrameInfo.chromaVStride = dataBuf->getWidth();
         mgr->unlockDataBuffer(dataBuf);
         mCloneModeStarted = true;
+        queueOnFrameReady = true;
+    }
+
+    {
+        Mutex::Autolock _l(mCscLock);
+        while (mDoOnFrameReady) {
+            mRequestProcessed.wait(mCscLock);
+        }
     }
 
     if (mCurrentConfig.forceNotifyFrameType ||
@@ -584,8 +654,13 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
         mLastInputFrameInfo = inputFrameInfo;
     }
 
-    if (mCurrentConfig.policy.scaledWidth == 0 || mCurrentConfig.policy.scaledHeight == 0)
+    if (mCurrentConfig.policy.scaledWidth == 0 || mCurrentConfig.policy.scaledHeight == 0) {
+        Mutex::Autolock _l(mCscLock);
+        mDoOnFrameReady = true;
+        mCancelOnFrameReady = true;
+        mRequestQueued.signal();
         return;
+    }
 
     if (mCurrentConfig.forceNotifyBufferInfo ||
         memcmp(&outputFrameInfo, &mLastOutputFrameInfo, sizeof(outputFrameInfo)) != 0) {
@@ -613,10 +688,18 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
         //from the vector properly even if the notifyBufferReturned call acquires mHeldBuffersLock first.
         mHeldBuffers.add(handle, heldBuffer);
     }
-    status_t result = mCurrentConfig.frameListener->onFrameReady((int32_t)handle, handleType, mRenderTimestamp, mediaTimestamp);
-    if (result != OK) {
-        Mutex::Autolock _l(mHeldBuffersLock);
-        mHeldBuffers.removeItem(handle);
+    if (queueOnFrameReady) {
+        Mutex::Autolock _l(mCscLock);
+        mFrameReadyRenderTs = mRenderTimestamp;
+        mDoOnFrameReady = true;
+        mRequestQueued.signal();
+    }
+    else {
+        status_t result = mCurrentConfig.frameListener->onFrameReady((int32_t)handle, handleType, mRenderTimestamp, mediaTimestamp);
+        if (result != OK) {
+            Mutex::Autolock _l(mHeldBuffersLock);
+            mHeldBuffers.removeItem(handle);
+        }
     }
     if (handleType == HWC_HANDLE_TYPE_KBUF) {
         mExtLastKhandle = handle;
