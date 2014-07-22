@@ -43,7 +43,7 @@ public:
                                     const stride_t& stride);
     static bool isBlendingSupported(int planeType, uint32_t blending);
     static bool isScalingSupported(int planeType,
-                                       hwc_rect_t& src,
+                                       hwc_frect_t& src,
                                        hwc_rect_t& dest);
     static bool isTransformSupported(int planeType, uint32_t trans);
 

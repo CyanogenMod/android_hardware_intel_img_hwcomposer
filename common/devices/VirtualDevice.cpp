@@ -264,8 +264,8 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
         FrameInfo frameInfo;
         memset(&frameInfo, 0, sizeof(frameInfo));
         frameInfo.frameType = HWC_FRAMETYPE_NOTHING;
-        frameInfo.contentWidth = streamingLayer.sourceCrop.right - streamingLayer.sourceCrop.left;
-        frameInfo.contentHeight = streamingLayer.sourceCrop.bottom - streamingLayer.sourceCrop.top;
+        frameInfo.contentWidth = streamingLayer.sourceCropf.right - streamingLayer.sourceCropf.left;
+        frameInfo.contentHeight = streamingLayer.sourceCropf.bottom - streamingLayer.sourceCropf.top;
         frameInfo.contentFrameRateN = 60;
         frameInfo.contentFrameRateD = 1;
 
@@ -320,8 +320,8 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool rotating, bool i
     FrameInfo inputFrameInfo;
     memset(&inputFrameInfo, 0, sizeof(inputFrameInfo));
     inputFrameInfo.frameType = HWC_FRAMETYPE_FRAME_BUFFER;
-    inputFrameInfo.contentWidth = layer.sourceCrop.right - layer.sourceCrop.left;
-    inputFrameInfo.contentHeight = layer.sourceCrop.bottom - layer.sourceCrop.top;
+    inputFrameInfo.contentWidth = layer.sourceCropf.right - layer.sourceCropf.left;
+    inputFrameInfo.contentHeight = layer.sourceCropf.bottom - layer.sourceCropf.top;
     inputFrameInfo.contentFrameRateN = 30;
     inputFrameInfo.contentFrameRateD = 1;
     inputFrameInfo.isProtected = isProtected;
@@ -379,8 +379,8 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool rotating, bool i
             inputFrameInfo.contentFrameRateD = 1;
 
             if (metadata.transform & HAL_TRANSFORM_ROT_90) {
-                inputFrameInfo.contentWidth = layer.sourceCrop.bottom - layer.sourceCrop.top;
-                inputFrameInfo.contentHeight = layer.sourceCrop.right - layer.sourceCrop.left;
+                inputFrameInfo.contentWidth = layer.sourceCropf.bottom - layer.sourceCropf.top;
+                inputFrameInfo.contentHeight = layer.sourceCropf.right - layer.sourceCropf.left;
             }
 
             inputFrameInfo.cropLeft = 0;

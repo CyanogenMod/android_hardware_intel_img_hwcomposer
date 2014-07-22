@@ -160,13 +160,13 @@ bool PlaneCapabilities::isBlendingSupported(int planeType, uint32_t blending)
     }
 }
 
-bool PlaneCapabilities::isScalingSupported(int planeType, hwc_rect_t& src, hwc_rect_t& dest)
+bool PlaneCapabilities::isScalingSupported(int planeType, hwc_frect_t& src, hwc_rect_t& dest)
 {
     int srcW, srcH;
     int dstW, dstH;
 
-    srcW = src.right - src.left;
-    srcH = src.bottom - src.top;
+    srcW = (int)src.right - (int)src.left;
+    srcH = (int)src.bottom - (int)src.top;
     dstW = dest.right - dest.left;
     dstH = dest.bottom - dest.top;
 

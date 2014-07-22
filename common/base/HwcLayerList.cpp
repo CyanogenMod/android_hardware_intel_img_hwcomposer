@@ -50,6 +50,19 @@ inline bool operator !=(const hwc_rect_t& x, const hwc_rect_t& y)
     return !operator==(x, y);
 }
 
+inline bool operator ==(const hwc_frect_t& x, const hwc_frect_t& y)
+{
+    return (x.top == y.top &&
+            x.bottom == y.bottom &&
+            x.left == y.left &&
+            x.right == y.right);
+}
+
+inline bool operator !=(const hwc_frect_t& x, const hwc_frect_t& y)
+{
+    return !operator==(x, y);
+}
+
 HwcLayer::HwcLayer(int index, hwc_layer_1_t *layer)
     : mIndex(index),
       mLayer(layer),
@@ -65,7 +78,7 @@ HwcLayer::HwcLayer(int index, hwc_layer_1_t *layer)
       mTransform(0),
       mUpdated(false)
 {
-    memset(&mSourceCrop, 0, sizeof(mSourceCrop));
+    memset(&mSourceCropf, 0, sizeof(mSourceCropf));
     memset(&mDisplayFrame, 0, sizeof(mDisplayFrame));
     memset(&mStride, 0, sizeof(mStride));
 
@@ -225,10 +238,10 @@ bool HwcLayer::update(hwc_layer_1_t *layer)
                             layer->displayFrame.top,
                             layer->displayFrame.right - layer->displayFrame.left,
                             layer->displayFrame.bottom - layer->displayFrame.top);
-        mPlane->setSourceCrop(layer->sourceCrop.left,
-                              layer->sourceCrop.top,
-                              layer->sourceCrop.right - layer->sourceCrop.left,
-                              layer->sourceCrop.bottom - layer->sourceCrop.top);
+        mPlane->setSourceCrop(layer->sourceCropf.left,
+                              layer->sourceCropf.top,
+                              layer->sourceCropf.right - layer->sourceCropf.left,
+                              layer->sourceCropf.bottom - layer->sourceCropf.top);
         mPlane->setTransform(layer->transform);
         bool ret = mPlane->setDataBuffer((uint32_t)layer->handle);
         if (ret == true) {
@@ -267,7 +280,7 @@ void HwcLayer::setupAttributes()
 {
     if ((mLayer->flags & HWC_SKIP_LAYER) ||
         mTransform != mLayer->transform ||
-        mSourceCrop != mLayer->sourceCrop ||
+        mSourceCropf != mLayer->sourceCropf ||
         mDisplayFrame != mLayer->displayFrame ||
         mHandle != (uint32_t)mLayer->handle ||
         DisplayQuery::isVideoFormat(mFormat)) {
@@ -278,7 +291,7 @@ void HwcLayer::setupAttributes()
     // update handle always as it can become "NULL"
     // if the given layer is not ready
     mTransform = mLayer->transform;
-    mSourceCrop = mLayer->sourceCrop;
+    mSourceCropf = mLayer->sourceCropf;
     mDisplayFrame = mLayer->displayFrame;
     mHandle = (uint32_t)mLayer->handle;
 
@@ -443,7 +456,7 @@ bool HwcLayerList::checkSupported(int planeType, HwcLayer *hwcLayer)
 
     // check layer scaling
     valid = PlaneCapabilities::isScalingSupported(planeType,
-                                                  layer.sourceCrop,
+                                                  layer.sourceCropf,
                                                   layer.displayFrame);
     if (!valid) {
         VTRACE("plane type %d: (bad scaling)", planeType);
