@@ -25,28 +25,32 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef PLATF_HWCOMPOSER_H
-#define PLATF_HWCOMPOSER_H
+#ifndef IDISPLAY_CONTEXT_H
+#define IDISPLAY_CONTEXT_H
 
-#include <hal_public.h>
-#include <Hwcomposer.h>
+#include <hardware/hwcomposer.h>
 
 namespace android {
 namespace intel {
 
-class PlatfHwcomposer : public Hwcomposer {
+class HwcLayerList;
+
+class IDisplayContext {
 public:
-    PlatfHwcomposer();
-    ~PlatfHwcomposer();
+    IDisplayContext() {}
+    virtual ~IDisplayContext() {}
+public:
+    virtual bool initialize() = 0;
+    virtual bool commitBegin() = 0;
+    virtual bool commitContents(hwc_display_contents_1_t *display, HwcLayerList *layerList) = 0;
+    virtual bool commitEnd() = 0;
+    virtual bool compositionComplete() = 0;
 
 protected:
-    DisplayPlaneManager* createDisplayPlaneManager();
-    BufferManager* createBufferManager();
-    IDisplayDevice* createDisplayDevice(int disp, DisplayPlaneManager& dpm);
-    IDisplayContext* createDisplayContext();
+    virtual void deinitialize() = 0;
 };
 
-} //namespace intel
-} //namespace android
+}
+}
 
-#endif /* PLATF_HWCOMPOSER_H */
+#endif /* IDISPLAY_CONTEXT_H */

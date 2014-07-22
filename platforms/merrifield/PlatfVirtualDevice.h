@@ -39,10 +39,6 @@ public:
     PlatfVirtualDevice(Hwcomposer& hwc,
                         DisplayPlaneManager& dpm);
     ~PlatfVirtualDevice();
-public:
-    bool commit(hwc_display_contents_1_t *display,
-                 void *contexts,
-                 int& count);
 };
 
 }

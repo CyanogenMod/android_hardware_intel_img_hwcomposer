@@ -65,9 +65,7 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
     return true;
 }
 
-bool VirtualDevice::commit(hwc_display_contents_1_t *display,
-                      void* context,
-                      int& count)
+bool VirtualDevice::commit(hwc_display_contents_1_t *display, IDisplayContext *context)
 {
     LOGV("Entering %s", __func__);
     INIT_CHECK();

@@ -30,6 +30,7 @@
 
 #include <Hwcomposer.h>
 #include <Dump.h>
+#include <HwcUtils.h>
 
 namespace android {
 namespace intel {
@@ -41,16 +42,17 @@ Hwcomposer::Hwcomposer()
       mDrm(0),
       mPlaneManager(0),
       mBufferManager(0),
+      mDisplayContext(0),
       mInitialized(false)
 {
-    LOGD("Hwcomposer");
+    LOGV("Entering %s", __func__);
 
     mDisplayDevices.setCapacity(IDisplayDevice::DEVICE_COUNT);
 }
 
 Hwcomposer::~Hwcomposer()
 {
-    LOGD("~Hwcomposer");
+    LOGV("Entering %s", __func__);
     deinitialize();
 }
 
@@ -67,9 +69,7 @@ bool Hwcomposer::prepare(size_t numDisplays,
     //Mutex::Autolock _l(mLock);
 
     LOGV("prepare display count %d\n", numDisplays);
-
-    if (!initCheck())
-        return false;
+    INIT_CHECK();
 
     if (!numDisplays || !displays) {
         LOGE("prepare: invalid parameters");
@@ -126,21 +126,14 @@ bool Hwcomposer::commit(size_t numDisplays,
     LOGV("commit display count %d\n", numDisplays);
 
     //Mutex::Autolock _l(mLock);
-
-    if (!initCheck())
-        return false;
+    INIT_CHECK();
 
     if (!numDisplays || !displays) {
         LOGE("commit: invalid parameters");
         return false;
     }
 
-    void *hwContexts = getContexts();
-    int count = 0;
-    if (!hwContexts) {
-        LOGE("Hwcomposer::commit: invalid hwContexts");
-        return false;
-    }
+    mDisplayContext->commitBegin();
 
     for (size_t i = 0; i < numDisplays; i++) {
         IDisplayDevice *device = mDisplayDevices.itemAt(i);
@@ -154,19 +147,14 @@ bool Hwcomposer::commit(size_t numDisplays,
             continue;
         }
 
-        ret = device->commit(displays[i], hwContexts, count);
+        ret = device->commit(displays[i], mDisplayContext);
         if (ret == false) {
             LOGE("commit: failed to do commit for device %d", i);
             continue;
         }
     }
 
-    // commit hwContexts to hardware
-    ret = commitContexts(hwContexts, count);
-    if (ret == false) {
-        LOGE("Hwcomposer::commit: failed to commit hwContexts");
-        return false;
-    }
+    mDisplayContext->commitEnd();
 
     return ret;
 }
@@ -174,9 +162,7 @@ bool Hwcomposer::commit(size_t numDisplays,
 bool Hwcomposer::vsyncControl(int disp, int enabled)
 {
     LOGV("vsyncControl: disp %d, enabled %d", disp, enabled);
-
-    if (!initCheck())
-        return false;
+    INIT_CHECK();
 
     if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
         LOGE("vsyncControl: invalid disp %d", disp);
@@ -196,8 +182,7 @@ bool Hwcomposer::blank(int disp, int blank)
 {
     LOGV("blank: disp %d, blank %d", disp, blank);
 
-    if (!initCheck())
-        return false;
+    INIT_CHECK();
 
     if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
         LOGE("blank: invalid disp %d", disp);
@@ -217,10 +202,8 @@ bool Hwcomposer::getDisplayConfigs(int disp,
                                       uint32_t *configs,
                                       size_t *numConfigs)
 {
-    LOGV("getDisplayConfig");
-
-    if (!initCheck())
-        return false;
+    LOGV("Entering %s", __func__);
+    INIT_CHECK();
 
     if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
         LOGE("getDisplayConfigs: invalid disp %d", disp);
@@ -241,10 +224,8 @@ bool Hwcomposer::getDisplayAttributes(int disp,
                                          const uint32_t *attributes,
                                          int32_t *values)
 {
-    LOGV("getDisplayAttributes");
-
-    if (!initCheck())
-        return false;
+    LOGV("Entering %s", __func__);
+    INIT_CHECK();
 
     if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
         LOGE("getDisplayAttributes: invalid disp %d", disp);
@@ -262,19 +243,19 @@ bool Hwcomposer::getDisplayAttributes(int disp,
 
 bool Hwcomposer::compositionComplete(int disp)
 {
-    LOGV("compositionComplete");
-
-    if (!initCheck())
-        return false;
+    LOGV("Entering %s", __func__);
+    INIT_CHECK();
 
     if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
-        LOGE("compositionComplete: invalid disp %d", disp);
+        LOGE("%s: invalid disp %d", __func__, disp);
         return false;
     }
 
+    mDisplayContext->compositionComplete();
+
     IDisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
-        LOGE("compositionComplete: no device found");
+        LOGE("%s: no device found", __func__);
         return false;
     }
 
@@ -311,8 +292,7 @@ bool Hwcomposer::release()
 {
     LOGD("release");
 
-    if (!initCheck())
-        return false;
+    INIT_CHECK();
 
     return true;
 }
@@ -321,8 +301,7 @@ bool Hwcomposer::dump(char *buff, int buff_len, int *cur_len)
 {
     LOGD("dump");
 
-    if (!initCheck())
-        return false;
+    INIT_CHECK();
 
     Dump d(buff, buff_len);
 
@@ -377,11 +356,17 @@ bool Hwcomposer::initialize()
         goto init_err;
     }
 
+    mDisplayContext = createDisplayContext();
+    if (!mDisplayContext || !mDisplayContext->initialize()) {
+        DEINIT_AND_RETURN_FALSE("Failed to create display context.");
+    }
+
     // create display device
     for (int i = 0; i < IDisplayDevice::DEVICE_COUNT; i++) {
         IDisplayDevice *device = createDisplayDevice(i, *mPlaneManager);
         if (!device || !device->initialize()) {
             LOGE("initialize: failed to create device %d", i);
+            delete device;
             continue;
         }
         // add this device
@@ -417,6 +402,11 @@ void Hwcomposer::deinitialize()
         mPlaneManager = 0;
     }
 
+    if (mDisplayContext) {
+        delete mDisplayContext;
+        mDisplayContext = 0;
+    }
+
     // destroy drm
     if (mDrm) {
         delete mDrm;
@@ -439,6 +429,11 @@ DisplayPlaneManager* Hwcomposer::getPlaneManager()
 BufferManager* Hwcomposer::getBufferManager()
 {
     return mBufferManager;
+}
+
+IDisplayContext* Hwcomposer::getDisplayContext()
+{
+    return mDisplayContext;
 }
 
 } // namespace intel

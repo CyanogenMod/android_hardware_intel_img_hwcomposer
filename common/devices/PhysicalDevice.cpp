@@ -30,6 +30,7 @@
 #include <Drm.h>
 #include <Hwcomposer.h>
 #include <PhysicalDevice.h>
+#include <HwcUtils.h>
 
 namespace android {
 namespace intel {
@@ -142,6 +143,18 @@ bool PhysicalDevice::prepare(hwc_display_contents_1_t *display)
 
     // update list with new list
     return mLayerList->update(display);
+}
+
+
+bool PhysicalDevice::commit(hwc_display_contents_1_t *display, IDisplayContext *context)
+{
+    LOGV("Entering %s", __func__);
+    INIT_CHECK();
+
+    if (!display || !context) {
+        return false;
+    }
+    return context->commitContents(display, mLayerList);
 }
 
 bool PhysicalDevice::vsyncControl(int enabled)
@@ -269,7 +282,7 @@ bool PhysicalDevice::getDisplayAttributes(uint32_t configs,
 
 bool PhysicalDevice::compositionComplete()
 {
-    LOGV("compositionComplete");
+    LOGV("Entering %s", __func__);
     // do nothing by default
     return true;
 }

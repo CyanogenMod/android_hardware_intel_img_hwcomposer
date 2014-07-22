@@ -46,8 +46,7 @@ public:
     virtual bool prePrepare(hwc_display_contents_1_t *display);
     virtual bool prepare(hwc_display_contents_1_t *display);
     virtual bool commit(hwc_display_contents_1_t *display,
-                          void* context,
-                          int& count) = 0;
+                          IDisplayContext *context);
 
     virtual bool vsyncControl(int enabled);
     virtual bool blank(int blank);

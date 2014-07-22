@@ -28,123 +28,47 @@
 #include <cutils/log.h>
 #include <hal_public.h>
 
-#include <PlatfHwcomposer.h>
+#include <tangier/TngDisplayContext.h>
 #include <PlatfDisplayPlaneManager.h>
 #include <PlatfBufferManager.h>
 #include <IDisplayDevice.h>
 #include <PlatfPrimaryDevice.h>
 #include <PlatfExternalDevice.h>
 #include <PlatfVirtualDevice.h>
+#include <PlatfHwcomposer.h>
+
 
 
 namespace android {
 namespace intel {
 
 PlatfHwcomposer::PlatfHwcomposer()
-    : Hwcomposer(),
-      mFBDev(0)
+    : Hwcomposer()
 {
-
+    LOGV("Entering %s", __func__);
 }
 
 PlatfHwcomposer::~PlatfHwcomposer()
 {
-
+    LOGV("Entering %s", __func__);
 }
 
-bool PlatfHwcomposer::initialize()
-{
-    int err;
-
-    LOGV("PlatfHwcomposer::initialize");
-
-    // open frame buffer device
-    hw_module_t const* module;
-    err = hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module);
-    if (err) {
-        LOGE("PlatfHwcomposer::initialize: failed to load gralloc module, %d",
-              err);
-        return false;
-    }
-
-    // open frame buffer device
-    err = framebuffer_open(module, (framebuffer_device_t**)&mFBDev);
-    if (err) {
-        LOGE("PlatfHwcomposer::initialize: failed to open frame buffer device, %d",
-              err);
-        return false;
-    }
-
-    mFBDev->bBypassPost = 1;
-
-    if (!Hwcomposer::initialize()) {
-        LOGE("PlatfHwcomposer::initialize: failed to call initialize");
-        // close frame buffer device
-        framebuffer_close((framebuffer_device_t*)mFBDev);
-        return false;
-    }
-
-    return true;
-}
-
-bool PlatfHwcomposer::compositionComplete(int disp)
-{
-    // complete fb device
-    if (mFBDev) {
-        mFBDev->base.compositionComplete(&mFBDev->base);
-    }
-
-    return Hwcomposer::compositionComplete(disp);
-}
-
-void* PlatfHwcomposer::getContexts()
-{
-    LOGV("PlatfHwcomposer::getContexts");
-    return (void *)mImgLayers;
-}
-
-bool PlatfHwcomposer::commitContexts(void *contexts, int count)
-{
-    LOGV("PlatfHwcomposer::commitContexts: contexts = 0x%x, count = %d",
-          contexts, count);
-
-    // nothing need to be submitted
-    if (!count)
-        return true;
-
-    if (!contexts) {
-        LOGE("PlatfHwcomposer::commitContexts: invalid parameters");
-        return false;
-    }
-
-    if (mFBDev) {
-        int err = mFBDev->Post2(&mFBDev->base, mImgLayers, count);
-        if (err) {
-            LOGE("PlatfHwcomposer::commitContexts: Post2 failed err = %d", err);
-            return false;
-        }
-    }
-
-    return true;
-}
-
-// implement createDisplayPlaneManager()
 DisplayPlaneManager* PlatfHwcomposer::createDisplayPlaneManager()
 {
-    LOGV("PlatfHwcomposer::createDisplayPlaneManager");
+    LOGV("Entering %s", __func__);
     return (new PlatfDisplayPlaneManager());
 }
 
 BufferManager* PlatfHwcomposer::createBufferManager()
 {
-    LOGV("PlatfHwcomposer::createBufferManager");
+    LOGV("Entering %s", __func__);
     return (new PlatfBufferManager());
 }
 
 IDisplayDevice* PlatfHwcomposer::createDisplayDevice(int disp,
                                                      DisplayPlaneManager& dpm)
 {
-    LOGV("PlatfHwcomposer::createDisplayDevice");
+    LOGV("Entering %s", __func__);
 
     switch (disp) {
         case IDisplayDevice::DEVICE_PRIMARY:
@@ -159,8 +83,15 @@ IDisplayDevice* PlatfHwcomposer::createDisplayDevice(int disp,
     }
 }
 
+IDisplayContext* PlatfHwcomposer::createDisplayContext()
+{
+    LOGV("Entering %s", __func__);
+    return new TngDisplayContext();
+}
+
 Hwcomposer* Hwcomposer::createHwcomposer()
 {
+    LOGV("Entering %s", __func__);
     return new PlatfHwcomposer();
 }
 

@@ -47,15 +47,6 @@ PlatfVirtualDevice::~PlatfVirtualDevice()
     LOGV("Entering %s", __func__);
 }
 
-bool PlatfVirtualDevice::commit(hwc_display_contents_1_t *display,
-                             void *contexts,
-                             int& count)
-{
-    LOGV("Entering %s", __func__);
-    INIT_CHECK();
-    return true;
-}
-
 } // namespace intel
 } // namespace android
 

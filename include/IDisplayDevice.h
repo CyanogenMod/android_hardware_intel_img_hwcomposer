@@ -29,6 +29,8 @@
 #define IDISPLAY_DEVICE_H
 
 #include <Dump.h>
+#include <IDisplayContext.h>
+#include <DisplayPlane.h>
 
 namespace android {
 namespace intel {
@@ -79,8 +81,7 @@ public:
     virtual bool prePrepare(hwc_display_contents_1_t *display) = 0;
     virtual bool prepare(hwc_display_contents_1_t *display) = 0;
     virtual bool commit(hwc_display_contents_1_t *display,
-                          void* context,
-                          int& count) = 0;
+                          IDisplayContext *context) = 0;
 
     virtual bool vsyncControl(int enabled) = 0;
     virtual bool blank(int blank) = 0;
@@ -95,7 +96,6 @@ public:
     virtual bool isConnected() const = 0;
     virtual const char* getName() const = 0;
     virtual int getType() const = 0;
-
     virtual void dump(Dump& d) = 0;
 
 protected:

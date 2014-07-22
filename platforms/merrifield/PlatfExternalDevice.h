@@ -39,10 +39,7 @@ public:
     PlatfExternalDevice(Hwcomposer& hwc,
                         DisplayPlaneManager& dpm);
     ~PlatfExternalDevice();
-public:
-    bool commit(hwc_display_contents_1_t *display,
-                 void *contexts,
-                 int& count);
+
 protected:
     IVsyncControl* createVsyncControl();
     IBlankControl* createBlankControl();

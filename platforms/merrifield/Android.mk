@@ -60,7 +60,8 @@ LOCAL_SRC_FILES += \
     ../../ips/tangier/TngGrallocBufferMapper.cpp \
     ../../ips/tangier/TngOverlayPlane.cpp \
     ../../ips/tangier/TngPrimaryPlane.cpp \
-    ../../ips/tangier/TngSpritePlane.cpp
+    ../../ips/tangier/TngSpritePlane.cpp \
+    ../../ips/tangier/TngDisplayContext.cpp
 
 
 LOCAL_SRC_FILES += \
