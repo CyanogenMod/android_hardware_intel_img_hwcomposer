@@ -72,7 +72,7 @@ uint32_t GrallocBufferMapperBase::getSize(int subIndex) const
     return 0;
 }
 
-uint32_t GrallocBufferMapperBase::getKHandle(int subIndex) const
+uint32_t GrallocBufferMapperBase::getKHandle(int subIndex)
 {
     if (subIndex >= 0 && subIndex < SUB_BUFFER_MAX)
         return mKHandle[subIndex];

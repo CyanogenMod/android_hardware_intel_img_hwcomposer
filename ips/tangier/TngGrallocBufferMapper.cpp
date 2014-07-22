@@ -145,7 +145,7 @@ bool TngGrallocBufferMapper::map()
     }
 
     if (i == SUB_BUFFER_MAX) {
-        return mapKhandle();
+        return true;
     }
 
     // error handling
@@ -182,6 +182,17 @@ bool TngGrallocBufferMapper::unmap()
         ETRACE("failed to unmap. err = %d", err);
     }
     return err;
+}
+
+uint32_t TngGrallocBufferMapper::getKHandle(int subIndex)
+{
+    uint32_t ret = GrallocBufferMapperBase::getKHandle(subIndex);
+    if (subIndex == 0 && ret == 0) {
+        if (mapKhandle())
+            return mKHandle[subIndex];
+    }
+
+    return ret;
 }
 
 bool TngGrallocBufferMapper::mapKhandle()
