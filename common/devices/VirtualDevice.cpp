@@ -120,7 +120,7 @@ sp<VirtualDevice::CachedBuffer> VirtualDevice::getMappedBuffer(uint32_t handle)
     return cachedBuffer;
 }
 
-status_t VirtualDevice::start(sp<IFrameTypeChangeListener> typeChangeListener, bool disableExtVideoMode)
+status_t VirtualDevice::start(sp<IFrameTypeChangeListener> typeChangeListener)
 {
     ITRACE();
     Mutex::Autolock _l(mConfigLock);
