@@ -28,7 +28,6 @@
 #ifndef TNG_PRIMARY_PLANE_H
 #define TNG_PRIMARY_PLANE_H
 
-#include <displayclass_interface.h>
 #include <tangier/TngSpritePlane.h>
 
 namespace android {

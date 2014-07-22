@@ -36,8 +36,6 @@
 #include <common/OverlayPlaneBase.h>
 #include <common/RotationBufferProvider.h>
 
-#include <displayclass_interface.h>
-
 namespace android {
 namespace intel {
 

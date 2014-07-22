@@ -31,7 +31,7 @@
 #include <utils/Mutex.h>
 
 // TODO: psb_drm.h is IP specific defintion
-#include <psb_drm.h>
+#include <linux/psb_drm.h>
 
 extern "C" {
 #include "xf86drm.h"

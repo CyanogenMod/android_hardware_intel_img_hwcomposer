@@ -86,8 +86,6 @@ LOCAL_C_INCLUDES := $(addprefix $(LOCAL_PATH)/../../../, $(SGX_INCLUDES)) \
     frameworks/native/include/media/openmax \
     frameworks/native/opengl/include \
     hardware/libhardware_legacy/include/hardware_legacy \
-    $(TOP)/linux/modules/intel_media/display/tng/drv \
-    $(TOP)/linux/modules/intel_media/display/tng/interface \
     vendor/intel/hardware/PRIVATE/rgx/rogue/android/graphicshal \
     vendor/intel/hardware/PRIVATE/rgx/rogue/include/ \
     vendor/intel/hardware/PRIVATE/widi/libhwcwidi/ \
