@@ -315,16 +315,19 @@ void DisplayPlaneManager::disableReclaimedPlanes()
     }
 }
 
-void DisplayPlaneManager::disableOverlayPlanes()
+bool DisplayPlaneManager::isOverlayPlanesDisabled()
 {
     for (int i = 0; i < DisplayPlane::PLANE_MAX; i++) {
         for (int j = 0; j < mPlaneCount[i]; j++) {
             DisplayPlane* plane = (DisplayPlane *)mPlanes[i][j];
             if (plane && plane->getType() == DisplayPlane::PLANE_OVERLAY) {
-                plane->disable();
+                if (!plane->isDisabled())
+                    return false;
             }
         }
     }
+
+    return true;
 }
 
 void DisplayPlaneManager::dump(Dump& d)

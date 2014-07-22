@@ -55,8 +55,8 @@ private:
     mutable Mutex mLock;
     Condition mCondition;
     mutable nsecs_t mNextFakeVSync;
-    bool mInitialized;
     bool mExitThread;
+    bool mInitialized;
 
 private:
     DECLARE_THREAD(VsyncEventPollThread, SoftVsyncObserver);

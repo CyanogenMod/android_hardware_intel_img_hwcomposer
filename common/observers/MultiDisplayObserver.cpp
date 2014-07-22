@@ -102,8 +102,8 @@ MultiDisplayObserver::MultiDisplayObserver()
     : mMDSCbRegistrar(NULL),
       mMDSInfoProvider(NULL),
       mMDSConnObserver(NULL),
-      mMDSCallback(NULL),
       mMDSDecoderConfig(NULL),
+      mMDSCallback(NULL),
       mLock(),
       mCondition(),
       mThreadLoopCount(0),
@@ -385,6 +385,7 @@ status_t MultiDisplayObserver::getVideoSourceInfo(int sessionID, VideoSourceInfo
         info->width     = videoInfo.displayW;
         info->height    = videoInfo.displayH;
         info->frameRate = videoInfo.frameRate;
+        info->isProtected = videoInfo.isProtected;
         VTRACE("Video Session[%d] source info: %dx%d@%d", sessionID,
                 info->width, info->height, info->frameRate);
     }
