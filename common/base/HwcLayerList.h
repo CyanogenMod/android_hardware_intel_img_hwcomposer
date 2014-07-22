@@ -88,7 +88,7 @@ public:
     void setPriority(uint32_t priority);
     uint32_t getPriority() const;
 
-    bool update(hwc_layer_1_t *layer);
+    bool update(hwc_layer_1_t *layer, int dsp);
     void postFlip();
     bool isUpdated();
 

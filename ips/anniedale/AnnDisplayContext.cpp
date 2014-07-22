@@ -30,13 +30,13 @@
 #include <DisplayPlane.h>
 #include <IDisplayDevice.h>
 #include <HwcLayerList.h>
-#include <tangier/TngDisplayContext.h>
+#include <anniedale/AnnDisplayContext.h>
 
 
 namespace android {
 namespace intel {
 
-TngDisplayContext::TngDisplayContext()
+AnnDisplayContext::AnnDisplayContext()
     : mIMGDisplayDevice(0),
       mInitialized(false),
       mCount(0)
@@ -44,12 +44,12 @@ TngDisplayContext::TngDisplayContext()
     CTRACE();
 }
 
-TngDisplayContext::~TngDisplayContext()
+AnnDisplayContext::~AnnDisplayContext()
 {
     WARN_IF_NOT_DEINIT();
 }
 
-bool TngDisplayContext::initialize()
+bool AnnDisplayContext::initialize()
 {
     CTRACE();
 
@@ -73,14 +73,14 @@ bool TngDisplayContext::initialize()
     return true;
 }
 
-bool TngDisplayContext::commitBegin(size_t numDisplays, hwc_display_contents_1_t **displays)
+bool AnnDisplayContext::commitBegin(size_t numDisplays, hwc_display_contents_1_t **displays)
 {
     RETURN_FALSE_IF_NOT_INIT();
     mCount = 0;
     return true;
 }
 
-bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLayerList *layerList)
+bool AnnDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLayerList *layerList)
 {
     bool ret;
 
@@ -124,13 +124,13 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
         imgLayer->custom = (uint32_t)plane->getContext();
         struct intel_dc_plane_ctx *ctx =
             (struct intel_dc_plane_ctx *)imgLayer->custom;
+
         // update z order
-        Hwcomposer& hwc = Hwcomposer::getInstance();
-        DisplayPlaneManager *pm = hwc.getPlaneManager();
-        memcpy(&ctx->zorder, pm->getZOrderConfig(), sizeof(ctx->zorder));
+        memset(&ctx->zorder, 0, sizeof(ctx->zorder));
 
         VTRACE("count %d, handle %#x, trans %#x, blending %#x"
-              " sourceCrop %f,%f - %fx%f, dst %d,%d - %dx%d, custom %#x",
+              " sourceCrop %f,%f - %fx%f, dst %d,%d - %dx%d, custom %#x"
+              " plane (type = %d, idx = %d), zorder %d",
               mCount,
               (uint32_t)imgLayer->psLayer->handle,
               imgLayer->psLayer->transform,
@@ -143,14 +143,17 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
               imgLayer->psLayer->displayFrame.top,
               imgLayer->psLayer->displayFrame.right - imgLayer->psLayer->displayFrame.left,
               imgLayer->psLayer->displayFrame.bottom - imgLayer->psLayer->displayFrame.top,
-              imgLayer->custom);
+              imgLayer->custom,
+              plane->getType(),
+              plane->getIndex(),
+              plane->getZOrder());
     }
 
     layerList->postFlip();
     return true;
 }
 
-bool TngDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t **displays)
+bool AnnDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t **displays)
 {
     int releaseFenceFd = -1;
 
@@ -184,19 +187,6 @@ bool TngDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t *
                  displays[i]->hwLayers[j].acquireFenceFd,
                  displays[i]->hwLayers[j].releaseFenceFd);
         }
-
-        // retireFence is used for SurfaceFlinger to do DispSync;
-        // dup releaseFenceFd for physical displays and assign -1 for virtual
-        // display; we don't distinguish between release and retire, and all
-        // physical displays are using a single releaseFence; for virtual
-        // display, we are using sync mode to do NV12 bliting, and composition
-        // is always completed after commit.
-        if (i < IDisplayDevice::DEVICE_VIRTUAL) {
-            displays[i]->retireFenceFd =
-                             (releaseFenceFd>=0) ? dup(releaseFenceFd) : -1;
-        } else {
-            displays[i]->retireFenceFd = -1;
-        }
     }
 
     // close original release fence fd
@@ -204,12 +194,12 @@ bool TngDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t *
     return true;
 }
 
-bool TngDisplayContext::compositionComplete()
+bool AnnDisplayContext::compositionComplete()
 {
     return true;
 }
 
-void TngDisplayContext::deinitialize()
+void AnnDisplayContext::deinitialize()
 {
     mIMGDisplayDevice = 0;
 

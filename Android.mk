@@ -20,7 +20,7 @@ ifeq ($(INTEL_HWC_MERRIFIELD),true)
 include $(LOCAL_PATH)/platforms/merrifield/Android.mk
 endif
 
-
-
-
+ifeq ($(INTEL_HWC_MOOREFIELD),true)
+include $(LOCAL_PATH)/platforms/merrifield_plus/Android.mk
+endif
 

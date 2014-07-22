@@ -111,7 +111,6 @@ bool HwcLayer::attachPlane(DisplayPlane* plane, int device)
     // z order = layer's index + 1
     // reserve z order 0 for frame buffer target layer
     plane->setZOrder(mIndex + 1);
-    plane->assignToDevice(device);
     mPlane = plane;
     return true;
 }
@@ -226,7 +225,7 @@ uint32_t HwcLayer::getPriority() const
     return mPriority;
 }
 
-bool HwcLayer::update(hwc_layer_1_t *layer)
+bool HwcLayer::update(hwc_layer_1_t *layer, int dsp)
 {
     // update layer
     mLayer = layer;
@@ -243,6 +242,7 @@ bool HwcLayer::update(hwc_layer_1_t *layer)
                               layer->sourceCropf.right - layer->sourceCropf.left,
                               layer->sourceCropf.bottom - layer->sourceCropf.top);
         mPlane->setTransform(layer->transform);
+        mPlane->assignToDevice(dsp);
         bool ret = mPlane->setDataBuffer((uint32_t)layer->handle);
         if (ret == true) {
             return true;
@@ -531,7 +531,7 @@ void HwcLayerList::deinitialize()
         if (hwcLayer) {
             DisplayPlane *plane = hwcLayer->detachPlane();
             if (plane)
-                mDisplayPlaneManager.reclaimPlane(*plane);
+                mDisplayPlaneManager.reclaimPlane(mDisplayIndex, *plane);
         }
         // delete HWC layer
         delete hwcLayer;
@@ -596,7 +596,7 @@ void HwcLayerList::assignPlanes()
     // assign overlay planes
     for (size_t idx = 0; idx < mOverlayCandidates.size(); idx++) {
         // break if no free overlay
-        if (!mDisplayPlaneManager.hasFreeOverlay()) {
+        if (!mDisplayPlaneManager.hasFreeOverlay(mDisplayIndex)) {
             VTRACE("no free overlay available");
             break;
         }
@@ -610,7 +610,7 @@ void HwcLayerList::assignPlanes()
         }
         if (!hwcLayer->attachPlane(plane, mDisplayIndex)) {
             WTRACE("failed to attach plane");
-            mDisplayPlaneManager.reclaimPlane(*plane);
+            mDisplayPlaneManager.reclaimPlane(mDisplayIndex, *plane);
             continue;
         }
 
@@ -621,27 +621,27 @@ void HwcLayerList::assignPlanes()
 
     for (size_t idx = 0; idx < mSpriteCandidates.size(); idx++) {
         // break if no free sprite
-        if (!mDisplayPlaneManager.hasFreeSprite()) {
+        if (!mDisplayPlaneManager.hasFreeSprite(mDisplayIndex)) {
             VTRACE("no free sprite available");
             break;
         }
 
         HwcLayer *hwcLayer = mSpriteCandidates.itemAt(idx);
-        DisplayPlane *plane = mDisplayPlaneManager.getSpritePlane();
+        DisplayPlane *plane = mDisplayPlaneManager.getSpritePlane(mDisplayIndex);
         if (!plane) {
             ETRACE("sprite plane is null");
             break;
         }
         if (!plane->enable()) {
             ETRACE("sprite plane is not ready");
-            mDisplayPlaneManager.putPlane(*plane);
+            mDisplayPlaneManager.putPlane(mDisplayIndex, *plane);
             continue;
         }
 
         // attach plane to hwc layer
         if (!hwcLayer->attachPlane(plane, mDisplayIndex)) {
             WTRACE("failed to attach plane");
-            mDisplayPlaneManager.reclaimPlane(*plane);
+            mDisplayPlaneManager.reclaimPlane(mDisplayIndex, *plane);
             continue;
         }
         mFBLayers.remove(hwcLayer);
@@ -715,7 +715,7 @@ void HwcLayerList::adjustAssignment()
     if (!next) {
         VTRACE("reclaimed plane type %d, index %d",
                plane->getType(), plane->getIndex());
-        mDisplayPlaneManager.reclaimPlane(*plane);
+        mDisplayPlaneManager.reclaimPlane(mDisplayIndex, *plane);
         return;
     }
 
@@ -794,7 +794,7 @@ bool HwcLayerList::updateZOrderConfig()
     // attach primary to frame buffer target
     if (!usePrimaryAsFramebufferTarget(primaryPlane)) {
         VTRACE("primary is unused");
-        mDisplayPlaneManager.reclaimPlane(*primaryPlane);
+        mDisplayPlaneManager.reclaimPlane(mDisplayIndex, *primaryPlane);
         return setupZOrderConfig();
     }
 
@@ -837,7 +837,7 @@ bool HwcLayerList::usePrimaryAsSprite(DisplayPlane *primaryPlane)
             // attach primary to layer
             if (!layer->attachPlane(primaryPlane, mDisplayIndex)) {
                 WTRACE("failed to attach plane");
-                mDisplayPlaneManager.reclaimPlane(*primaryPlane);
+                mDisplayPlaneManager.reclaimPlane(mDisplayIndex, *primaryPlane);
                 return false;
             }
             // set the layer type to overlay
@@ -863,7 +863,7 @@ void HwcLayerList::detachPrimary()
     if (primaryPlane) {
         framebufferTarget->detachPlane();
         // reclaim primary plane
-        mDisplayPlaneManager.reclaimPlane(*primaryPlane);
+        mDisplayPlaneManager.reclaimPlane(mDisplayIndex, *primaryPlane);
         return;
     }
 
@@ -883,7 +883,7 @@ void HwcLayerList::detachPrimary()
             // add it to fb layer list
             mFBLayers.add(hwcLayer);
             // reclaim primary plane
-            mDisplayPlaneManager.reclaimPlane(*plane);
+            mDisplayPlaneManager.reclaimPlane(mDisplayIndex, *plane);
             break;
         }
     }
@@ -1041,6 +1041,9 @@ bool HwcLayerList::setupZOrderConfig()
 
     zorderConfig.setCapacity(mOverlayLayers.size() + 1);
 
+    // setup display device which this zorder config belongs to
+    zorderConfig.setDisplayDevice(mDisplayIndex);
+
     // add all planes in overlay layer list
     for (size_t i = 0; i < mOverlayLayers.size(); i++) {
         layer = mOverlayLayers.itemAt(i);
@@ -1120,7 +1123,7 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
                 continue;
             }
 
-            ret = hwcLayer->update(&list->hwLayers[i]);
+            ret = hwcLayer->update(&list->hwLayers[i], mDisplayIndex);
             if (ret == false) {
                 // layer update failed, fall back to ST and revisit all plane
                 // assignment
