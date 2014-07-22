@@ -120,6 +120,7 @@ bool AnnRGBPlane::setDataBuffer(BufferMapper& mapper)
     uint32_t spriteFormat;
     uint32_t stride;
     uint32_t linoff;
+    uint32_t planeAlpha;
 
     CTRACE();
 
@@ -157,6 +158,14 @@ bool AnnRGBPlane::setDataBuffer(BufferMapper& mapper)
     else
         mContext.type = DC_PRIMARY_PLANE;
 
+    // setup plane alpha
+    if (0 < mPlaneAlpha && mPlaneAlpha < 0xff) {
+       planeAlpha = mPlaneAlpha | 0x80000000;
+    } else {
+       // disable plane alpha to offload HW
+       planeAlpha = 0xff;
+    }
+
     mContext.ctx.sp_ctx.index = mIndex;
     mContext.ctx.sp_ctx.pipe = mDevice;
     mContext.ctx.sp_ctx.cntr = spriteFormat | 0x80000000;
@@ -175,16 +184,18 @@ bool AnnRGBPlane::setDataBuffer(BufferMapper& mapper)
     mContext.ctx.sp_ctx.pos = (dstY & 0xfff) << 16 | (dstX & 0xfff);
     mContext.ctx.sp_ctx.size =
         ((dstH - 1) & 0xfff) << 16 | ((dstW - 1) & 0xfff);
+    mContext.ctx.sp_ctx.contalpa = planeAlpha;
     mContext.ctx.sp_ctx.update_mask = SPRITE_UPDATE_ALL;
 
     VTRACE("type = %d, index = %d, cntr = %#x, linoff = %#x, stride = %#x,"
-          "surf = %#x, pos = %#x, size = %#x", mType, mIndex,
+          "surf = %#x, pos = %#x, size = %#x, contalpa = %#x", mType, mIndex,
           mContext.ctx.sp_ctx.cntr,
           mContext.ctx.sp_ctx.linoff,
           mContext.ctx.sp_ctx.stride,
           mContext.ctx.sp_ctx.surf,
           mContext.ctx.sp_ctx.pos,
-          mContext.ctx.sp_ctx.size);
+          mContext.ctx.sp_ctx.size,
+          mContext.ctx.sp_ctx.contalpa);
     return true;
 }
 
@@ -249,6 +260,7 @@ bool AnnRGBPlane::isDisabled()
 void AnnRGBPlane::setFramebufferTarget(uint32_t handle)
 {
     uint32_t stride;
+    uint32_t planeAlpha;
 
     CTRACE();
 
@@ -270,6 +282,13 @@ void AnnRGBPlane::setFramebufferTarget(uint32_t handle)
 
     stride = align_to((4 * align_to(mPosition.w, 32)), 64);
 
+    if (0 < mPlaneAlpha && mPlaneAlpha < 0xff) {
+       planeAlpha = mPlaneAlpha | 0x80000000;
+    } else {
+       // disable plane alpha to offload HW
+       planeAlpha = 0xff;
+    }
+
     // FIXME: use sprite context for sprite plane
     mContext.ctx.prim_ctx.update_mask = SPRITE_UPDATE_ALL;
     mContext.ctx.prim_ctx.index = mIndex;
@@ -281,18 +300,20 @@ void AnnRGBPlane::setFramebufferTarget(uint32_t handle)
     mContext.ctx.prim_ctx.size =
         ((mPosition.h - 1) & 0xfff) << 16 | ((mPosition.w - 1) & 0xfff);
     mContext.ctx.prim_ctx.surf = 0;
+    mContext.ctx.prim_ctx.contalpa = planeAlpha;
     mContext.ctx.prim_ctx.cntr = PixelFormat::PLANE_PIXEL_FORMAT_BGRA8888;
     mContext.ctx.prim_ctx.cntr |= (0x1 << 23);
     mContext.ctx.prim_ctx.cntr |= 0x80000000;
 
     VTRACE("type = %d, index = %d, cntr = %#x, linoff = %#x, stride = %#x,"
-          "surf = %#x, pos = %#x, size = %#x", mType, mIndex,
+          "surf = %#x, pos = %#x, size = %#x, contalpa = %#x", mType, mIndex,
           mContext.ctx.prim_ctx.cntr,
           mContext.ctx.prim_ctx.linoff,
           mContext.ctx.prim_ctx.stride,
           mContext.ctx.prim_ctx.surf,
           mContext.ctx.prim_ctx.pos,
-          mContext.ctx.prim_ctx.size);
+          mContext.ctx.prim_ctx.size,
+          mContext.ctx.sp_ctx.contalpa);
 
     mCurrentDataBuffer = handle;
 }
