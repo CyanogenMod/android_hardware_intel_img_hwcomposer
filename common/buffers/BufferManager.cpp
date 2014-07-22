@@ -273,16 +273,11 @@ uint32_t BufferManager::allocFrameBuffer(int width, int height, int *stride)
             break;
         }
 
-        if (!mapper->map()) {
-            ETRACE("failed to map buffer");
-            break;
-        }
-
-        uint32_t fbHandle = (uint32_t) mapper->getCpuAddress(0);
-        if (!fbHandle) {
-            ETRACE("invalid kernel handle");
-            break;
-        }
+        uint32_t fbHandle;
+         if (!(fbHandle = mapper->getFbHandle(0))) {
+             ETRACE("failed to get Fb handle");
+             break;
+         }
 
         mFrameBuffers.add(fbHandle, mapper);
         unlockDataBuffer(buffer);
@@ -294,14 +289,13 @@ uint32_t BufferManager::allocFrameBuffer(int width, int height, int *stride)
         unlockDataBuffer(buffer);
     }
     if (mapper) {
-        mapper->unmap();
         delete mapper;
     }
     mAllocDev->free(mAllocDev, (buffer_handle_t)handle);
     return 0;
 }
 
-void BufferManager::freeFrameBuffer(uint32_t kHandle)
+void BufferManager::freeFrameBuffer(uint32_t fbHandle)
 {
     RETURN_VOID_IF_NOT_INIT();
 
@@ -310,7 +304,7 @@ void BufferManager::freeFrameBuffer(uint32_t kHandle)
         return;
     }
 
-    ssize_t index = mFrameBuffers.indexOfKey(kHandle);
+    ssize_t index = mFrameBuffers.indexOfKey(fbHandle);
     if (index < 0) {
         ETRACE("invalid kernel handle");
         return;
@@ -318,9 +312,9 @@ void BufferManager::freeFrameBuffer(uint32_t kHandle)
 
     BufferMapper *mapper = mFrameBuffers.valueAt(index);
     uint32_t handle = mapper->getHandle();
-    mapper->unmap();
+    mapper->putFbHandle();
     delete mapper;
-    mFrameBuffers.removeItem(kHandle);
+    mFrameBuffers.removeItem(fbHandle);
     mAllocDev->free(mAllocDev, (buffer_handle_t)handle);
 }
 
