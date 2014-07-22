@@ -547,6 +547,10 @@ void HwcLayerList::assignPlanes()
 
         HwcLayer *hwcLayer = mSpriteCandidates.itemAt(idx);
         DisplayPlane *plane = mDisplayPlaneManager.getSpritePlane();
+        if (!plane) {
+            ETRACE("sprite plane is null");
+            break;
+        }
         if (!plane->enable()) {
             ETRACE("sprite plane is not ready");
             mDisplayPlaneManager.putPlane(*plane);
