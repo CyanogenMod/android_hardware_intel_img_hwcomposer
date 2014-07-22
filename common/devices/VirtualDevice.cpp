@@ -521,8 +521,8 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
             Mutex::Autolock _l(mCscLock);
             // Blit only support 1:1 so until we get upscale/downsacle ,source & destination will be of same size.
             if ((layer.compositionType == HWC_FRAMEBUFFER_TARGET) &&
-                (mCurrentConfig.policy.scaledWidth != inputFrameInfo.contentWidth) &&
-                (mCurrentConfig.policy.scaledHeight != inputFrameInfo.contentHeight)) {
+                ((mCurrentConfig.policy.scaledWidth != inputFrameInfo.contentWidth) ||
+                (mCurrentConfig.policy.scaledHeight != inputFrameInfo.contentHeight))) {
                 mCurrentConfig.policy.scaledWidth = inputFrameInfo.contentWidth;
                 mCurrentConfig.policy.scaledHeight = inputFrameInfo.contentHeight;
             }
