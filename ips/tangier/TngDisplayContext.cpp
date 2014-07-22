@@ -146,6 +146,8 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
               imgLayer->psLayer->displayFrame.bottom - imgLayer->psLayer->displayFrame.top,
               imgLayer->custom);
     }
+
+    layerList->postFlip();
     return true;
 }
 

@@ -112,6 +112,7 @@ public:
 
     // hardware operations
     virtual bool flip(void *ctx);
+    virtual void postFlip();
 
     virtual bool reset();
     virtual bool enable() = 0;

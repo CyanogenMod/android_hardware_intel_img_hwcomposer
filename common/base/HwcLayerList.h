@@ -71,6 +71,8 @@ public:
 
     void setType(uint32_t type);
     uint32_t getType() const;
+    int32_t getCompositionType() const;
+    void setCompositionType(int32_t type);
 
     int getIndex() const;
     uint32_t getFormat() const;
@@ -84,6 +86,8 @@ public:
     uint32_t getPriority() const;
 
     bool update(hwc_layer_1_t *layer);
+    void postFlip();
+    bool isUpdated();
 
 private:
     void setupAttributes();
@@ -98,6 +102,12 @@ private:
     bool mIsProtected;
     uint32_t mType;
     uint32_t mPriority;
+
+    // for smart composition
+    uint32_t mTransform;
+    hwc_rect_t mSourceCrop;
+    hwc_rect_t mDisplayFrame;
+    bool mUpdated;
 };
 
 class HwcLayerList {
@@ -113,6 +123,7 @@ public:
 
     bool hasProtectedLayer();
     bool hasVisibleLayer();
+    void postFlip();
 
     // dump interface
     virtual void dump(Dump& d);
@@ -147,6 +158,7 @@ private:
     bool mergeToLayer(HwcLayer* target, HwcLayer* layer);
     bool hasIntersection(HwcLayer *la, HwcLayer *lb);
     bool setupZOrderConfig();
+    void setupSmartComposition();
 private:
     hwc_display_contents_1_t *mList;
     uint32_t mLayerCount;
