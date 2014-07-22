@@ -145,8 +145,8 @@ bool PhysicalDevice::prepare(hwc_display_contents_1_t *display)
         }
     }
     if (!mLayerList) {
-        ETRACE("null HWC layer list");
-        return false;
+        WTRACE("null HWC layer list");
+        return true;
     }
 
     // update list with new list
