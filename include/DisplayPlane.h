@@ -152,6 +152,7 @@ protected:
     KeyedVector<uint64_t, BufferMapper*> mDataBuffers;
     // holding the most recent buffers
     Vector<BufferMapper*> mActiveBuffers;
+    int mCacheCapacity;
 
     PlanePosition mPosition;
     crop_t mSrcCrop;

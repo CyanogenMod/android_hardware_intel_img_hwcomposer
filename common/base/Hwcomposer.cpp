@@ -295,6 +295,10 @@ bool Hwcomposer::dump(char *buff, int buff_len, int *cur_len)
     if (mPlaneManager)
         mPlaneManager->dump(d);
 
+    // dump buffer manager status
+    if (mBufferManager)
+        mBufferManager->dump(d);
+
     return true;
 }
 

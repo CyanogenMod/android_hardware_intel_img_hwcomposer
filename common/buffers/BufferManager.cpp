@@ -125,7 +125,18 @@ void BufferManager::deinitialize()
 
 void BufferManager::dump(Dump& d)
 {
-    //TODO: implement it later
+    d.append("Buffer Manager status: pool size %d\n", mBufferPool->getCacheSize());
+    d.append("-------------------------------------------------------------\n");
+    for (size_t i = 0; i < mBufferPool->getCacheSize(); i++) {
+        BufferMapper *mapper = mBufferPool->getMapper(i);
+        d.append("Buffer %d: handle %#x, (%dx%d), format %d, refCount %d\n",
+                 i,
+                 mapper->getHandle(),
+                 mapper->getWidth(),
+                 mapper->getHeight(),
+                 mapper->getFormat(),
+                 mapper->getRef());
+    }
     return;
 }
 
