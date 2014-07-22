@@ -802,6 +802,12 @@ bool AnnOverlayPlane::scalingSetup(BufferMapper& mapper)
         srcWidth = tmp;
     }
 
+    // FIXME: work aournd for pipe crashing issue, when rotate screen
+    // from 90 to 0 degree (with Sharp 25x16 panel).
+    if ((mTransform == DisplayPlane::PLANE_TRANSFORM_90) &&
+        ((float)srcWidth / srcHeight != (float)w / h))
+        return false;
+
      // Y down-scale factor as a multiple of 4096
     if (srcWidth == dstWidth && srcHeight == dstHeight) {
         xscaleFract = (1 << 12);
