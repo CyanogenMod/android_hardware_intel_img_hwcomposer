@@ -258,6 +258,51 @@ bool Drm::setDrmMode(int device, drmModeModeInfo& value)
     return setDrmMode(outputIndex, mode);
 }
 
+bool Drm::setRefreshRate(int device, int hz)
+{
+    RETURN_FALSE_IF_NOT_INIT();
+    Mutex::Autolock _l(mLock);
+
+    if (device != IDisplayDevice::DEVICE_EXTERNAL) {
+        WTRACE("Setting mode on invalid device %d", device);
+        return false;
+    }
+
+    int outputIndex = getOutputIndex(device);
+    if (outputIndex < 0 ) {
+        ETRACE("invalid device");
+        return false;
+    }
+
+    DrmOutput *output= &mOutputs[outputIndex];
+    if (!output->connected) {
+        ETRACE("device is not connected");
+        return false;
+    }
+
+    if (output->connector->count_modes <= 0) {
+        ETRACE("invalid count of modes");
+        return false;
+    }
+
+    drmModeModeInfoPtr mode;
+    int index = 0;
+    for (int i = 0; i < output->connector->count_modes; i++) {
+        mode = &output->connector->modes[i];
+        if (mode->type & DRM_MODE_TYPE_PREFERRED) {
+            index = i;
+        }
+        if (mode->hdisplay == output->mode.hdisplay &&
+            mode->vdisplay == output->mode.vdisplay &&
+            mode->vrefresh == (uint32_t)hz) {
+            index = i;
+            break;
+        }
+    }
+
+    mode = &output->connector->modes[index];
+    return setDrmMode(outputIndex, mode);
+}
 
 bool Drm::writeReadIoctl(unsigned long cmd, void *data,
                            unsigned long size)

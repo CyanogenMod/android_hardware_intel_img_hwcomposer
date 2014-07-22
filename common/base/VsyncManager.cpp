@@ -150,11 +150,26 @@ int VsyncManager::getVsyncSource()
     return mVsyncSource;
 }
 
+void VsyncManager::enableDynamicVsync(bool enable)
+{
+    Mutex::Autolock l(mLock);
+    mEnableDynamicVsync = enable;
+
+    if (!mEnabled) {
+        ITRACE("has been disabled");
+        mVsyncSource = IDisplayDevice::DEVICE_COUNT;
+        return;
+    }
+
+    disableVsync();
+    enableVsync();
+}
+
 bool VsyncManager::enableVsync()
 {
     // TODO: extension for WiDi, no vsync control from WiDi yet.
     if (mVsyncSource != IDisplayDevice::DEVICE_COUNT) {
-        ETRACE("vsync has been enabled.");
+        ETRACE("vsync has been enabled. %d", mVsyncSource);
         return false;
     }
 

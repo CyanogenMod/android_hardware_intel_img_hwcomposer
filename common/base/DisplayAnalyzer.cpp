@@ -47,7 +47,10 @@ DisplayAnalyzer::DisplayAnalyzer()
       mBlankDevice(false),
       mVideoPlaying(false),
       mVideoPreparing(false),
+      mVideoStateChanged(false),
       mOverlayAllowed(true),
+      mVideoInstances(0),
+      mVideoInstanceId(-1),
       mCachedNumDisplays(0),
       mCachedDisplays(0),
       mPendingEvents(),
@@ -72,11 +75,13 @@ bool DisplayAnalyzer::initialize()
     mBlankDevice = false;
     mVideoPlaying = false;
     mVideoPreparing = false;
+    mVideoStateChanged = false;
     mOverlayAllowed = true;
     mCachedNumDisplays = 0;
     mCachedDisplays = 0;
     mPendingEvents.clear();
     mInitialized = true;
+
     return true;
 }
 
@@ -97,6 +102,11 @@ void DisplayAnalyzer::analyzeContents(
 
     if (mBlankDevice) {
         blankSecondaryDevice();
+    }
+
+    if (mVideoStateChanged) {
+        handleModeSwitch();
+        mVideoStateChanged = false;
     }
 
     if (mEnableVideoExtendedMode) {
@@ -134,7 +144,7 @@ void DisplayAnalyzer::detectTrickMode(hwc_display_contents_1_t *list)
 
 void DisplayAnalyzer::detectVideoExtendedMode()
 {
-    if (!mVideoPlaying) {
+    if (!mVideoPlaying || mVideoInstances != 1) {
         mVideoExtendedMode = false;
         mForceCloneMode = false;
         return;
@@ -309,10 +319,12 @@ void DisplayAnalyzer::postHotplugEvent(bool connected)
     }
 }
 
-void DisplayAnalyzer::postVideoEvent(bool preparing, bool playing)
+void DisplayAnalyzer::postVideoEvent(int instances, int instanceID, bool preparing, bool playing)
 {
     Event e;
     e.type = VIDEO_EVENT;
+    e.videoEvent.instances = instances;
+    e.videoEvent.instanceID = instanceID;
     e.videoEvent.preparing = preparing;
     e.videoEvent.playing = playing;
     postEvent(e);
@@ -363,7 +375,10 @@ void DisplayAnalyzer::handlePendingEvents()
             handleBlankEvent(e.blank);
             break;
         case VIDEO_EVENT:
-            handleVideoEvent(e.videoEvent.preparing, e.videoEvent.playing);
+            handleVideoEvent(e.videoEvent.instances,
+                            e.videoEvent.instanceID,
+                            e.videoEvent.preparing,
+                            e.videoEvent.playing);
             break;
         }
     }
@@ -389,7 +404,35 @@ void DisplayAnalyzer::handleBlankEvent(bool blank)
     blankSecondaryDevice();
 }
 
-void DisplayAnalyzer::handleVideoEvent(bool preparing, bool playing)
+void DisplayAnalyzer::handleModeSwitch()
+{
+    // check whether external device is connected, reset refresh rate to match video frame rate
+    // if video is in playing state or reset refresh rate to default preferred one if video is not
+    // at playing state
+    Hwcomposer *hwc = &Hwcomposer::getInstance();
+    if (!hwc->getDrm()->isConnected(IDisplayDevice::DEVICE_EXTERNAL))
+        return;
+
+    if (mVideoInstances == 1) {
+        MDSVideoSourceInfo info;
+        status_t err = hwc->getMultiDisplayObserver()->getVideoSourceInfo(
+                mVideoInstanceId, &info);
+        if (err == 0) {
+            ITRACE("setting refresh rate to %d", info.frameRate);
+            hwc->getVsyncManager()->enableDynamicVsync(false);
+            hwc->getDrm()->setRefreshRate(IDisplayDevice::DEVICE_EXTERNAL, info.frameRate);
+            hwc->getVsyncManager()->enableDynamicVsync(true);
+        }
+    } else {
+        ITRACE("setting refresh rate to preferred");
+        hwc->getVsyncManager()->enableDynamicVsync(false);
+        hwc->getDrm()->setRefreshRate(IDisplayDevice::DEVICE_EXTERNAL, 0);
+        hwc->getVsyncManager()->enableDynamicVsync(true);
+    }
+}
+
+void DisplayAnalyzer::handleVideoEvent(
+    int instances, int instanceID, bool preparing, bool playing)
 {
     if (preparing != mVideoPreparing) {
         for (int i = 0; i < (int)mCachedNumDisplays; i++) {
@@ -403,6 +446,17 @@ void DisplayAnalyzer::handleVideoEvent(bool preparing, bool playing)
         mOverlayAllowed = !preparing;
     }
     mVideoPlaying = playing;
+
+    ITRACE("%d %d %d %d", instances, instanceID, preparing, playing);
+    Hwcomposer *hwc = &Hwcomposer::getInstance();
+    if (hwc->getDrm()->isConnected(IDisplayDevice::DEVICE_EXTERNAL)) {
+        if ((playing && !preparing) || (!playing && !preparing)) {
+            mVideoStateChanged = true;
+            mVideoInstances = instances;
+            mVideoInstanceId = instanceID;
+        }
+    }
+
     if (preparing) {
         Hwcomposer::getInstance().getPlaneManager()->disableOverlayPlanes();
         mEventHandledCondition.signal();

@@ -46,6 +46,7 @@ public:
     bool handleVsyncControl(int disp, bool enabled);
     void resetVsyncSource();
     int getVsyncSource();
+    void enableDynamicVsync(bool enable);
 
 private:
     inline bool enableVsync();

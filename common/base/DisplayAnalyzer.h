@@ -52,7 +52,7 @@ public:
     bool isVideoPlaying();
     bool isOverlayAllowed();
     void postHotplugEvent(bool connected);
-    void postVideoEvent(bool preparing, bool playing);
+    void postVideoEvent(int instances, int instanceID, bool preparing, bool playing);
     void postBlankEvent(bool blank);
 
 private:
@@ -66,6 +66,8 @@ private:
         int type;
 
         struct VideoEvent {
+            int instances;
+            int instanceID;
             bool preparing;
             bool playing;
         };
@@ -80,11 +82,12 @@ private:
     void handlePendingEvents();
     void handleHotplugEvent(bool connected);
     void handleBlankEvent(bool blank);
-    void handleVideoEvent(bool preparing, bool playing);
+    void handleVideoEvent(int instances, int instanceID, bool preparing, bool playing);
 
     void blankSecondaryDevice();
     void detectVideoExtendedMode();
     void detectTrickMode(hwc_display_contents_1_t *list);
+    void handleModeSwitch();
 
 private:
     bool mInitialized;
@@ -94,7 +97,10 @@ private:
     bool mBlankDevice;
     bool mVideoPlaying;
     bool mVideoPreparing;
+    bool mVideoStateChanged;
     bool mOverlayAllowed;
+    int mVideoInstances;
+    int mVideoInstanceId;
     int mCachedNumDisplays;
     hwc_display_contents_1_t** mCachedDisplays;
     Vector<Event> mPendingEvents;

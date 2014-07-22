@@ -50,6 +50,7 @@ public:
     void deinitialize();
     bool detect(int device);
     bool setDrmMode(int device, drmModeModeInfo& value);
+    bool setRefreshRate(int device, int hz);
     bool writeReadIoctl(unsigned long cmd, void *data,
                       unsigned long size);
     bool writeIoctl(unsigned long cmd, void *data,
