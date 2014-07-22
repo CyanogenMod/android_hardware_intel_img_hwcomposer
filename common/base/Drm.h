@@ -49,7 +49,7 @@ public:
     bool initialize();
     void deinitialize();
     bool detect(int device);
-    bool setDrmMode(int device, int width, int height, int rate, int flags);
+    bool setDrmMode(int device, drmModeModeInfo& value);
     bool writeReadIoctl(unsigned long cmd, void *data,
                       unsigned long size);
     bool writeIoctl(unsigned long cmd, void *data,

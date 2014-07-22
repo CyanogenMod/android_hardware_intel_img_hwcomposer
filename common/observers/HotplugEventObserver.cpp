@@ -35,7 +35,6 @@ namespace intel {
 HotplugEventObserver::HotplugEventObserver(ExternalDevice& disp)
     : mDisplayDevice(disp),
       mHotplugControl(NULL),
-      mThread(),
       mExitThread(false),
       mInitialized(false)
 {
@@ -60,9 +59,9 @@ bool HotplugEventObserver::initialize()
         DEINIT_AND_RETURN_FALSE("failed to create hotplug control");
     }
 
-    mThread = new WorkingThread(this);
+    mThread = new HotplugEventPollThread(this);
     if (!mThread.get()) {
-        DEINIT_AND_RETURN_FALSE("failed to create working thread.");
+        DEINIT_AND_RETURN_FALSE("failed to create hotplug event poll thread.");
     }
 
     mInitialized = true;

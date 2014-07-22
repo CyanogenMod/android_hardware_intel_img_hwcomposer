@@ -253,7 +253,7 @@ BufferMapper* DisplayPlane::mapBuffer(DataBuffer *buffer)
     BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
 
     // don't map buffer if cache was full
-    if (mDataBuffers.size() >= mCacheCapacity) {
+    if ((int)mDataBuffers.size() >= mCacheCapacity) {
         return NULL;
     }
 

@@ -211,7 +211,7 @@ bool Drm::detect(int device)
     return ret;
 }
 
-bool Drm::setDrmMode(int device, int width, int height, int rate, int flags)
+bool Drm::setDrmMode(int device, drmModeModeInfo& value)
 {
     RETURN_FALSE_IF_NOT_INIT();
     Mutex::Autolock _l(mLock);
@@ -223,6 +223,7 @@ bool Drm::setDrmMode(int device, int width, int height, int rate, int flags)
 
     int outputIndex = getOutputIndex(device);
     if (outputIndex < 0 ) {
+        ETRACE("invalid device");
         return false;
     }
 
@@ -244,10 +245,10 @@ bool Drm::setDrmMode(int device, int width, int height, int rate, int flags)
         if (mode->type & DRM_MODE_TYPE_PREFERRED) {
             index = i;
         }
-        if (mode->hdisplay == width &&
-            mode->vdisplay == height &&
-            mode->vrefresh == (uint32_t)rate &&
-            (mode->flags & flags) == flags) {
+        if (mode->hdisplay == value.hdisplay &&
+            mode->vdisplay == value.vdisplay &&
+            mode->vrefresh == (uint32_t)value.vrefresh &&
+            (mode->flags & value.flags) == value.flags) {
             index = i;
             break;
         }
@@ -488,7 +489,6 @@ bool Drm::setDrmMode(int index, drmModeModeInfoPtr mode)
     }
 
     int ret = 0;
-    // add frame buffer
     ret = drmModeAddFB(
         mDrmFd,
         mode->hdisplay,
@@ -503,7 +503,8 @@ bool Drm::setDrmMode(int index, drmModeModeInfoPtr mode)
         return false;
     }
 
-    // set CRTC
+    ITRACE("mode set: %dx%d@%dHz", mode->hdisplay, mode->vdisplay, mode->vrefresh);
+
     ret = drmModeSetCrtc(mDrmFd, output->crtc->crtc_id, output->fbId, 0, 0,
                    &output->connector->connector_id, 1, mode);
     if (ret == 0) {

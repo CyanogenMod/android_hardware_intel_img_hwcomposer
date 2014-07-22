@@ -39,6 +39,8 @@ extern int psbWsbmDestroyTTMBuffer(void * buf);
 extern void * psbWsbmGetCPUAddress(void * buf);
 extern uint32_t psbWsbmGetGttOffset(void * buf);
 extern int psbWsbmWrapTTMBuffer(uint32_t handle, void **buf);
+extern int psbWsbmWrapTTMBuffer2(uint32_t handle, void **buf);
+extern int psbWsbmCreateFromUB(void *buf, uint32_t size, void *vaddr);
 extern int psbWsbmUnReference(void *buf);
 extern int psbWsbmWaitIdle(void *buf);
 uint32_t psbWsbmGetKBufHandle(void *buf);

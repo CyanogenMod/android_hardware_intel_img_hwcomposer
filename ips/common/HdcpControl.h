@@ -29,7 +29,7 @@
 #define HDCP_CONTROL_H
 
 #include <IHdcpControl.h>
-#include <utils/threads.h>
+#include <SimpleThread.h>
 
 namespace android {
 namespace intel {
@@ -59,28 +59,6 @@ protected:
     inline void signalCompletion();
 
 private:
-    class HdcpControlThread: public Thread {
-    public:
-        HdcpControlThread(HdcpControl *owner) {
-            mOwner = owner;
-        }
-        ~HdcpControlThread() {
-            mOwner = NULL;
-         }
-
-    private:
-        virtual bool threadLoop() {
-            return mOwner->threadLoop();
-        }
-
-    private:
-        HdcpControl *mOwner;
-    };
-
-    friend class HdcpControlThread;
-    bool threadLoop();
-
-private:
     enum {
         HDCP_INLOOP_RETRY_NUMBER = 4,
         HDCP_INLOOP_RETRY_DELAY_US = 30000,
@@ -96,11 +74,13 @@ protected:
     Mutex mMutex;
     Condition mStoppedCondition;
     Condition mCompletedCondition;
-    sp<HdcpControlThread> mThread;
     bool mWaitForCompletion;
     bool mStopped;
     bool mAuthenticated;
     int mActionDelay;  // in milliseconds
+
+private:
+    DECLARE_THREAD(HdcpControlThread, HdcpControl);
 };
 
 } // namespace intel

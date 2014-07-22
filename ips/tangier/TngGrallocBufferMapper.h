@@ -47,6 +47,8 @@ public:
 private:
     bool gttMap(void *vaddr, uint32_t size, uint32_t gttAlign, int *offset);
     bool gttUnmap(void *vaddr);
+    bool mapKhandle();
+
 private:
     IMG_gralloc_module_public_t& mIMGGrallocModule;
     void* mBufferObject;

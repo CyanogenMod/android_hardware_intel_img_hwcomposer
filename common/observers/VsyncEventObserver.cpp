@@ -37,7 +37,6 @@ VsyncEventObserver::VsyncEventObserver(PhysicalDevice& disp)
       mCondition(),
       mDisplayDevice(disp),
       mVsyncControl(NULL),
-      mThread(),
       mDevice(IDisplayDevice::DEVICE_COUNT),
       mEnabled(false),
       mExitThread(false),
@@ -66,9 +65,9 @@ bool VsyncEventObserver::initialize()
         DEINIT_AND_RETURN_FALSE("failed to initialize vsync control");
     }
 
-    mThread = new WorkingThread(this);
+    mThread = new VsyncEventPollThread(this);
     if (!mThread.get()) {
-        DEINIT_AND_RETURN_FALSE("failed to create working thread.");
+        DEINIT_AND_RETURN_FALSE("failed to create vsync event poll thread.");
     }
 
     mThread->run("VsyncEventObserver", PRIORITY_URGENT_DISPLAY);
