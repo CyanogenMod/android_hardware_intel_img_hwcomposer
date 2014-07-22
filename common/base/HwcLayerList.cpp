@@ -462,6 +462,13 @@ void HwcLayerList::analyze(uint32_t index)
         // insert layer to layers
         mLayers.add(hwcLayer);
 
+        if (layer->compositionType == HWC_OVERLAY) {
+            // layer has been preprocessed
+            hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
+            mOverlayLayers.add(hwcLayer);
+            continue;
+        }
+
         // if a HWC_FRAMEBUFFER_TARGET layer, save it to the last
         if (layer->compositionType == HWC_FRAMEBUFFER_TARGET) {
             mFramebufferTarget = hwcLayer;

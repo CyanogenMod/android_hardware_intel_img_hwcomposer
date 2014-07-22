@@ -71,6 +71,7 @@ public:
     // callbacks
     virtual void vsync(int disp, int64_t timestamp);
     virtual void hotplug(int disp, int connected);
+    virtual void invalidate();
 
     virtual bool initCheck() const;
     virtual bool initialize();
