@@ -229,14 +229,13 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
     }
 
     if (mCurrentConfig.extendedModeEnabled) {
-        if (analyzer->checkVideoExtendedMode()) {
-            for (size_t i = 0; i < display->numHwLayers-1; i++) {
-                hwc_layer_1_t& layer = display->hwLayers[i];
-                if (analyzer->isVideoLayer(layer)) {
-                    VTRACE("Layer (%d) is extended video layer", mLayerToSend);
-                    mLayerToSend = i;
-                    break;
-                }
+        for (size_t i = 0; i < display->numHwLayers-1; i++) {
+            hwc_layer_1_t& layer = display->hwLayers[i];
+            if (analyzer->isVideoLayer(layer) &&
+                    !analyzer->isPresentationLayer(layer)) {
+                VTRACE("Layer (%d) is extended video layer", mLayerToSend);
+                mLayerToSend = i;
+                break;
             }
         }
     }
