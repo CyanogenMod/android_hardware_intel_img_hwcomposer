@@ -184,6 +184,19 @@ bool TngDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t *
                  displays[i]->hwLayers[j].acquireFenceFd,
                  displays[i]->hwLayers[j].releaseFenceFd);
         }
+
+        // retireFence is used for SurfaceFlinger to do DispSync;
+        // dup releaseFenceFd for physical displays and assign -1 for virtual
+        // display; we don't distinguish between release and retire, and all
+        // physical displays are using a single releaseFence; for virtual
+        // display, we are using sync mode to do NV12 bliting, and composition
+        // is always completed after commit.
+        if (i < IDisplayDevice::DEVICE_VIRTUAL) {
+            displays[i]->retireFenceFd =
+                             (releaseFenceFd>=0) ? dup(releaseFenceFd) : -1;
+        } else {
+            displays[i]->retireFenceFd = -1;
+        }
     }
 
     // close original release fence fd
