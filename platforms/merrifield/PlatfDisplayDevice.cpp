@@ -25,28 +25,27 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
+#include <cutils/log.h>
 
-#include <Log.h>
 #include <PlatfDisplayDevice.h>
-#include <penwell/PnwVsyncControl.h>
-#include <penwell/PnwBlankControl.h>
-#include <penwell/PnwHotplugControl.h>
+#include <common/VsyncControl.h>
+#include <common/BlankControl.h>
+#include <common/HotplugControl.h>
 
 namespace android {
 namespace intel {
 
-static Log& log = Log::getInstance();
 PlatfDisplayDevice::PlatfDisplayDevice(uint32_t type,
                                        Hwcomposer& hwc,
                                        DisplayPlaneManager& dpm)
     : DisplayDevice(type, hwc, dpm)
 {
-    log.v("PlatfDisplayDevice(): type %d", type);
+    LOGV("PlatfDisplayDevice(): type %d", type);
 }
 
 PlatfDisplayDevice::~PlatfDisplayDevice()
 {
-    log.v("~PlatfDisplayDevice");
+    LOGV("~PlatfDisplayDevice");
 }
 
 bool PlatfDisplayDevice::commit(hwc_display_contents_1_t *display,
@@ -55,13 +54,13 @@ bool PlatfDisplayDevice::commit(hwc_display_contents_1_t *display,
 {
     bool ret;
 
-    log.v("PlatfDisplayDevice::commit");
+    LOGV("PlatfDisplayDevice::commit");
 
     if (!initCheck())
         return false;
 
     if (!display || !contexts) {
-        log.e("PlatfDisplayDevice::commit: invalid parameters");
+        LOGE("PlatfDisplayDevice::commit: invalid parameters");
         return false;
     }
 
@@ -76,7 +75,7 @@ bool PlatfDisplayDevice::commit(hwc_display_contents_1_t *display,
 
         ret = plane->flip();
         if (ret == false) {
-            log.w("PlatfDisplayDevice::commit: failed to flip plane %d", i);
+            LOGW("PlatfDisplayDevice::commit: failed to flip plane %d", i);
             continue;
         }
 
@@ -89,7 +88,7 @@ bool PlatfDisplayDevice::commit(hwc_display_contents_1_t *display,
         imgLayer->displayFrame = display->hwLayers[i].displayFrame;
         imgLayer->custom = (uint32_t)plane->getContext();
 
-        log.v("PlatfDisplayDevice::commit %d: handle 0x%x, trans 0x%x, blending 0x%x"
+        LOGV("PlatfDisplayDevice::commit %d: handle 0x%x, trans 0x%x, blending 0x%x"
               " sourceCrop %d,%d - %dx%d, dst %d,%d - %dx%d, custom 0x%x",
               count,
               imgLayer->handle,
@@ -108,19 +107,19 @@ bool PlatfDisplayDevice::commit(hwc_display_contents_1_t *display,
     return true;
 }
 
-VsyncControl* PlatfDisplayDevice::createVsyncControl()
+IVsyncControl* PlatfDisplayDevice::createVsyncControl()
 {
-    return new PnwVsyncControl();
+    return new VsyncControl();
 }
 
-BlankControl* PlatfDisplayDevice::createBlankControl()
+IBlankControl* PlatfDisplayDevice::createBlankControl()
 {
-    return new PnwBlankControl();
+    return new BlankControl();
 }
 
-HotplugControl* PlatfDisplayDevice::createHotplugControl()
+IHotplugControl* PlatfDisplayDevice::createHotplugControl()
 {
-    return new PnwHotplugControl();
+    return new HotplugControl();
 }
 
 } // namespace intel

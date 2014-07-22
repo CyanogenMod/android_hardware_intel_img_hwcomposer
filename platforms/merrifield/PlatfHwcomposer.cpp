@@ -25,8 +25,9 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <Log.h>
+#include <cutils/log.h>
 #include <hal_public.h>
+
 #include <PlatfHwcomposer.h>
 #include <PlatfDisplayPlaneManager.h>
 #include <PlatfBufferManager.h>
@@ -35,7 +36,6 @@
 namespace android {
 namespace intel {
 
-static Log& log = Log::getInstance();
 PlatfHwcomposer::PlatfHwcomposer()
     : Hwcomposer(),
       mFBDev(0)
@@ -52,24 +52,21 @@ bool PlatfHwcomposer::initialize()
 {
     int err;
 
-    log.v("PlatfHwcomposer::initialize");
+    LOGV("PlatfHwcomposer::initialize");
 
     // open frame buffer device
     hw_module_t const* module;
     err = hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module);
     if (err) {
-        log.e("PlatfHwcomposer::initialize: failed to load gralloc module, %d",
+        LOGE("PlatfHwcomposer::initialize: failed to load gralloc module, %d",
               err);
         return false;
     }
 
-    IMG_gralloc_module_public_t *imgGrallocModule;
-    imgGrallocModule = (IMG_gralloc_module_public_t*)module;
-
     // open frame buffer device
     err = framebuffer_open(module, (framebuffer_device_t**)&mFBDev);
     if (err) {
-        log.e("PlatfHwcomposer::initialize: failed to open frame buffer device, %d",
+        LOGE("PlatfHwcomposer::initialize: failed to open frame buffer device, %d",
               err);
         return false;
     }
@@ -77,7 +74,7 @@ bool PlatfHwcomposer::initialize()
     mFBDev->bBypassPost = 1;
 
     if (!Hwcomposer::initialize()) {
-        log.e("PlatfHwcomposer::initialize: failed to call initialize");
+        LOGE("PlatfHwcomposer::initialize: failed to call initialize");
         // close frame buffer device
         framebuffer_close((framebuffer_device_t*)mFBDev);
         return false;
@@ -98,13 +95,13 @@ bool PlatfHwcomposer::compositionComplete(int disp)
 
 void* PlatfHwcomposer::getContexts()
 {
-    log.v("PlatfHwcomposer::getContexts");
+    LOGV("PlatfHwcomposer::getContexts");
     return (void *)mImgLayers;
 }
 
 bool PlatfHwcomposer::commitContexts(void *contexts, int count)
 {
-    log.v("PlatfHwcomposer::commitContexts: contexts = 0x%x, count = %d",
+    LOGV("PlatfHwcomposer::commitContexts: contexts = 0x%x, count = %d",
           contexts, count);
 
     // nothing need to be submitted
@@ -112,14 +109,14 @@ bool PlatfHwcomposer::commitContexts(void *contexts, int count)
         return true;
 
     if (!contexts) {
-        log.e("PlatfHwcomposer::commitContexts: invalid parameters");
+        LOGE("PlatfHwcomposer::commitContexts: invalid parameters");
         return false;
     }
 
     if (mFBDev) {
         int err = mFBDev->Post2(&mFBDev->base, mImgLayers, count);
         if (err) {
-            log.e("PlatfHwcomposer::commitContexts: Post2 failed err = %d", err);
+            LOGE("PlatfHwcomposer::commitContexts: Post2 failed err = %d", err);
             return false;
         }
     }
@@ -130,20 +127,20 @@ bool PlatfHwcomposer::commitContexts(void *contexts, int count)
 // implement createDisplayPlaneManager()
 DisplayPlaneManager* PlatfHwcomposer::createDisplayPlaneManager()
 {
-    log.v("PlatfHwcomposer::createDisplayPlaneManager");
+    LOGV("PlatfHwcomposer::createDisplayPlaneManager");
     return (new PlatfDisplayPlaneManager());
 }
 
 BufferManager* PlatfHwcomposer::createBufferManager()
 {
-    log.v("PlatfHwcomposer::createBufferManager");
+    LOGV("PlatfHwcomposer::createBufferManager");
     return (new PlatfBufferManager());
 }
 
 DisplayDevice* PlatfHwcomposer::createDisplayDevice(int disp,
                                                      DisplayPlaneManager& dpm)
 {
-    log.v("PlatfHwcomposer::createDisplayDevice");
+    LOGV("PlatfHwcomposer::createDisplayDevice");
 
     return (new PlatfDisplayDevice(disp, *this, dpm));
 }

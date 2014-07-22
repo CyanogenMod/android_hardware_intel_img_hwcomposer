@@ -54,15 +54,6 @@ public:
     void putSpritePlane(DisplayPlane& plane);
     void putOverlayPlane(DisplayPlane& plane);
 
-    DisplayPlane* getDummySpritePlane();
-    DisplayPlane* getDummyPrimaryPlane();
-    DisplayPlane* getDummyOverlayPlane();
-
-    DisplayPlane* getSpritePlane(int& where);
-    DisplayPlane* getOverlayPlane(int& where);
-    void putSpritePlane(DisplayPlane& plane, int where);
-    void putOverlayPlane(DisplayPlane& plane, int where);
-
     bool hasFreeSprites();
     bool hasFreeOverlays();
     int getFreeSpriteCount() const;
@@ -94,11 +85,6 @@ protected:
     Vector<DisplayPlane*> mSpritePlanes;
     Vector<DisplayPlane*> mPrimaryPlanes;
     Vector<DisplayPlane*> mOverlayPlanes;
-
-    // dummy planes
-    DisplayPlane *mDummySpritePlane;
-    DisplayPlane *mDummyPrimaryPlane;
-    DisplayPlane *mDummyOverlayPlane;
 
     // Bitmap of free planes. Bit0 - plane A, bit 1 - plane B, etc.
     uint32_t mFreeSpritePlanes;

@@ -33,15 +33,15 @@
 #include <DisplayPlane.h>
 #include <DisplayDevice.h>
 #include <BufferMapper.h>
-#include <penwell/Wsbm.h>
-#include <penwell/PnwOverlayPlaneBase.h>
+#include <common/Wsbm.h>
+#include <common/OverlayPlaneBase.h>
 
 #include <displayclass_interface.h>
 
 namespace android {
 namespace intel {
 
-class TngOverlayPlane : public PnwOverlayPlaneBase {
+class TngOverlayPlane : public OverlayPlaneBase {
 
 public:
     TngOverlayPlane(int index, int disp);
@@ -49,8 +49,6 @@ public:
 
     virtual bool flip();
     virtual void* getContext() const;
-    virtual bool initialize();
-
 protected:
     struct intel_dc_plane_ctx mContext;
 };

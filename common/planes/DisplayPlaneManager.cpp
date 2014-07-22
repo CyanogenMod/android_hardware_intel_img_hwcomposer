@@ -25,22 +25,18 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
+#include <cutils/log.h>
+
 #include <DisplayPlaneManager.h>
-#include <Log.h>
 
 namespace android {
 namespace intel {
-
-static Log& log = Log::getInstance();
 
 DisplayPlaneManager::DisplayPlaneManager()
     : mSpritePlaneCount(0),
       mPrimaryPlaneCount(0),
       mOverlayPlaneCount(0),
       mTotalPlaneCount(0),
-      mDummySpritePlane(0),
-      mDummyPrimaryPlane(0),
-      mDummyOverlayPlane(0),
       mFreeSpritePlanes(0),
       mFreePrimaryPlanes(0),
       mFreeOverlayPlanes(0),
@@ -74,7 +70,7 @@ bool DisplayPlaneManager::initialize()
     int i;
     size_t j;
 
-    log.v("DisplayPlaneManager::initialize");
+    LOGV("DisplayPlaneManager::initialize");
 
     // detect display plane usage. Hopefully throw DRM ioctl
     detect();
@@ -86,20 +82,13 @@ bool DisplayPlaneManager::initialize()
         for (i = 0; i < mPrimaryPlaneCount; i++) {
             DisplayPlane* plane = allocPlane(i, DisplayPlane::PLANE_PRIMARY);
             if (!plane) {
-                log.e("initialize: failed to allocate primary plane %d", i);
-                goto primary_err;;
+                LOGE("initialize: failed to allocate primary plane %d", i);
+                goto primary_err;
             }
             // reset overlay plane
             plane->reset();
             // insert plane
             mPrimaryPlanes.push_back(plane);
-        }
-
-        // allocate dummy primary plane
-        mDummyPrimaryPlane = allocPlane(-1, DisplayPlane::PLANE_PRIMARY);
-        if (!mDummyPrimaryPlane) {
-            log.e("initialize: failed to allocate dummy primary plane");
-            goto dummy_primary_err;
         }
     }
 
@@ -110,20 +99,13 @@ bool DisplayPlaneManager::initialize()
         for (i = 0; i < mSpritePlaneCount; i++) {
             DisplayPlane* plane = allocPlane(i, DisplayPlane::PLANE_SPRITE);
             if (!plane) {
-                log.e("initialize: failed to allocate sprite plane %d", i);
+                LOGE("initialize: failed to allocate sprite plane %d", i);
                 goto sprite_err;
             }
             // reset overlay plane
             plane->reset();
             // insert plane
             mSpritePlanes.push_back(plane);
-        }
-
-        // allocate dummy primary plane
-        mDummySpritePlane = allocPlane(-1, DisplayPlane::PLANE_SPRITE);
-        if (!mDummySpritePlane) {
-            log.e("initialize: failed to allocate dummy sprite plane");
-            goto dummy_sprite_err;
         }
     }
 
@@ -133,7 +115,7 @@ bool DisplayPlaneManager::initialize()
         for (i = 0; i < mOverlayPlaneCount; i++) {
             DisplayPlane* plane = allocPlane(i, DisplayPlane::PLANE_OVERLAY);
             if (!plane) {
-                log.e("initialize: failed to allocate sprite plane %d", i);
+                LOGE("initialize: failed to allocate sprite plane %d", i);
                 goto overlay_err;
             }
             // reset overlay plane
@@ -141,25 +123,15 @@ bool DisplayPlaneManager::initialize()
             // insert plane
             mOverlayPlanes.push_back(plane);
         }
-
-        mDummyOverlayPlane = allocPlane(-1, DisplayPlane::PLANE_OVERLAY);
-        if (!mDummyOverlayPlane) {
-            log.e("initialize: failed to allocate dummy overlay plane");
-            goto overlay_err;
-        }
     }
 
     mInitialized = true;
     return true;
 overlay_err:
-    delete mDummySpritePlane;
-dummy_sprite_err:
     for (j = 0; j < mOverlayPlanes.size(); j++)
         delete mOverlayPlanes.itemAt(j);
     mOverlayPlanes.clear();
 sprite_err:
-    delete mDummyPrimaryPlane;
-dummy_primary_err:
     for (j = 0; j < mSpritePlanes.size(); j++)
         delete mSpritePlanes.itemAt(j);
     mSpritePlanes.clear();
@@ -195,7 +167,7 @@ void DisplayPlaneManager::putPlane(int index, uint32_t& mask)
     int bit = (1 << index);
 
     if (bit & mask) {
-        log.w("putPlane: bit %d was set", index);
+        LOGW("putPlane: bit %d was set", index);
         return;
     }
 
@@ -219,29 +191,29 @@ int DisplayPlaneManager::getPlane(uint32_t& mask, int index)
 DisplayPlane* DisplayPlaneManager::getSpritePlane()
 {
     if (!initCheck()) {
-        log.e("getSpritePlane: plane manager was not initialized\n");
+        LOGE("getSpritePlane: plane manager was not initialized\n");
         return 0;
     }
 
     int freePlaneIndex;
 
-    // check reclaimed overlay planes
+    // check reclaimed sprite planes
     freePlaneIndex = getPlane(mReclaimedSpritePlanes);
     if (freePlaneIndex >= 0)
         return mSpritePlanes.itemAt(freePlaneIndex);
 
-    // check free overlay planes
+    // check free sprite planes
     freePlaneIndex = getPlane(mFreeSpritePlanes);
     if (freePlaneIndex >= 0)
         return mSpritePlanes.itemAt(freePlaneIndex);
-    log.e("getSpritePlane: failed to get a sprite plane\n");
+    LOGE("getSpritePlane: failed to get a sprite plane\n");
     return 0;
 }
 
 DisplayPlane* DisplayPlaneManager::getPrimaryPlane(int pipe)
 {
     if (!initCheck()) {
-        log.e("getSpritePlane: plane manager was not initialized\n");
+        LOGE("getSpritePlane: plane manager was not initialized\n");
         return 0;
     }
 
@@ -252,18 +224,18 @@ DisplayPlane* DisplayPlaneManager::getPrimaryPlane(int pipe)
     if (freePlaneIndex >= 0)
         return mPrimaryPlanes.itemAt(freePlaneIndex);
 
-    // check free overlay planes
+    // check free primary planes
     freePlaneIndex = getPlane(mFreePrimaryPlanes, pipe);
     if (freePlaneIndex >= 0)
         return mPrimaryPlanes.itemAt(freePlaneIndex);
-    log.e("getPrimaryPlane: failed to get a primary plane\n");
+    LOGE("getPrimaryPlane: failed to get a primary plane\n");
     return 0;
 }
 
 DisplayPlane* DisplayPlaneManager::getOverlayPlane()
 {
     if (!initCheck()) {
-        log.e("getOverlayPlane: plane manager was not initialized\n");
+        LOGE("getOverlayPlane: plane manager was not initialized\n");
         return 0;
     }
 
@@ -277,7 +249,7 @@ DisplayPlane* DisplayPlaneManager::getOverlayPlane()
     }
 
     if (freePlaneIndex < 0) {
-       log.e("getOverlayPlane: failed to get a overlay plane\n");
+       LOGE("getOverlayPlane: failed to get a overlay plane\n");
        return 0;
     }
 
@@ -297,119 +269,6 @@ void DisplayPlaneManager::putOverlayPlane(DisplayPlane& plane)
     int index = plane.getIndex();
     if (plane.getType() == DisplayPlane::PLANE_OVERLAY)
         putPlane(index, mFreeOverlayPlanes);
-}
-
-DisplayPlane* DisplayPlaneManager::getSpritePlane(int& where)
-{
-    if (!initCheck()) {
-        log.e("getSpritePlane: plane manager was not initialized\n");
-        return 0;
-    }
-
-    int freePlaneIndex;
-
-    // check reclaimed overlay planes
-    freePlaneIndex = getPlane(mReclaimedSpritePlanes);
-    if (freePlaneIndex >= 0) {
-        where = PLANE_ON_RECLAIMED_LIST;
-        return mSpritePlanes.itemAt(freePlaneIndex);
-    }
-
-    // check free overlay planes
-    freePlaneIndex = getPlane(mFreeSpritePlanes);
-    if (freePlaneIndex >= 0) {
-        where = PLANE_ON_FREE_LIST;
-        return mSpritePlanes.itemAt(freePlaneIndex);
-    }
-    log.e("getSpritePlane: failed to get a sprite plane\n");
-    return 0;
-}
-
-DisplayPlane* DisplayPlaneManager::getOverlayPlane(int& where)
-{
-    if (!initCheck()) {
-        log.e("getOverlayPlane: plane manager was not initialized\n");
-        return 0;
-    }
-
-    int freePlaneIndex;
-
-    // check reclaimed overlay planes
-    freePlaneIndex = getPlane(mReclaimedOverlayPlanes);
-    if (freePlaneIndex >= 0) {
-       where = PLANE_ON_RECLAIMED_LIST;
-       return mOverlayPlanes.itemAt(freePlaneIndex);
-    }
-
-    freePlaneIndex = getPlane(mFreeOverlayPlanes);
-    if (freePlaneIndex >= 0) {
-        where = PLANE_ON_FREE_LIST;
-        return mOverlayPlanes.itemAt(freePlaneIndex);
-    }
-
-    log.e("getOverlayPlane: failed to get a overlay plane\n");
-    return 0;
-}
-
-void DisplayPlaneManager::putSpritePlane(DisplayPlane& plane, int where)
-{
-    int index = plane.getIndex();
-
-    if (plane.getType() == DisplayPlane::PLANE_SPRITE) {
-        switch (where) {
-        case PLANE_ON_RECLAIMED_LIST:
-            putPlane(index, mReclaimedSpritePlanes);
-            break;
-        case PLANE_ON_FREE_LIST:
-            putPlane(index, mFreeSpritePlanes);
-            break;
-        }
-    }
-}
-
-void DisplayPlaneManager::putOverlayPlane(DisplayPlane& plane, int where)
-{
-    int index = plane.getIndex();
-
-    if (plane.getType() == DisplayPlane::PLANE_OVERLAY) {
-        switch (where) {
-        case PLANE_ON_RECLAIMED_LIST:
-            putPlane(index, mReclaimedOverlayPlanes);
-            break;
-        case PLANE_ON_FREE_LIST:
-            putPlane(index, mFreeOverlayPlanes);
-        }
-    }
-}
-
-DisplayPlane* DisplayPlaneManager::getDummyPrimaryPlane()
-{
-    if (!initCheck()) {
-        log.e("getOverlayPlane: plane manager was not initialized\n");
-        return 0;
-    }
-
-    return mDummyPrimaryPlane;
-}
-
-DisplayPlane* DisplayPlaneManager::getDummySpritePlane()
-{
-    if (!initCheck()) {
-        log.e("getOverlayPlane: plane manager was not initialized\n");
-        return 0;
-    }
-
-    return mDummySpritePlane;
-}
-
-DisplayPlane* DisplayPlaneManager::getDummyOverlayPlane()
-{
-    if (!initCheck()) {
-        log.e("getOverlayPlane: plane manager was not initialized\n");
-        return 0;
-    }
-
-    return mDummyOverlayPlane;
 }
 
 bool DisplayPlaneManager::hasFreeSprites()
@@ -482,13 +341,13 @@ bool DisplayPlaneManager::primaryAvailable(int pipe)
 void DisplayPlaneManager::reclaimPlane(DisplayPlane& plane)
 {
     if (!initCheck()) {
-        log.e("reclaimPlane: plane manager is not initialized\n");
+        LOGE("reclaimPlane: plane manager is not initialized\n");
         return;
     }
 
     int index = plane.getIndex();
 
-    log.v("reclaimPlane: reclaimPlane %d, type %d\n", index, plane.getType());
+    LOGV("reclaimPlane: reclaimPlane %d, type %d\n", index, plane.getType());
 
     if (plane.getType() == DisplayPlane::PLANE_OVERLAY)
         putPlane(index, mReclaimedOverlayPlanes);
@@ -497,17 +356,17 @@ void DisplayPlaneManager::reclaimPlane(DisplayPlane& plane)
     else if (plane.getType() == DisplayPlane::PLANE_PRIMARY)
         putPlane(index, mReclaimedPrimaryPlanes);
     else
-        log.e("reclaimPlane: invalid plane type %d", plane.getType());
+        LOGE("reclaimPlane: invalid plane type %d", plane.getType());
 }
 
 void DisplayPlaneManager::disableReclaimedPlanes()
 {
     if (!initCheck()) {
-        log.e("disableReclaimedPlanes: plane manager is not initialized");
+        LOGE("disableReclaimedPlanes: plane manager is not initialized");
         return;
     }
 
-    log.v("DisplayPlaneManager::disableReclaimedPlanes: "
+    LOGV("DisplayPlaneManager::disableReclaimedPlanes: "
           "sprite %d, reclaimed 0x%x"
           "primary %d, reclaimed 0x%x"
           "overlay %d, reclaimed 0x%x",

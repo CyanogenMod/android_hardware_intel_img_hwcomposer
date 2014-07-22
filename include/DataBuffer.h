@@ -34,6 +34,7 @@ namespace android {
 namespace intel {
 
 typedef struct crop {
+    // align with android, using 'int' here
     int x;
     int y;
     int w;
@@ -63,8 +64,10 @@ public:
           mFormat(0),
           mWidth(0),
           mHeight(0),
-          mKey(0)
+          mKey(handle)
     {
+        memset(&mStride, 0, sizeof(stride_t));
+        memset(&mCrop, 0, sizeof(crop_t));
     }
     ~DataBuffer() {}
 public:
@@ -96,6 +99,11 @@ protected:
     uint32_t mHeight;
     uint64_t mKey;
 };
+
+static inline uint32_t align_to(uint32_t arg, uint32_t align)
+{
+    return ((arg + (align - 1)) & (~(align - 1)));
+}
 
 } // namespace intel
 } // namespace android

@@ -25,34 +25,27 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <Log.h>
+#include <cutils/log.h>
+
 #include <Hwcomposer.h>
 #include <BufferManager.h>
 #include <tangier/TngSpritePlane.h>
-#include <penwell/PnwPlaneCapabilities.h>
-#include <penwell/PnwPixelFormat.h>
+#include <common/PixelFormat.h>
 
 namespace android {
 namespace intel {
 
-static Log& log = Log::getInstance();
-
 TngSpritePlane::TngSpritePlane(int index, int disp)
-    : PnwSpritePlaneBase(index, disp)
+    : SpritePlaneBase(index, disp)
 {
-    log.v("TngSpritePlane");
+    LOGV("TngSpritePlane");
 
     memset(&mContext, 0, sizeof(mContext));
 }
 
 TngSpritePlane::~TngSpritePlane()
 {
-    log.v("~TngSpritePlane");
-}
-
-bool TngSpritePlane::initialize()
-{
-    return PnwSpritePlaneBase::initialize();
+    LOGV("~TngSpritePlane");
 }
 
 bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
@@ -64,7 +57,7 @@ bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
     uint32_t stride;
     uint32_t linoff;
 
-    log.v("TngSpritePlane::setDataBuffer");
+    LOGV("TngSpritePlane::setDataBuffer");
 
     // setup plane position
     dstX = mPosition.x;
@@ -75,8 +68,8 @@ bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
     checkPosition(dstX, dstY, dstW, dstH);
 
     // setup plane format
-    if (!PnwPixelFormat::convertFormat(mapper.getFormat(), spriteFormat, bpp)) {
-        log.e("TngSpritePlane::setDataBuffer: unsupported format 0x%x",
+    if (!PixelFormat::convertFormat(mapper.getFormat(), spriteFormat, bpp)) {
+        LOGE("TngSpritePlane::setDataBuffer: unsupported format 0x%x",
               mapper.getFormat());
         return false;
     }
@@ -89,7 +82,7 @@ bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
 
     // unlikely happen, but still we need make sure linoff is valid
     if (linoff > (stride * mapper.getHeight())) {
-        log.e("TngSpritePlane::setDataBuffer: invalid source crop");
+        LOGE("TngSpritePlane::setDataBuffer: invalid source crop");
         return false;
     }
 
@@ -108,7 +101,7 @@ bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
     if (mForceBottom)
         mContext.ctx.sp_ctx.cntr  |= 0x00000004;
 
-    log.v("TngSpritePlane::setDataBuffer: cntr = 0x%x, linoff = 0x%x, stride = 0x%x,"
+    LOGV("TngSpritePlane::setDataBuffer: cntr = 0x%x, linoff = 0x%x, stride = 0x%x,"
           "surf = 0x%x, pos = 0x%x, size = 0x%x\n",
           mContext.ctx.sp_ctx.cntr,
           mContext.ctx.sp_ctx.linoff,
@@ -121,7 +114,7 @@ bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
 
 void* TngSpritePlane::getContext() const
 {
-    log.v("TngSpritePlane::getContext");
+    LOGV("TngSpritePlane::getContext");
     return (void *)&mContext;
 }
 

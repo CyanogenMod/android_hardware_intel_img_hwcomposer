@@ -25,7 +25,8 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <Log.h>
+#include <cutils/log.h>
+
 #include <PlatfDisplayPlaneManager.h>
 #include <tangier/TngPrimaryPlane.h>
 #include <tangier/TngSpritePlane.h>
@@ -34,11 +35,10 @@
 namespace android {
 namespace intel {
 
-static Log& log = Log::getInstance();
 PlatfDisplayPlaneManager::PlatfDisplayPlaneManager()
     : DisplayPlaneManager()
 {
-    log.v("PlatfDisplayPlaneManager");
+    LOGV("PlatfDisplayPlaneManager");
 }
 
 PlatfDisplayPlaneManager::~PlatfDisplayPlaneManager()
@@ -48,7 +48,7 @@ PlatfDisplayPlaneManager::~PlatfDisplayPlaneManager()
 
 void PlatfDisplayPlaneManager::detect()
 {
-    log.v("PlatfDisplayPlaneManager::detect");
+    LOGV("PlatfDisplayPlaneManager::detect");
 
     mSpritePlaneCount = 0;
     mPrimaryPlaneCount = 3;
@@ -66,7 +66,7 @@ void PlatfDisplayPlaneManager::detect()
 DisplayPlane* PlatfDisplayPlaneManager::allocPlane(int index, int type)
 {
     DisplayPlane *plane = 0;
-    log.v("PlatfDisplayPlaneManager::allocPlane index %d, type %d", index, type);
+    LOGV("PlatfDisplayPlaneManager::allocPlane index %d, type %d", index, type);
 
     switch (type) {
     case DisplayPlane::PLANE_PRIMARY:
@@ -79,10 +79,10 @@ DisplayPlane* PlatfDisplayPlaneManager::allocPlane(int index, int type)
         plane = new TngOverlayPlane(index, 0);
         break;
     default:
-        log.e("PlatfDisplayPlaneManager::allocPlane: unsupported type %d", type);
+        LOGE("PlatfDisplayPlaneManager::allocPlane: unsupported type %d", type);
     }
-    if (plane && plane->initialize() == false) {
-        log.e("PlatfDisplayPlaneManager::allocPlane: failed to initialize plane.");
+    if (plane && !plane->initialize(DisplayPlane::defaultDataBufferCount)) {
+        LOGE("PlatfDisplayPlaneManager::allocPlane: failed to initialize plane.");
         delete plane;
         return NULL;
     }

@@ -29,8 +29,8 @@
 #define DISPLAYDEVICE_H_
 
 #include <DisplayPlane.h>
-#include <VsyncControl.h>
-#include <BlankControl.h>
+#include <IVsyncControl.h>
+#include <IBlankControl.h>
 #include <VsyncEventObserver.h>
 #include <HotplugEventObserver.h>
 #include <HwcLayerList.h>
@@ -48,7 +48,6 @@ public:
           mDpiX(dpix),
           mDpiY(dpiy)
     {}
-    ~DisplayConfig() {}
 public:
     int getRefreshRate() const { return mRefreshRate; }
     int getWidth() const { return mWidth; }
@@ -110,17 +109,19 @@ public:
     virtual int getType() const;
 
     //events
-    virtual void onHotplug(int connected);
+    virtual void onHotplug();
     virtual void onVsync(int64_t timestamp);
 
     virtual void dump(Dump& d);
 protected:
+    virtual void deinitialize();
+protected:
     void onGeometryChanged(hwc_display_contents_1_t *list);
     bool updateDisplayConfigs(struct Output *output);
 protected:
-    virtual VsyncControl* createVsyncControl() = 0;
-    virtual BlankControl* createBlankControl() = 0;
-    virtual HotplugControl* createHotplugControl() = 0;
+    virtual IVsyncControl* createVsyncControl() = 0;
+    virtual IBlankControl* createBlankControl() = 0;
+    virtual IHotplugControl* createHotplugControl() = 0;
 protected:
     uint32_t mType;
     const char *mName;
@@ -133,11 +134,11 @@ protected:
     int mActiveDisplayConfig;
 
     // vsync control
-    VsyncControl *mVsyncControl;
+    IVsyncControl *mVsyncControl;
     // blank control
-    BlankControl *mBlankControl;
+    IBlankControl *mBlankControl;
     // hotplug control
-    HotplugControl *mHotplugControl;
+    IHotplugControl *mHotplugControl;
 
     // hotplug event observer
     sp<HotplugEventObserver> mHotplugObserver;

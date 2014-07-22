@@ -62,7 +62,7 @@ public:
 
     bool update(hwc_layer_1_t *layer, int disp);
 private:
-    int mIndex;
+    const int mIndex;
     hwc_layer_1_t *mLayer;
     DisplayPlane *mPlane;
     uint32_t mType;
@@ -86,18 +86,16 @@ public:
     // dump interface
     virtual void dump(Dump& d);
 protected:
-    virtual void setZOrder(bool& primaryAvailable);
+    virtual void setZOrder();
     virtual void revisit();
-    virtual bool check(DisplayPlane& plane, hwc_layer_1_t& layer);
-    virtual void analyzeFrom(uint32_t index);
-    virtual void analyze();
+    virtual bool check(int planeType, hwc_layer_1_t& layer);
+    virtual void analyze(uint32_t index);
 private:
     hwc_display_contents_1_t *mList;
     HwcLayerVector mLayers;
     HwcLayerVector mOverlayLayers;
     HwcLayerVector mFBLayers;
     uint32_t mLayerCount;
-    bool mForcePrimaryFlip;
     ZOrderConfig mZOrderConfig;
     // need a display plane manager to get display plane info;
     DisplayPlaneManager& mDisplayPlaneManager;

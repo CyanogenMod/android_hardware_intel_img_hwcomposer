@@ -25,15 +25,14 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
+#include <cutils/log.h>
+
 #include <hardware/hwcomposer.h>
 
-#include <Log.h>
 #include <BufferManager.h>
 
 namespace android {
 namespace intel {
-
-static Log& log = Log::getInstance();
 
 BufferManager::BufferManager()
     : mGrallocModule(0),
@@ -45,7 +44,8 @@ BufferManager::BufferManager()
 
 BufferManager::~BufferManager()
 {
-
+    LOGV("~BufferManager");
+    deinitialize();
 }
 
 bool BufferManager::initCheck() const
@@ -55,19 +55,19 @@ bool BufferManager::initCheck() const
 
 bool BufferManager::initialize()
 {
-    log.v("BufferManager::initialize");
+    LOGV("BufferManager::initialize");
 
     // create buffer pool
-    mBufferPool = new BufferCache(BUFFER_POOL_SIZE);
+    mBufferPool = new BufferCache(defaultBufferPoolSize);
     if (!mBufferPool) {
-        log.e("failed to create gralloc buffer cache\n");
+        LOGE("failed to create gralloc buffer cache\n");
         return false;
     }
 
     // init gralloc module
     hw_module_t const* module;
     if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module)) {
-        log.e("failed to get gralloc module\n");
+        LOGE("failed to get gralloc module\n");
         goto gralloc_err;
     }
 
@@ -80,9 +80,34 @@ gralloc_err:
     return false;
 }
 
+void BufferManager::deinitialize()
+{
+    mInitialized = false;
+
+    if (!mBufferPool)
+        return;
+
+    // unmap & delete all cached buffer mappers
+    for (size_t i = 0; i < mBufferPool->getCacheSize(); i++) {
+        BufferMapper *mapper = mBufferPool->getMapper(i);
+        if (mapper) {
+            mapper->unmap();
+            // remove mapper from buffer pool
+            mBufferPool->removeMapper(mapper);
+            // delete this mapper
+            delete mapper;
+        }
+    }
+
+    // delete buffer pool
+    delete mBufferPool;
+    mBufferPool = 0;
+}
+
 void BufferManager::dump(Dump& d)
 {
-
+    //TODO: implement it later
+    return;
 }
 
 DataBuffer* BufferManager::get(uint32_t handle)
@@ -100,31 +125,37 @@ BufferMapper* BufferManager::map(DataBuffer& buffer)
     bool ret;
     BufferMapper* mapper;
 
-    log.v("BufferManager::map");
+    LOGV("BufferManager::map");
 
     //try to get mapper from pool
     mapper = mBufferPool->getMapper(buffer.getKey());
     if (!mapper) {
-        log.v("BufferManager::map: new buffer, will add it");
+        LOGV("BufferManager::map: new buffer, will add it");
         mapper = createBufferMapper(mGrallocModule, buffer);
         if (!mapper) {
-            log.e("BufferManager::map: failed to allocate mapper");
+            LOGE("BufferManager::map: failed to allocate mapper");
             goto mapper_err;
         }
         // map buffer
         ret = mapper->map();
         if (!ret) {
-            log.e("TngOverlayPlane::getGrallocMapper: failed to map");
+            LOGE("BufferManager::map: failed to map");
             goto map_err;
         }
 
         // add mapper
-        mBufferPool->addMapper(buffer.getKey(), mapper);
+        ret = mBufferPool->addMapper(buffer.getKey(), mapper);
+        if (!ret) {
+            LOGE("BufferManager::map: failed to add mapper");
+            goto add_err;
+        }
     }
 
     // increase mapper ref count
     mapper->incRef();
     return mapper;
+add_err:
+    mapper->unmap();
 map_err:
     delete mapper;
 mapper_err:
@@ -136,12 +167,12 @@ void BufferManager::unmap(BufferMapper& mapper)
     BufferMapper* cachedMapper;
     int refCount;
 
-    log.v("BufferManager::unmap");
+    LOGV("BufferManager::unmap");
 
     // try to get mapper from pool
     cachedMapper = mBufferPool->getMapper(mapper.getKey());
     if (!cachedMapper) {
-        log.e("BufferManager::unmap: invalid buffer mapper");
+        LOGE("BufferManager::unmap: invalid buffer mapper");
         return;
     }
 

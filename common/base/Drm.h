@@ -28,7 +28,8 @@
 #ifndef __DRM_H__
 #define __DRM_H__
 
-#include <utils/Singleton.h>
+#include <utils/Mutex.h>
+
 #include <psb_drm.h>
 
 extern "C" {
@@ -61,16 +62,13 @@ public:
     bool detect();
 
     bool writeReadIoctl(unsigned long cmd, void *data,
-		                  unsigned long size);
+                      unsigned long size);
     bool writeIoctl(unsigned long cmd, void *data,
                       unsigned long size);
 
     struct Output* getOutput(int output);
     bool outputConnected(int output);
     int getDrmFd() const;
-//protected:
-//    virtual const char* getPath() = 0;
-//    virtual int32_t getConnector(int outputIndex) = 0;
 private:
     int mDrmFd;
     struct Output mOutputs[OUTPUT_MAX];

@@ -25,48 +25,47 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <Log.h>
+#include <cutils/log.h>
+
 #include <HotplugEventObserver.h>
 #include <DisplayDevice.h>
 
 namespace android {
 namespace intel {
 
-static Log& log = Log::getInstance();
 HotplugEventObserver::HotplugEventObserver(DisplayDevice& disp,
-                                              HotplugControl& hotplug)
+                                              IHotplugControl& hotplug)
     : mDisplayDevice(disp),
       mHotplug(hotplug)
 {
-    log.d("HotplugEventObserver");
+    LOGD("HotplugEventObserver");
 }
 
 HotplugEventObserver::~HotplugEventObserver()
 {
-    log.d("~HotplugEventObserver");
+    LOGD("~HotplugEventObserver");
 }
 
 bool HotplugEventObserver::threadLoop()
 {
-    int connection = DisplayDevice::DEVICE_DISCONNECTED;
     int event;
 
     // wait for hotplug event
     if (mHotplug.wait(mDisplayDevice.getType(), event))
-        mDisplayDevice.onHotplug(connection);
+        mDisplayDevice.onHotplug();
 
     return true;
 }
 
 status_t HotplugEventObserver::readyToRun()
 {
-    log.d("HotplugEventObserver::readyToRun");
+    LOGD("HotplugEventObserver::readyToRun");
     return NO_ERROR;
 }
 
 void HotplugEventObserver::onFirstRef()
 {
-    log.d("HotplugEventObserver::onFirstRef");
+    LOGD("HotplugEventObserver::onFirstRef");
     run("HotplugEventObserver", PRIORITY_URGENT_DISPLAY);
 }
 
