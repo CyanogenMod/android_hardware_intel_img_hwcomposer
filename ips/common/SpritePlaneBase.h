@@ -45,6 +45,7 @@ public:
     virtual bool flip(void *ctx);
     virtual bool enable();
     virtual bool disable();
+    virtual bool isDisabled() = 0;
 
     // display device
     virtual void* getContext() const = 0;

@@ -339,8 +339,8 @@ void DisplayPlaneManager::disableReclaimedPlanes()
                 int bit = (1 << j);
                 if (mReclaimedPlanes[i] & bit) {
                     DisplayPlane* plane = mPlanes[i].itemAt(j);
-                    // disable plane first
-                    ret = plane->disable();
+                    // check plane state first
+                    ret = plane->isDisabled();
                     // reset plane
                     if (ret)
                         ret = plane->reset();
