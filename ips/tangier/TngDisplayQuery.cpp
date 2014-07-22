@@ -39,6 +39,7 @@ bool DisplayQuery::isVideoFormat(uint32_t format)
 {
     switch (format) {
     case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:
+    case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled:
         return true;
     default:
         return false;

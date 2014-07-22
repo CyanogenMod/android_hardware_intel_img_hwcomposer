@@ -55,6 +55,7 @@ bool PlaneCapabilities::isFormatSupported(int planeType, uint32_t format, uint32
             return trans ? false : true;
         case HAL_PIXEL_FORMAT_I420:
         case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:
+        case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled:
         case HAL_PIXEL_FORMAT_YUY2:
         case HAL_PIXEL_FORMAT_UYVY:
             return true;
