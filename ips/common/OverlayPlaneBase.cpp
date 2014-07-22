@@ -587,6 +587,13 @@ bool OverlayPlaneBase::bufferOffsetSetup(BufferMapper& mapper)
 
     // Y/U/V plane must be 4k bytes aligned.
     backBuffer->OSTART_0Y = gttOffsetInBytes;
+    if (mIsProtectedBuffer) {
+        // temporary workaround until vsync event logic is corrected.
+        // it seems that overlay buffer update and renderring can be overlapped,
+        // as such encryption bit may be cleared during HW rendering
+        backBuffer->OSTART_0Y |= 0x01;
+    }
+
     backBuffer->OSTART_0U = gttOffsetInBytes;
     backBuffer->OSTART_0V = gttOffsetInBytes;
 
