@@ -49,7 +49,7 @@ public:
     virtual ~MultiDisplayCallback();
 
     status_t setPhoneState(MDS_PHONE_STATE state);
-    status_t setVideoState(MDS_VIDEO_STATE state);
+    status_t setVideoState(int sessionNum, int sessionId, MDS_VIDEO_STATE state);
     status_t setDisplayTiming(MDS_DISPLAY_ID dpyId, MDSDisplayTiming *timing);
     status_t setDisplayState(MDS_DISPLAY_ID dpyId, MDS_DISPLAY_STATE state);
     status_t setScalingType(MDS_DISPLAY_ID dpyId, MDS_SCALING_TYPE type);
@@ -70,6 +70,7 @@ public:
     bool initialize();
     void deinitialize();
     status_t notifyHotPlug(int disp, int connected);
+    status_t getVideoSourceInfo(int sessionID, MDSVideoSourceInfo* info);
 
 private:
     class MultiDisplayObserverThread : public Thread {
