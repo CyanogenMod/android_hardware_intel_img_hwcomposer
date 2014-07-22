@@ -218,18 +218,9 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
         VTRACE("unmapped buffer, mapping...");
         mapper = mapBuffer(buffer);
         if (!mapper) {
-            // NOTE: this barely happens, but if it happened it means either the
-            // graphics memory is low, or buffer cache is full.
-            WTRACE("map failed, invalidate and try again...");
-            // invalidate buffer cache will release all old mappers and clear
-            // the buffer cache
-            invalidateBufferCache();
-            mapper = mapBuffer(buffer);
-            if (!mapper) {
-                ETRACE("failed to map buffer %#x", handle);
-                bm->unlockDataBuffer(buffer);
-                return false;
-            }
+            ETRACE("failed to map buffer %#x", handle);
+            bm->unlockDataBuffer(buffer);
+            return false;
         }
     } else {
         VTRACE("got mapper in saved data buffers");
@@ -253,9 +244,9 @@ BufferMapper* DisplayPlane::mapBuffer(DataBuffer *buffer)
 {
     BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
 
-    // don't map buffer if cache was full
+    // invalidate buffer cache  if cache is full
     if ((int)mDataBuffers.size() >= mCacheCapacity) {
-        return NULL;
+        invalidateBufferCache();
     }
 
     BufferMapper *mapper = bm->map(*buffer);

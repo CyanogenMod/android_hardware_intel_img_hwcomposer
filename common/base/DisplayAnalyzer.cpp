@@ -410,22 +410,19 @@ void DisplayAnalyzer::handleModeSwitch()
     if (!hwc->getDrm()->isConnected(IDisplayDevice::DEVICE_EXTERNAL))
         return;
 
+    int hz = 0;
     if (mVideoInstances == 1) {
         MDSVideoSourceInfo info;
         status_t err = hwc->getMultiDisplayObserver()->getVideoSourceInfo(
                 mVideoInstanceId, &info);
         if (err == 0) {
             ITRACE("setting refresh rate to %d", info.frameRate);
-            hwc->getVsyncManager()->enableDynamicVsync(false);
-            hwc->getDrm()->setRefreshRate(IDisplayDevice::DEVICE_EXTERNAL, info.frameRate);
-            hwc->getVsyncManager()->enableDynamicVsync(true);
+            hz = info.frameRate;
         }
-    } else {
-        ITRACE("setting refresh rate to preferred");
-        hwc->getVsyncManager()->enableDynamicVsync(false);
-        hwc->getDrm()->setRefreshRate(IDisplayDevice::DEVICE_EXTERNAL, 0);
-        hwc->getVsyncManager()->enableDynamicVsync(true);
     }
+    hwc->getVsyncManager()->enableDynamicVsync(false);
+    hwc->getDrm()->setRefreshRate(IDisplayDevice::DEVICE_EXTERNAL, hz);
+    hwc->getVsyncManager()->enableDynamicVsync(true);
 }
 
 void DisplayAnalyzer::handleVideoEvent(
@@ -444,15 +441,12 @@ void DisplayAnalyzer::handleVideoEvent(
     }
     mVideoPlaying = playing;
 
-    ITRACE("%d %d %d %d", instances, instanceID, preparing, playing);
     Hwcomposer *hwc = &Hwcomposer::getInstance();
-    if (hwc->getDrm()->isConnected(IDisplayDevice::DEVICE_EXTERNAL)) {
-        if ((playing && !preparing) || (!playing && !preparing)) {
-            mVideoStateChanged = true;
-            mVideoInstances = instances;
-            mVideoInstanceId = instanceID;
-        }
+    if ((playing && !preparing) || (!playing && !preparing)) {
+        mVideoStateChanged = true;
     }
+    mVideoInstances = instances;
+    mVideoInstanceId = instanceID;
 
     if (preparing) {
         Hwcomposer::getInstance().getPlaneManager()->disableOverlayPlanes();

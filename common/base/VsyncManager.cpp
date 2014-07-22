@@ -169,7 +169,7 @@ bool VsyncManager::enableVsync()
 {
     // TODO: extension for WiDi, no vsync control from WiDi yet.
     if (mVsyncSource != IDisplayDevice::DEVICE_COUNT) {
-        ETRACE("vsync has been enabled. %d", mVsyncSource);
+        ETRACE("vsync has been enabled on %d", mVsyncSource);
         return false;
     }
 
