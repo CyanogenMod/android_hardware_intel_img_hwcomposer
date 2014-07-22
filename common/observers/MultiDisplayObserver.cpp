@@ -169,8 +169,27 @@ void MultiDisplayObserver::deinitMDSClient()
     mMDSCallback = NULL;
 }
 
+bool MultiDisplayObserver::startInnerThread()
+{
+    if (mThread.get()) {
+        WTRACE("inner thread was already created.");
+        return true;
+    }
+
+    mThread = new MultiDisplayObserverThread(this);
+    if (mThread.get() == NULL) {
+        ETRACE("failed to create multi display observer thread");
+        return false;
+    }
+    mThreadLoopCount = 0;
+    // TODO: check return value
+    mThread->run("MultiDisplayObserverThread", PRIORITY_URGENT_DISPLAY);
+    return true;
+}
+
 bool MultiDisplayObserver::initialize()
 {
+    bool ret = true;
     Mutex::Autolock _l(mLock);
 
     if (mInitialized) {
@@ -185,21 +204,16 @@ bool MultiDisplayObserver::initialize()
     if (isMDSRunning()) {
         if (!initMDSClient()) {
             ETRACE("failed to initialize MDS client");
-            return false;
+            // FIXME: NOT a common case for system server crash.
+            // Start the inner thread if encounter exceptions.
+            ret = startInnerThread();
         }
     } else {
-        mThread = new MultiDisplayObserverThread(this);
-        if (mThread.get() == NULL) {
-            ETRACE("failed to create display observer thread");
-            return false;
-        }
-        mThreadLoopCount = 0;
-        // TODO: check return value
-        mThread->run("MultiDisplayObserverThread", PRIORITY_URGENT_DISPLAY);
+        ret = startInnerThread();
     }
 
     mInitialized = true;
-    return true;
+    return ret;
 }
 
 void MultiDisplayObserver::deinitialize()
