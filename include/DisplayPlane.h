@@ -84,6 +84,13 @@ public:
         DEFAULT_DATA_BUFFER_COUNT = 3,
     };
 
+protected:
+    enum {
+        PLANE_POSITION_CHANGED    = 0x00000001UL,
+        PLANE_BUFFER_CHANGED      = 0x00000002UL,
+        PLANE_SOURCE_CROP_CHANGED = 0x00000004UL,
+        PLANE_TRANSFORM_CHANGED   = 0x00000008UL,
+    };
 public:
     DisplayPlane(int index, int type, int disp);
     virtual ~DisplayPlane();
@@ -133,7 +140,7 @@ protected:
     bool mIsProtectedBuffer;
     int mTransform;
     uint32_t mCurrentDataBuffer;
-    uint32_t mNextDataBuffer;
+    uint32_t mUpdateMasks;
 };
 
 } // namespace intel

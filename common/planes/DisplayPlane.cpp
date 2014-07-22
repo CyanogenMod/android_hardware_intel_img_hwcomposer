@@ -41,7 +41,8 @@ DisplayPlane::DisplayPlane(int index, int type, int disp)
       mDataBuffers(),
       mIsProtectedBuffer(false),
       mTransform(PLANE_TRANSFORM_0),
-      mCurrentDataBuffer(0)
+      mCurrentDataBuffer(0),
+      mUpdateMasks(0)
 {
     CTRACE();
 
@@ -105,26 +106,48 @@ void DisplayPlane::setPosition(int x, int y, int w, int h)
 {
     ATRACE("Position = %d, %d - %dx%d", x, y, w, h);
 
+    // if position is unchanged, skip it
+    if (mPosition.x == x && mPosition.y == y &&
+        mPosition.w == w && mPosition.h == h) {
+        mUpdateMasks &= ~PLANE_POSITION_CHANGED;
+        return;
+    }
 
     mPosition.x = x;
     mPosition.y = y;
     mPosition.w = w;
     mPosition.h = h;
+
+    mUpdateMasks |= PLANE_POSITION_CHANGED;
 }
 
 void DisplayPlane::setSourceCrop(int x, int y, int w, int h)
 {
     ATRACE("Source crop = %d, %d - %dx%d", x, y, w, h);
 
+    // if source crop is unchanged, skip it
+    if (mSrcCrop.x == x && mSrcCrop.y == y &&
+        mSrcCrop.w == w && mSrcCrop.h == h) {
+        mUpdateMasks &= ~PLANE_SOURCE_CROP_CHANGED;
+        return;
+    }
+
     mSrcCrop.x = x;
     mSrcCrop.y = y;
     mSrcCrop.w = w;
     mSrcCrop.h = h;
+
+    mUpdateMasks |= PLANE_SOURCE_CROP_CHANGED;
 }
 
 void DisplayPlane::setTransform(int trans)
 {
     ATRACE("transform = %d", trans);
+
+    if (mTransform == trans) {
+        mUpdateMasks &= ~PLANE_TRANSFORM_CHANGED;
+        return;
+    }
 
     switch (trans) {
     case PLANE_TRANSFORM_90:
@@ -134,7 +157,10 @@ void DisplayPlane::setTransform(int trans)
         break;
     default:
         mTransform = PLANE_TRANSFORM_0;
+        break;
     }
+
+    mUpdateMasks |= PLANE_TRANSFORM_CHANGED;
 }
 
 bool DisplayPlane::setDataBuffer(uint32_t handle)
@@ -142,6 +168,7 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
     DataBuffer *buffer;
     BufferMapper *mapper;
     ssize_t index;
+    bool ret;
     BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
 
     RETURN_FALSE_IF_NOT_INIT();
@@ -152,10 +179,14 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
         return false;
     }
 
-    mNextDataBuffer = handle;
-
     // do not need to update the buffer handle
-    if (mCurrentDataBuffer == mNextDataBuffer)
+    if (mCurrentDataBuffer != handle)
+        mUpdateMasks |= PLANE_BUFFER_CHANGED;
+    else
+        mUpdateMasks &= ~PLANE_BUFFER_CHANGED;
+
+    // if no update then do Not need set data buffer
+    if (!mUpdateMasks)
         return true;
 
     if (!bm) {
@@ -197,7 +228,10 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
     // put buffer after getting mapper
     bm->put(*buffer);
 
-    return setDataBuffer(*mapper);
+    ret = setDataBuffer(*mapper);
+    if (ret)
+        mCurrentDataBuffer = handle;
+    return ret;
 add_err:
     bm->unmap(*mapper);
 mapper_err:
@@ -227,9 +261,8 @@ void DisplayPlane::invalidateBufferCache()
     // clear recorded data buffers
     mDataBuffers.clear();
 
-    // reset current & next buffer
+    // reset current buffer
     mCurrentDataBuffer = 0;
-    mNextDataBuffer = 0;
 }
 
 bool DisplayPlane::assignToDevice(int disp)
@@ -243,15 +276,13 @@ bool DisplayPlane::assignToDevice(int disp)
 
 bool DisplayPlane::flip()
 {
-    bool ret = true;
-
     RETURN_FALSE_IF_NOT_INIT();
 
-    // don't flip it if next buffer is the current buffer
-    if (mCurrentDataBuffer == mNextDataBuffer)
-        ret = false;
-    mCurrentDataBuffer = mNextDataBuffer;
-    return ret;
+    // don't flip if no updates
+    if (!mUpdateMasks)
+        return false;
+    else
+        return true;
 }
 
 } // namespace intel

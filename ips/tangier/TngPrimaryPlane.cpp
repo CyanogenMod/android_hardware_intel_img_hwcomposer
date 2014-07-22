@@ -50,11 +50,19 @@ TngPrimaryPlane::~TngPrimaryPlane()
 
 void TngPrimaryPlane::setFramebufferTarget(DataBuffer& buf)
 {
+    uint32_t handle;
     CTRACE();
 
-    mNextDataBuffer = buf.getHandle();
+    handle = buf.getHandle();
 
-    if (mCurrentDataBuffer == mNextDataBuffer)
+    // do not need to update the buffer handle
+    if (mCurrentDataBuffer != handle)
+        mUpdateMasks |= PLANE_BUFFER_CHANGED;
+    else
+        mUpdateMasks &= ~PLANE_BUFFER_CHANGED;
+
+    // if no update then do Not need set data buffer
+    if (!mUpdateMasks)
         return;
 
     // don't need to map data buffer for primary plane
@@ -73,6 +81,8 @@ void TngPrimaryPlane::setFramebufferTarget(DataBuffer& buf)
     mContext.ctx.prim_ctx.cntr |= 0x80000000;
     if (mForceBottom)
         mContext.ctx.prim_ctx.cntr |= 0x00000004;
+
+    mCurrentDataBuffer = handle;
 }
 
 bool TngPrimaryPlane::setDataBuffer(uint32_t handle)
