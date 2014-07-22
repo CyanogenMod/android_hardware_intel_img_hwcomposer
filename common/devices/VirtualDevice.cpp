@@ -319,16 +319,20 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer)
             int sessionID = -1;
             if (layer.flags & HWC_HAS_VIDEO_SESSION_ID)
                 sessionID = ((layer.flags & GRALLOC_USAGE_MDS_SESSION_ID_MASK) >> 24);
-            VTRACE("Session id = %d", sessionID);
-            MDSVideoSourceInfo videoInfo;
-            memset(&videoInfo, 0, sizeof(videoInfo));
-            mHwc.getMultiDisplayObserver()->getVideoSourceInfo(sessionID, &videoInfo);
-            VTRACE("width = %d, height = %d, fps = %d", videoInfo.displayW, videoInfo.displayH,
-                   videoInfo.frameRate);
-            if (videoInfo.frameRate > 0) {
-                inputFrameInfo.contentFrameRateN = videoInfo.frameRate;
+            if (sessionID >= 0) {
+                VTRACE("Session id = %d", sessionID);
+                VideoSourceInfo videoInfo;
+                memset(&videoInfo, 0, sizeof(videoInfo));
+                status_t ret = mHwc.getMultiDisplayObserver()->getVideoSourceInfo(sessionID, &videoInfo);
+                if (ret == NO_ERROR) {
+                    VTRACE("width = %d, height = %d, fps = %d", videoInfo.width, videoInfo.height,
+                            videoInfo.frameRate);
+                    if (videoInfo.frameRate > 0) {
+                        inputFrameInfo.contentFrameRateN = videoInfo.frameRate;
+                    }
+                    inputFrameInfo.contentFrameRateD = 1;
+                }
             }
-            inputFrameInfo.contentFrameRateD = 1;
 
             if (metadata.transform & HAL_TRANSFORM_ROT_90) {
                 inputFrameInfo.contentWidth = layer.sourceCrop.bottom - layer.sourceCrop.top;

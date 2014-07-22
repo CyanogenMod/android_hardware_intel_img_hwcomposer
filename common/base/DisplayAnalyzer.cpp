@@ -417,10 +417,10 @@ void DisplayAnalyzer::handleModeSwitch()
 
     int hz = 0;
     if (mVideoInstances == 1) {
-        MDSVideoSourceInfo info;
+        VideoSourceInfo info;
         status_t err = hwc->getMultiDisplayObserver()->getVideoSourceInfo(
                 mVideoInstanceId, &info);
-        if (err == 0) {
+        if (err == NO_ERROR) {
             ITRACE("setting refresh rate to %d", info.frameRate);
             hz = info.frameRate;
         }
