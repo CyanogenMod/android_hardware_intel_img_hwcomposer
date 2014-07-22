@@ -97,6 +97,7 @@ private:
 
 private:
     const int mIndex;
+    int mDevice;
     hwc_layer_1_t *mLayer;
     DisplayPlane *mPlane;
     uint32_t mFormat;

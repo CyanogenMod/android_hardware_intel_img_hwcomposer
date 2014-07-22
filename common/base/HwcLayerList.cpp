@@ -65,6 +65,7 @@ inline bool operator !=(const hwc_frect_t& x, const hwc_frect_t& y)
 
 HwcLayer::HwcLayer(int index, hwc_layer_1_t *layer)
     : mIndex(index),
+      mDevice(0),
       mLayer(layer),
       mPlane(0),
       mFormat(DataBuffer::FORMAT_INVALID),
@@ -107,6 +108,7 @@ bool HwcLayer::attachPlane(DisplayPlane* plane, int device)
         return false;
     }
 
+    mDevice = device;
     // update plane's z order
     // z order = layer's index + 1
     // reserve z order 0 for frame buffer target layer
@@ -125,6 +127,7 @@ DisplayPlane* HwcLayer::detachPlane()
         mPlane->setZOrder(-1);
     DisplayPlane *plane = mPlane;
     mPlane = 0;
+    mDevice = 0;
     return plane;
 }
 
@@ -262,7 +265,7 @@ bool HwcLayer::update(hwc_layer_1_t *layer, int dsp)
             // if buffer is not ready overlay will still be attached to this layer
             // but rendering needs to be skipped.
             WTRACE("ignoring result of data buffer setting for protected video");
-            mHandle = NULL;
+            mHandle = 0;
             return true;
         }
     }
@@ -280,6 +283,16 @@ void HwcLayer::postFlip()
     mUpdated = false;
     if (mPlane) {
         mPlane->postFlip();
+
+        // flip frame buffer target once in video extended mode to refresh screen,
+        // then mark type as LAYER_SKIPPED so it will not be flipped again.
+        // by doing this pipe for primary device can enter idle state
+        if (mDevice == IDisplayDevice::DEVICE_PRIMARY &&
+            mType == LAYER_FRAMEBUFFER_TARGET &&
+            Hwcomposer::getInstance().getDisplayAnalyzer()->isVideoExtModeActive()) {
+            ITRACE("Skipping frame buffer target...");
+            mType = LAYER_SKIPPED;
+        }
     }
 }
 
@@ -1180,9 +1193,11 @@ DisplayPlane* HwcLayerList::getPlane(uint32_t index) const
     }
 
     hwcLayer = mLayers.itemAt(index);
-    if (!hwcLayer || (hwcLayer->getType() == HwcLayer::LAYER_FB) ||
-        (hwcLayer->getType() ==  HwcLayer::LAYER_FORCE_FB))
+    if ((hwcLayer->getType() == HwcLayer::LAYER_FB) ||
+        (hwcLayer->getType() == HwcLayer::LAYER_FORCE_FB) ||
+        (hwcLayer->getType() == HwcLayer::LAYER_SKIPPED)) {
         return 0;
+    }
 
     if (hwcLayer->getHandle() == 0) {
         WTRACE("plane is attached with invalid handle");
