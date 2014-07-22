@@ -34,6 +34,8 @@
 #include <display/MultiDisplayType.h>
 #include <display/MultiDisplayClient.h>
 #include <SimpleThread.h>
+#else
+#include <utils/Errors.h>
 #endif
 
 namespace android {
