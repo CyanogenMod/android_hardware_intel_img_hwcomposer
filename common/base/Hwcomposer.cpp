@@ -273,11 +273,13 @@ void Hwcomposer::hotplug(int disp, bool connected)
     // unnecessary audio switch, real connection status should be sent to MDS
     mMultiDisplayObserver->notifyHotPlug(mDrm->isConnected(disp));
 
+#ifndef INTEL_SUPPORT_HDMI_PRIMARY
     if (mProcs && mProcs->hotplug) {
         DTRACE("report hotplug on disp %d, connected %d", disp, connected);
         mProcs->hotplug(const_cast<hwc_procs_t*>(mProcs), disp, connected);
         DTRACE("hotplug callback processed and returned!");
     }
+#endif
 
     mDisplayAnalyzer->postHotplugEvent(connected);
 }

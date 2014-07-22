@@ -56,8 +56,10 @@ MultiDisplayCallback::~MultiDisplayCallback()
 
 status_t MultiDisplayCallback::blankSecondaryDisplay(bool blank)
 {
+#ifndef INTEL_SUPPORT_HDMI_PRIMARY
     ITRACE("blank: %d", blank);
     mDispObserver->blankSecondaryDisplay(blank);
+#endif
     return NO_ERROR;
 }
 

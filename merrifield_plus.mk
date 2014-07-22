@@ -38,6 +38,7 @@ LOCAL_SRC_FILES := \
     common/buffers/BufferCache.cpp \
     common/buffers/GraphicBuffer.cpp \
     common/buffers/BufferManager.cpp \
+    common/devices/DummyDevice.cpp \
     common/devices/PhysicalDevice.cpp \
     common/devices/PrimaryDevice.cpp \
     common/devices/ExternalDevice.cpp \
@@ -108,6 +109,10 @@ endif
 ifeq ($(TARGET_HAS_MULTIPLE_DISPLAY),true)
     LOCAL_SHARED_LIBRARIES += libmultidisplay libbinder
     LOCAL_CFLAGS += -DTARGET_HAS_MULTIPLE_DISPLAY
+endif
+
+ifeq ($(TARGET_SUPPORT_HDMI_PRIMARY),true)
+   LOCAL_CFLAGS += -DINTEL_SUPPORT_HDMI_PRIMARY
 endif
 
 include $(BUILD_SHARED_LIBRARY)

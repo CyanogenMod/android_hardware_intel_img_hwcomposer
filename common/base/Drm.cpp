@@ -192,9 +192,12 @@ bool Drm::detect(int device)
                     ETRACE("drmModeGetCrtc failed");
                     continue;
                 }
-                if (crtc->buffer_id == 0) {
-                    output->crtc = crtc;
-                    break;
+                // check if legal crtc to the encoder
+                if (output->encoder->possible_crtcs & (1<<j)) {
+                    if (crtc->buffer_id == 0) {
+                        output->crtc = crtc;
+                        break;
+                    }
                 }
                 drmModeFreeCrtc(crtc);
             }

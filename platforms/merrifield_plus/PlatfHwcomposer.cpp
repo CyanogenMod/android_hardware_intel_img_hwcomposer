@@ -30,6 +30,7 @@
 #include <ips/common/PowerManager.h>
 #include <ips/anniedale/AnnPlaneManager.h>
 #include <platforms/merrifield_plus/PlatfBufferManager.h>
+#include <DummyDevice.h>
 #include <IDisplayDevice.h>
 #include <platforms/merrifield_plus/PlatfPrimaryDevice.h>
 #include <platforms/merrifield_plus/PlatfExternalDevice.h>
@@ -73,9 +74,19 @@ IDisplayDevice* PlatfHwcomposer::createDisplayDevice(int disp,
 
     switch (disp) {
         case IDisplayDevice::DEVICE_PRIMARY:
-            return new PlatfPrimaryDevice(*this, dpm);
-        case IDisplayDevice::DEVICE_EXTERNAL:
+#ifdef INTEL_SUPPORT_HDMI_PRIMARY
             return new PlatfExternalDevice(*this, dpm);
+#else
+            return new PlatfPrimaryDevice(*this, dpm);
+#endif
+
+        case IDisplayDevice::DEVICE_EXTERNAL:
+#ifdef INTEL_SUPPORT_HDMI_PRIMARY
+            return new DummyDevice(*this);
+#else
+            return new PlatfExternalDevice(*this, dpm);
+#endif
+
 #ifdef INTEL_WIDI_MERRIFIELD
         case IDisplayDevice::DEVICE_VIRTUAL:
             return new PlatfVirtualDevice(*this, dpm);
