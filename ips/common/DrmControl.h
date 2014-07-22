@@ -25,48 +25,26 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef EXTERNAL_DEVICE_H
-#define EXTERNAL_DEVICE_H
+#ifndef DRM_CONTROL_H
+#define DRM_CONTROL_H
 
-#include <HotplugEventObserver.h>
-#include <PhysicalDevice.h>
-#include <IHdcpControl.h>
 
 namespace android {
 namespace intel {
 
-
-class ExternalDevice : public PhysicalDevice {
+class DrmControl  {
+public:
+    DrmControl();
+    ~DrmControl();
 
 public:
-    ExternalDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm);
-    virtual ~ExternalDevice();
-public:
-    virtual bool initialize();
-
-protected:
-    virtual void onHotplug();
-    virtual void deinitialize();
+    int getVideoExtCommand();
 
 private:
-    static void HdcpLinkStatusListener(bool success, void *userData);
-    void HdcpLinkStatusListener(bool success);
-
-protected:
-    virtual IHotplugControl* createHotplugControl() = 0;
-    virtual IHdcpControl* createHdcpControl() = 0;
-
-protected:
-    IHotplugControl *mHotplugControl;
-    IHdcpControl *mHdcpControl;
-    sp<HotplugEventObserver> mHotplugObserver;
-    friend class HotplugEventObserver;
-
-private:
-    bool mHotplugEventPending;
+    int mVideoExtCommand;
 };
 
-}
-}
+} // namespace intel
+} // namespace android
 
-#endif /* EXTERNAL_DEVICE_H */
+#endif /* DRM_CONTROL_H */

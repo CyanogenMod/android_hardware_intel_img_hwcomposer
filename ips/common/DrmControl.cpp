@@ -25,48 +25,46 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#ifndef EXTERNAL_DEVICE_H
-#define EXTERNAL_DEVICE_H
 
-#include <HotplugEventObserver.h>
-#include <PhysicalDevice.h>
-#include <IHdcpControl.h>
+#include <HwcTrace.h>
+#include <psb_drm.h>
+#include <Hwcomposer.h>
+#include <common/DrmControl.h>
 
 namespace android {
 namespace intel {
 
-
-class ExternalDevice : public PhysicalDevice {
-
-public:
-    ExternalDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm);
-    virtual ~ExternalDevice();
-public:
-    virtual bool initialize();
-
-protected:
-    virtual void onHotplug();
-    virtual void deinitialize();
-
-private:
-    static void HdcpLinkStatusListener(bool success, void *userData);
-    void HdcpLinkStatusListener(bool success);
-
-protected:
-    virtual IHotplugControl* createHotplugControl() = 0;
-    virtual IHdcpControl* createHdcpControl() = 0;
-
-protected:
-    IHotplugControl *mHotplugControl;
-    IHdcpControl *mHdcpControl;
-    sp<HotplugEventObserver> mHotplugObserver;
-    friend class HotplugEventObserver;
-
-private:
-    bool mHotplugEventPending;
-};
-
-}
+DrmControl::DrmControl()
+    : mVideoExtCommand(0)
+{
 }
 
-#endif /* EXTERNAL_DEVICE_H */
+DrmControl::~DrmControl()
+{
+}
+
+int DrmControl::getVideoExtCommand()
+{
+    if (mVideoExtCommand) {
+        return mVideoExtCommand;
+    }
+
+    int fd = Hwcomposer::getInstance().getDrm()->getDrmFd();
+
+    union drm_psb_extension_arg video_getparam_arg;
+    strncpy(video_getparam_arg.extension,
+            "lnc_video_getparam", sizeof(video_getparam_arg.extension));
+    int ret = drmCommandWriteRead(fd, DRM_PSB_EXTENSION,
+            &video_getparam_arg, sizeof(video_getparam_arg));
+    if (ret != 0) {
+        VTRACE("failed to get video extension command");
+        return 0;
+    }
+
+    mVideoExtCommand = video_getparam_arg.rep.driver_ioctl_offset;
+
+    return mVideoExtCommand;
+}
+
+} // namespace intel
+} // namespace android

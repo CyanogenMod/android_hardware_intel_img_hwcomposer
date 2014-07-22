@@ -45,6 +45,8 @@ LOCAL_SRC_FILES := \
 LOCAL_SRC_FILES += \
     ../../ips/common/BlankControl.cpp \
     ../../ips/common/HotplugControl.cpp \
+    ../../ips/common/HdcpControl.cpp \
+    ../../ips/common/DrmControl.cpp \
     ../../ips/common/VsyncControl.cpp \
     ../../ips/common/PrepareListener.cpp \
     ../../ips/common/OverlayPlaneBase.cpp \
