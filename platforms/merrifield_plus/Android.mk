@@ -55,7 +55,6 @@ LOCAL_SRC_FILES += \
     ../../ips/common/OverlayPlaneBase.cpp \
     ../../ips/common/SpritePlaneBase.cpp \
     ../../ips/common/PixelFormat.cpp \
-    ../../ips/common/PlaneCapabilities.cpp \
     ../../ips/common/GrallocBufferBase.cpp \
     ../../ips/common/GrallocBufferMapperBase.cpp \
     ../../ips/common/TTMBufferMapper.cpp \
@@ -72,7 +71,8 @@ LOCAL_SRC_FILES += \
     ../../ips/anniedale/AnnDisplayPlane.cpp \
     ../../ips/anniedale/AnnRGBPlane.cpp \
     ../../ips/anniedale/AnnDisplayQuery.cpp \
-    ../../ips/anniedale/AnnDisplayContext.cpp
+    ../../ips/anniedale/AnnDisplayContext.cpp \
+    ../../ips/anniedale/PlaneCapabilities.cpp
 
 
 LOCAL_SRC_FILES += \
