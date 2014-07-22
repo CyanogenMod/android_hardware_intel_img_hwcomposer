@@ -187,7 +187,7 @@ int psbWsbmAllocateTTMBuffer(uint32_t size, uint32_t align, void ** buf)
         return ret;
     }
 
-    wsbmBOReference(wsbmBuf);
+    /* wsbmBOReference(wsbmBuf); */ /* no need to add reference */
 
     *buf = wsbmBuf;
 

@@ -21,7 +21,8 @@ include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_SHARED_LIBRARIES := liblog libcutils libdrm \
-                          libwsbm libutils libhardware
+                          libwsbm libutils libhardware \
+                          libva libva-tpi libva-android
 LOCAL_SRC_FILES := \
     ../../common/base/Drm.cpp \
     ../../common/base/HwcLayerList.cpp \
@@ -60,7 +61,8 @@ LOCAL_SRC_FILES += \
     ../../ips/common/DrmConfig.cpp \
     ../../ips/common/VideoPayloadManager.cpp \
     ../../ips/common/Wsbm.cpp \
-    ../../ips/common/WsbmWrapper.c
+    ../../ips/common/WsbmWrapper.c \
+    ../../ips/common/RotationBufferProvider.cpp
 
 LOCAL_SRC_FILES += \
     ../../ips/tangier/TngGrallocBuffer.cpp \
@@ -93,7 +95,8 @@ LOCAL_C_INCLUDES := $(addprefix $(LOCAL_PATH)/../../../, $(SGX_INCLUDES)) \
     $(TARGET_OUT_HEADERS)/libdrm \
     $(TARGET_OUT_HEADERS)/libdrm/shared-core \
     $(TARGET_OUT_HEADERS)/libwsbm/wsbm \
-    $(TARGET_OUT_HEADERS)/libttm
+    $(TARGET_OUT_HEADERS)/libttm \
+    $(TARGET_OUT_HEADERS)/libva
 
 LOCAL_C_INCLUDES += $(LOCAL_PATH) \
     $(LOCAL_PATH)/../../include \

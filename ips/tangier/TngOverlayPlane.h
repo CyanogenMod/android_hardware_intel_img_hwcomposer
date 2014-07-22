@@ -34,6 +34,7 @@
 #include <BufferMapper.h>
 #include <common/Wsbm.h>
 #include <common/OverlayPlaneBase.h>
+#include <common/RotationBufferProvider.h>
 
 #include <displayclass_interface.h>
 
@@ -49,12 +50,16 @@ public:
     virtual bool flip(void *ctx);
     virtual void* getContext() const;
 
+    virtual bool initialize(uint32_t bufferCount);
+    virtual void deinitialize();
+    virtual bool rotatedBufferReady(BufferMapper& mapper);
 protected:
     virtual bool setDataBuffer(BufferMapper& mapper);
     virtual bool flush(uint32_t flags);
 
 protected:
     struct intel_dc_plane_ctx mContext;
+    RotationBufferProvider *mRotationBufProvider;
 };
 
 } // namespace intel
