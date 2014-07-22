@@ -381,21 +381,12 @@ struct VirtualDevice::DisableVspTask : public VirtualDevice::Task {
 
 struct VirtualDevice::BlitTask : public VirtualDevice::RenderTask {
     virtual void run(VirtualDevice& vd) {
-        const IMG_native_handle_t* nativeSrcHandle = reinterpret_cast<const IMG_native_handle_t*>(srcHandle);
-        const IMG_native_handle_t* nativeDestHandle = reinterpret_cast<const IMG_native_handle_t*>(destHandle);
-        if ((nativeSrcHandle->iFormat == HAL_PIXEL_FORMAT_RGBA_8888 &&
-            nativeDestHandle->iFormat == HAL_PIXEL_FORMAT_BGRA_8888) ||
-            (nativeSrcHandle->iFormat == HAL_PIXEL_FORMAT_BGRA_8888 &&
-            nativeDestHandle->iFormat == HAL_PIXEL_FORMAT_RGBA_8888)) {
-            vd.colorSwap(srcHandle, destHandle, nativeSrcHandle->iWidth*nativeSrcHandle->iHeight);
-        } else {
-            BufferManager* mgr = vd.mHwc.getBufferManager();
-            if (!(mgr->convertRGBToNV12((uint32_t)srcHandle, (uint32_t)destHandle, cropInfo, 0))) {
-                ETRACE("color space conversion from RGB to NV12 failed");
-            }
-            else
-                successful = true;
+        BufferManager* mgr = vd.mHwc.getBufferManager();
+        if (!(mgr->convertRGBToNV12((uint32_t)srcHandle, (uint32_t)destHandle, cropInfo, 0))) {
+            ETRACE("color space conversion from RGB to NV12 failed");
         }
+        else
+            successful = true;
         if (syncTimelineFd != -1) {
             int err = sw_sync_timeline_inc(syncTimelineFd, 1);
             if (err < 0)
@@ -969,6 +960,37 @@ bool VirtualDevice::queueColorConvert(hwc_display_contents_1_t *display)
         return false;
     }
 
+    {
+        const IMG_native_handle_t* nativeSrcHandle = reinterpret_cast<const IMG_native_handle_t*>(layer.handle);
+        const IMG_native_handle_t* nativeDestHandle = reinterpret_cast<const IMG_native_handle_t*>(display->outbuf);
+
+        if ((nativeSrcHandle->iFormat == HAL_PIXEL_FORMAT_RGBA_8888 &&
+            nativeDestHandle->iFormat == HAL_PIXEL_FORMAT_BGRA_8888) ||
+            (nativeSrcHandle->iFormat == HAL_PIXEL_FORMAT_BGRA_8888 &&
+            nativeDestHandle->iFormat == HAL_PIXEL_FORMAT_RGBA_8888))
+        {
+            if (layer.acquireFenceFd != -1) {
+                sync_wait(layer.acquireFenceFd, 100);
+                close(layer.acquireFenceFd);
+                layer.acquireFenceFd = -1;
+            }
+            if (display->outbufAcquireFenceFd != -1) {
+                sync_wait(display->outbufAcquireFenceFd, 100);
+                close(display->outbufAcquireFenceFd);
+                display->outbufAcquireFenceFd = -1;
+            }
+            display->retireFenceFd = -1;
+
+            // synchronous in this case
+            colorSwap(layer.handle, display->outbuf, ((nativeSrcHandle->iWidth+31)&~31)*nativeSrcHandle->iHeight);
+            // Workaround: Don't keep cached buffers. If the VirtualDisplaySurface gets destroyed,
+            //             these would be unmapped on the next frame, after the buffers are destroyed,
+            //             which is causing heap corruption, probably due to a double-free somewhere.
+            mMappedBufferCache.clear();
+            return true;
+        }
+    }
+
     sp<BlitTask> blitTask = new BlitTask();
     blitTask->cropInfo.x = 0;
     blitTask->cropInfo.y = 0;
@@ -1320,7 +1342,6 @@ void VirtualDevice::colorSwap(buffer_handle_t src, buffer_handle_t dest, uint32_
     sp<CachedBuffer> destCachedBuffer;
 
     {
-        Mutex::Autolock _l(mCscLock);
         srcCachedBuffer = getMappedBuffer((uint32_t)src);
         if (srcCachedBuffer == NULL || srcCachedBuffer->mapper == NULL)
             return;
