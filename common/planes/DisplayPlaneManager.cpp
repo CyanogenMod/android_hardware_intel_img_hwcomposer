@@ -176,7 +176,7 @@ DisplayPlane* DisplayPlaneManager::getPlane(int type, int dsp)
         return 0;
     }
 
-    if (type < 0 || type > DisplayPlane::PLANE_MAX) {
+    if (type < 0 || type >= DisplayPlane::PLANE_MAX) {
         ETRACE("Invalid plane type %d", type);
         return 0;
     }
@@ -216,7 +216,7 @@ void DisplayPlaneManager::putPlane(DisplayPlane& plane)
     index = plane.getIndex();
     type = plane.getType();
 
-    if (type < 0 || type > DisplayPlane::PLANE_MAX) {
+    if (type < 0 || type >= DisplayPlane::PLANE_MAX) {
         ETRACE("Invalid plane type %d", type);
         return;
     }
@@ -235,7 +235,7 @@ bool DisplayPlaneManager::hasFreePlanes(int type, int dsp)
         return 0;
     }
 
-    if (type < 0 || type > DisplayPlane::PLANE_MAX) {
+    if (type < 0 || type >= DisplayPlane::PLANE_MAX) {
         ETRACE("Invalid plane type %d", type);
         return 0;
     }
@@ -288,7 +288,7 @@ void DisplayPlaneManager::reclaimPlane(DisplayPlane& plane)
 
     ATRACE("reclaimPlane = %d, type = %d", index, plane.getType());
 
-    if (type < 0 || type > DisplayPlane::PLANE_MAX) {
+    if (type < 0 || type >= DisplayPlane::PLANE_MAX) {
         ETRACE("Invalid plane type %d", type);
         return;
     }

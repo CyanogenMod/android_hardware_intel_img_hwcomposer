@@ -107,6 +107,11 @@ bool Drm::detect(int device)
 
     // find connector for the given device
     for (int i = 0; i < resources->count_connectors; i++) {
+        if(!resources->connectors[i]) {
+            ETRACE("fail to get drm resources connectors, error: %s", strerror(errno));
+            continue;
+        }
+
         connector = drmModeGetConnector(mDrmFd, resources->connectors[i]);
         if (!connector) {
             ETRACE("drmModeGetConnector failed");
@@ -141,6 +146,11 @@ bool Drm::detect(int device)
             ITRACE("getting encoder for device %d", device);
             drmModeEncoderPtr encoder;
             for (int j = 0; j < resources->count_encoders; j++) {
+                if(!resources->encoders[j]) {
+                    ETRACE("fail to get drm resources encoders, error: %s", strerror(errno));
+                    continue;
+                }
+
                 encoder = drmModeGetEncoder(mDrmFd, resources->encoders[i]);
                 if (!encoder) {
                     ETRACE("drmModeGetEncoder failed");
@@ -172,6 +182,11 @@ bool Drm::detect(int device)
             ITRACE("getting crtc for device %d", device);
             drmModeCrtcPtr crtc;
             for (int j = 0; j < resources->count_crtcs; j++) {
+                if(!resources->crtcs[j]) {
+                    ETRACE("fail to get drm resources crtcs, error: %s", strerror(errno));
+                    continue;
+                }
+
                 crtc = drmModeGetCrtc(mDrmFd, resources->crtcs[j]);
                 if (!crtc) {
                     ETRACE("drmModeGetCrtc failed");
