@@ -35,7 +35,7 @@
 #include <binder/IServiceManager.h>
 #include <binder/ProcessState.h>
 
-#define NUM_CSC_BUFFERS 4
+#define NUM_CSC_BUFFERS 6
 
 namespace android {
 namespace intel {
@@ -136,8 +136,9 @@ status_t VirtualDevice::start(sp<IFrameTypeChangeListener> typeChangeListener)
         Hwcomposer::getInstance().getDisplayAnalyzer()->isVideoExtendedModeEnabled();
     if (mNextConfig.extendedModeEnabled)
         Hwcomposer::getInstance().getMultiDisplayObserver()->notifyWidiConnectionStatus(true);
-    mNextConfig.forceNotify = true;
     mVideoFramerate = 0;
+    mNextConfig.forceNotifyFrameType = true;
+    mNextConfig.forceNotifyBufferInfo = true;
     return NO_ERROR;
 }
 
@@ -152,7 +153,8 @@ status_t VirtualDevice::stop(bool isConnected)
     mNextConfig.policy.ydpi = 96;
     mNextConfig.policy.refresh = 60;
     mNextConfig.extendedModeEnabled = false;
-    mNextConfig.forceNotify = false;
+    mNextConfig.forceNotifyFrameType = false;
+    mNextConfig.forceNotifyBufferInfo = false;
     {
         Mutex::Autolock _l(mCscLock);
         mCscWidth = 0;
@@ -203,7 +205,6 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
     {
         Mutex::Autolock _l(mConfigLock);
         mCurrentConfig = mNextConfig;
-        mNextConfig.forceNotify = false;
     }
 
     if (mCurrentConfig.typeChangeListener == NULL) {
@@ -246,12 +247,14 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
     }
 
     bool isProtected = false;
+    bool isVideoLayer = false;
     if (mCurrentConfig.extendedModeEnabled) {
         for (size_t i = 0; i < display->numHwLayers-1; i++) {
             hwc_layer_1_t& layer = display->hwLayers[i];
             if (analyzer->isVideoLayer(layer)) {
                 isProtected = analyzer->isProtectedLayer(layer);
-                if (!analyzer->isPresentationLayer(layer) || isProtected) {
+                isVideoLayer = analyzer->isPresentationLayer(layer);
+                if (!isVideoLayer || isProtected) {
                     VTRACE("Layer (%d) is extended video layer", mLayerToSend);
                     mLayerToSend = i;
                     break;
@@ -262,32 +265,15 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
 
     hwc_layer_1_t& streamingLayer = display->hwLayers[mLayerToSend];
 
-    // if we're streaming the target framebuffer, just notify widi stack and return
     if (streamingLayer.compositionType == HWC_FRAMEBUFFER_TARGET) {
-        FrameInfo frameInfo;
-        memset(&frameInfo, 0, sizeof(frameInfo));
-        frameInfo.frameType = HWC_FRAMETYPE_NOTHING;
-        frameInfo.contentWidth = streamingLayer.sourceCropf.right - streamingLayer.sourceCropf.left;
-        frameInfo.contentHeight = streamingLayer.sourceCropf.bottom - streamingLayer.sourceCropf.top;
-        frameInfo.contentFrameRateN = 60;
-        frameInfo.contentFrameRateD = 1;
-
         VTRACE("Clone mode");
-        if (mCurrentConfig.forceNotify || memcmp(&frameInfo, &mLastInputFrameInfo, sizeof(frameInfo)) != 0) {
-            // something changed, notify type change listener
-            mCurrentConfig.typeChangeListener->frameTypeChanged(frameInfo);
-            mCurrentConfig.typeChangeListener->bufferInfoChanged(frameInfo);
-
-            mExtLastTimestamp = 0;
-            mExtLastKhandle = 0;
-
-            mMappedBufferCache.clear();
-            mLastInputFrameInfo = frameInfo;
-            mLastOutputFrameInfo = frameInfo;
-        }
-
         // reset video framerate. re-inititialize when extended mode enabled
         mVideoFramerate = 0;
+        return true;
+    }
+
+    if((analyzer->getVideoInstances() <= 0) && isVideoLayer) {
+        VTRACE("No video Instance found, in transition");
         return true;
     }
 
@@ -298,6 +284,7 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
         layer.flags |= HWC_HINT_DISABLE_ANIMATION;
     }
 
+    VTRACE("Extended mode");
     sendToWidi(streamingLayer, false, isProtected);
     return true;
 }
@@ -305,6 +292,26 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
 bool VirtualDevice::commit(hwc_display_contents_1_t *display, IDisplayContext *context)
 {
     RETURN_FALSE_IF_NOT_INIT();
+
+    if (!display)
+        return true;
+
+    DisplayAnalyzer *analyzer = mHwc.getDisplayAnalyzer();
+
+    if (mCurrentConfig.extendedModeEnabled &&
+            !analyzer->isOverlayAllowed() && (analyzer->getVideoInstances() <= 1)) {
+        if (mCurrentConfig.typeChangeListener->shutdownVideo() != OK) {
+            ITRACE("Waiting for prior encoder session to shut down...");
+        }
+        return true;
+    }
+
+    // This is for clone mode
+    hwc_layer_1_t& streamingLayer = display->hwLayers[mLayerToSend];
+    if (streamingLayer.compositionType == HWC_FRAMEBUFFER_TARGET) {
+        sendToWidi(streamingLayer, 0, 0);
+    }
+
     return true;
 }
 
@@ -325,9 +332,12 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool rotating, bool i
     inputFrameInfo.frameType = HWC_FRAMETYPE_FRAME_BUFFER;
     inputFrameInfo.contentWidth = layer.sourceCropf.right - layer.sourceCropf.left;
     inputFrameInfo.contentHeight = layer.sourceCropf.bottom - layer.sourceCropf.top;
-    inputFrameInfo.contentFrameRateN = 30;
+    inputFrameInfo.contentFrameRateN = 60;
     inputFrameInfo.contentFrameRateD = 1;
     inputFrameInfo.isProtected = isProtected;
+
+    if ((inputFrameInfo.contentWidth < 176) || (inputFrameInfo.contentHeight < 176))
+        return;
 
     // Do not use the crop size if we are rotating. Use the orig
     // frame size we saved off previously instead.
@@ -349,6 +359,9 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool rotating, bool i
             ETRACE("Failed to map display buffer");
             return;
         }
+        // for video mode let 30 fps be the default value.
+        inputFrameInfo.contentFrameRateN = 30;
+        inputFrameInfo.contentFrameRateD = 1;
 
         IVideoPayloadManager::MetaData metadata;
         if (mPayloadManager->getMetaData(cachedBuffer->mapper, &metadata)) {
@@ -455,6 +468,14 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool rotating, bool i
         uint32_t grallocHandle = 0;
         {
             Mutex::Autolock _l(mCscLock);
+            // Blit only support 1:1 so until we get upscale/downsacle ,source & destination will be of same size.
+            if ((layer.compositionType == HWC_FRAMEBUFFER_TARGET) &&
+                (mCurrentConfig.policy.scaledWidth != inputFrameInfo.contentWidth) &&
+                (mCurrentConfig.policy.scaledHeight != inputFrameInfo.contentHeight)) {
+                mCurrentConfig.policy.scaledWidth = inputFrameInfo.contentWidth;
+                mCurrentConfig.policy.scaledHeight = inputFrameInfo.contentHeight;
+            }
+
             if (mCscWidth != mCurrentConfig.policy.scaledWidth || mCscHeight != mCurrentConfig.policy.scaledHeight) {
                 ITRACE("CSC buffers changing from %dx%d to %dx%d",
                       mCscWidth, mCscHeight, mCurrentConfig.policy.scaledWidth, mCurrentConfig.policy.scaledHeight);
@@ -513,9 +534,10 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool rotating, bool i
         mgr->unlockDataBuffer(dataBuf);
     }
 
-    if (mCurrentConfig.forceNotify ||
+    if (mCurrentConfig.forceNotifyFrameType ||
         memcmp(&inputFrameInfo, &mLastInputFrameInfo, sizeof(inputFrameInfo)) != 0) {
         // something changed, notify type change listener
+        mNextConfig.forceNotifyFrameType = false;
         mCurrentConfig.typeChangeListener->frameTypeChanged(inputFrameInfo);
         ITRACE("Notify frameTypeChanged: %dx%d in %dx%d @ %d fps",
             inputFrameInfo.contentWidth, inputFrameInfo.contentHeight,
@@ -527,8 +549,10 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool rotating, bool i
     if (mCurrentConfig.policy.scaledWidth == 0 || mCurrentConfig.policy.scaledHeight == 0)
         return;
 
-    if (mCurrentConfig.forceNotify ||
+    if (mCurrentConfig.forceNotifyBufferInfo ||
         memcmp(&outputFrameInfo, &mLastOutputFrameInfo, sizeof(outputFrameInfo)) != 0) {
+
+        mNextConfig.forceNotifyBufferInfo = false;
         mCurrentConfig.typeChangeListener->bufferInfoChanged(outputFrameInfo);
         ITRACE("Notify bufferInfoChanged: %dx%d in %dx%d @ %d fps",
             outputFrameInfo.contentWidth, outputFrameInfo.contentHeight,
@@ -658,7 +682,8 @@ bool VirtualDevice::initialize()
     mNextConfig.policy.ydpi = 96;
     mNextConfig.policy.refresh = 60;
     mNextConfig.extendedModeEnabled = false;
-    mNextConfig.forceNotify = false;
+    mNextConfig.forceNotifyFrameType = false;
+    mNextConfig.forceNotifyBufferInfo = false;
     mCurrentConfig = mNextConfig;
     mLayerToSend = 0;
 
