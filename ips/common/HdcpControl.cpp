@@ -56,11 +56,6 @@ HdcpControl::~HdcpControl()
 
 bool HdcpControl::startHdcp()
 {
-    if (!isHdcpSupported()) {
-        WTRACE("HDCP is not supported");
-        return false;
-    }
-
     // this is a blocking and synchronous call
     Mutex::Autolock lock(mMutex);
 
@@ -119,11 +114,6 @@ bool HdcpControl::startHdcpAsync(HdcpStatusCallback cb, void *userData)
 
     if (cb == NULL || userData == NULL) {
         ETRACE("invalid callback or user data");
-        return false;
-    }
-
-    if (!isHdcpSupported()) {
-        WTRACE("HDCP is not supported");
         return false;
     }
 
@@ -284,12 +274,12 @@ bool HdcpControl::runHdcp()
         }
 
         if (!enableAuthentication()) {
+            ETRACE("HDCP authentication failed");
+            mAuthenticated = false;
             ret = false;
-            break;
-        }
-
-        if (checkAuthenticated()) {
+        } else {
             ITRACE("HDCP is authenticated");
+            mAuthenticated = true;
             ret = true;
             break;
         }

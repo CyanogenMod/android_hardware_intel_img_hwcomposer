@@ -60,7 +60,7 @@ protected:
 
 private:
     enum {
-        HDCP_INLOOP_RETRY_NUMBER = 4,
+        HDCP_INLOOP_RETRY_NUMBER = 20,
         HDCP_INLOOP_RETRY_DELAY_US = 30000,
         HDCP_VERIFICATION_DELAY_MS = 2000,
         HDCP_ASYNC_START_DELAY_MS = 100,
