@@ -253,6 +253,8 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
         if (mCurrentConfig.typeChangeListener->shutdownVideo() != OK) {
             ITRACE("Waiting for prior encoder session to shut down...");
         }
+        /* Setting following flag to true will enable us to call bufferInfoChanged() in clone mode. */
+        mNextConfig.forceNotifyBufferInfo = true;
         return true;
     }
 
@@ -335,6 +337,7 @@ bool VirtualDevice::commit(hwc_display_contents_1_t *display, IDisplayContext *c
         if (mCurrentConfig.typeChangeListener->shutdownVideo() != OK) {
             ITRACE("Waiting for prior encoder session to shut down...");
         }
+        mNextConfig.forceNotifyBufferInfo = true;
         return true;
     }
 
