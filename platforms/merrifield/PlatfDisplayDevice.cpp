@@ -69,6 +69,10 @@ bool PlatfDisplayDevice::commit(hwc_display_contents_1_t *display,
     IMG_hwc_layer_t *imgLayerList = (IMG_hwc_layer_t*)contexts;
 
     for (size_t i = 0; i < display->numHwLayers; i++) {
+        // check layer parameters
+        if (!display->hwLayers[i].handle)
+            continue;
+
         DisplayPlane* plane = mLayerList->getPlane(i);
         if (!plane)
             continue;
@@ -88,8 +92,9 @@ bool PlatfDisplayDevice::commit(hwc_display_contents_1_t *display,
         imgLayer->displayFrame = display->hwLayers[i].displayFrame;
         imgLayer->custom = (uint32_t)plane->getContext();
 
-        LOGV("PlatfDisplayDevice::commit %d: handle 0x%x, trans 0x%x, blending 0x%x"
+        LOGD("PlatfDisplayDevice(%d)::commit %d: handle 0x%x, trans 0x%x, blending 0x%x"
               " sourceCrop %d,%d - %dx%d, dst %d,%d - %dx%d, custom 0x%x",
+              mType,
               count,
               imgLayer->handle,
               imgLayer->transform,

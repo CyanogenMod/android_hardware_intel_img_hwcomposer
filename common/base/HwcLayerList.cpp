@@ -72,9 +72,12 @@ void HwcLayer::setType(uint32_t type)
     switch (type) {
     case LAYER_SPRITE:
     case LAYER_OVERLAY:
-    case LAYER_PRIMARY:
         mLayer->compositionType = HWC_OVERLAY;
         break;
+    // NOTE: set compositionType to HWC_FRAMEBUFFER here so that we have
+    // a chance to submit the primary changes to HW.
+    // Upper layer HWComposer will reset the compositionType automatically.
+    case LAYER_PRIMARY:
     case LAYER_FB:
     default:
         mLayer->compositionType = HWC_FRAMEBUFFER;
@@ -224,6 +227,7 @@ bool HwcLayerList::check(int planeType, hwc_layer_1_t& layer)
                                                     layer.transform);
     if (!valid) {
         LOGV("plane type $d: (bad transform)", planeType);
+        goto check_out;
     }
 
     // check layer blending
@@ -313,6 +317,32 @@ void HwcLayerList::setZOrder()
 // NOTE: current implementation will treat overlay Layer as higher priority.
 void HwcLayerList::revisit()
 {
+    bool primaryPlaneUsed = false;
+
+    if (!mPrimaryPlane) {
+        LOGW("HwcLayerList::revisit: no primary plane");
+        return;
+    }
+
+    // detach primaryPlane
+    // FIXME: make it more efficient
+    for (size_t i = 0; i < mLayers.size(); i++) {
+        HwcLayer *hwcLayer = mLayers.itemAt(i);
+        if (!hwcLayer) {
+            LOGW("revisit: no HWC layer for layer %d", i);
+            continue;
+        }
+        // detach primary plane
+        if (hwcLayer->getPlane() == mPrimaryPlane) {
+            hwcLayer->detachPlane();
+            hwcLayer->setType(HwcLayer::LAYER_FB);
+            // remove it from overlay list
+            mOverlayLayers.remove(hwcLayer);
+            // add it to fb layer list
+            mFBLayers.add(hwcLayer);
+        }
+    }
+
     // check whether we can take over the layer by using primary
     // we can use primary plane only when:
     // 0) Be able to be accepted by primary plane which this list layer
@@ -324,27 +354,19 @@ void HwcLayerList::revisit()
             LOGV("primary check passed for primary layer");
             // attach primary to hwc layer
             hwcLayer->attachPlane(mPrimaryPlane);
-            // set the layer type to primary
-            hwcLayer->setType(HwcLayer::LAYER_PRIMARY);
+            // set the layer type to sprite, since primary was treated as sprite
+            hwcLayer->setType(HwcLayer::LAYER_SPRITE);
             // remove layer from FBLayers
             mFBLayers.remove(hwcLayer);
             // add layer to overlay layers
             mOverlayLayers.add(hwcLayer);
+
+            primaryPlaneUsed = true;
         }
     }
 
-    // attach frame buffer target
-    if (!mPrimaryPlane) {
-        LOGW("HwcLayerList::revisit: no primary plane");
-        return;
-    }
-
-    if (!mFramebufferTarget) {
-        LOGW("HwcLayerList::revisit: no frame buffer target");
-        return;
-    }
-
-    if (mFBLayers.size()) {
+    // if there is still FB layers, attach frame buffer target
+    if (mFramebufferTarget && !primaryPlaneUsed) {
         LOGV("analyzeFrom: using frame buffer target");
         // attach primary plane
         mFramebufferTarget->attachPlane(mPrimaryPlane);
@@ -406,6 +428,8 @@ void HwcLayerList::analyze(uint32_t index)
                     hwcLayer->attachPlane(plane);
                     // set the layer type to sprite
                     hwcLayer->setType(HwcLayer::LAYER_SPRITE);
+                    // clear fb
+                    layer->hints |=  HWC_HINT_CLEAR_FB;
                 }
             }
         }
@@ -420,6 +444,8 @@ void HwcLayerList::analyze(uint32_t index)
                     hwcLayer->attachPlane(plane);
                     // set the layer type to overlay
                     hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
+                    // clear fb
+                    layer->hints |=  HWC_HINT_CLEAR_FB;
                 }
 
                 // check wheter we are supporting extend video mode
@@ -499,12 +525,18 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
 
 DisplayPlane* HwcLayerList::getPlane(uint32_t index) const
 {
+    HwcLayer *hwcLayer;
+
     if (index >= mLayers.size()) {
         LOGE("HwcLayerList::getPlane: invalid layer index %d", index);
         return 0;
     }
 
-    return (mLayers.itemAt(index))->getPlane();
+    hwcLayer = mLayers.itemAt(index);
+    if (!hwcLayer || (hwcLayer->getType() == HwcLayer::LAYER_FB))
+        return 0;
+
+    return hwcLayer->getPlane();
 }
 
 void HwcLayerList::dump(Dump& d)
