@@ -94,6 +94,7 @@ private:
     inline bool isActiveTTMBuffer(BufferMapper *mapper);
     void updateActiveTTMBuffers(BufferMapper *mapper);
     void invalidateActiveTTMBuffers();
+
 protected:
     // flush flags
     enum {
@@ -103,7 +104,7 @@ protected:
     };
 
     enum {
-        OVERLAY_DATA_BUFFER_COUNT = 30,
+        OVERLAY_DATA_BUFFER_COUNT = 10,
     };
 
     // TTM data buffers
