@@ -111,7 +111,9 @@ bool HwcLayer::attachPlane(DisplayPlane* plane, int device)
     // z order = layer's index + 1
     // reserve z order 0 for frame buffer target layer
     plane->setZOrder(mIndex + 1);
+#ifdef MERR
     plane->assignToDevice(device);
+#endif
     mPlane = plane;
     return true;
 }
@@ -244,6 +246,9 @@ bool HwcLayer::update(hwc_layer_1_t *layer, int dsp)
                               layer->sourceCropf.bottom - layer->sourceCropf.top);
         mPlane->setTransform(layer->transform);
         mPlane->setPlaneAlpha(layer->planeAlpha);
+#ifndef MERR
+        mPlane->assignToDevice(dsp);
+#endif
         bool ret = mPlane->setDataBuffer((uint32_t)layer->handle);
         if (ret == true) {
             return true;
