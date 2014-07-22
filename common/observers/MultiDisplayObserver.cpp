@@ -39,6 +39,7 @@ namespace android {
 namespace intel {
 
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
+////// MultiDisplayCallback
 
 MultiDisplayCallback::MultiDisplayCallback(MultiDisplayObserver *dispObserver)
     : mDispObserver(dispObserver),
@@ -100,6 +101,8 @@ status_t MultiDisplayCallback::setOverscan(
     return INVALID_OPERATION;
 }
 
+////// MultiDisplayObserver
+
 MultiDisplayObserver::MultiDisplayObserver()
     : mMDSClient(NULL),
       mMDSCallback(),
@@ -107,6 +110,7 @@ MultiDisplayObserver::MultiDisplayObserver()
       mCondition(),
       mThreadLoopCount(0),
       mDeviceConnected(false),
+      mExternalDisplayTiming(false),
       mInitialized(false)
 {
     CTRACE();
@@ -247,22 +251,6 @@ void MultiDisplayObserver::deinitialize()
     }
 }
 
-status_t MultiDisplayObserver::notifyHotPlug(int disp, bool connected)
-{
-    Mutex::Autolock _l(mLock);
-    if (!mMDSClient) {
-        return NO_INIT;
-    }
-
-    if (connected == mDeviceConnected) {
-        WTRACE("hotplug event ignored");
-        return NO_ERROR;
-    }
-
-    mDeviceConnected = connected;
-    return mMDSClient->notifyHotPlug((MDS_DISPLAY_ID)disp, connected);
-}
-
 bool MultiDisplayObserver::threadLoop()
 {
     Mutex::Autolock _l(mLock);
@@ -312,6 +300,52 @@ status_t MultiDisplayObserver::setVideoState(int sessionNum, int sessionId, MDS_
     return 0;
 }
 
+status_t MultiDisplayObserver::setDisplayTiming(
+        MDS_DISPLAY_ID dpyId, MDSDisplayTiming *timing)
+{
+    if ((int)dpyId != (int)IDisplayDevice::DEVICE_EXTERNAL) {
+        ETRACE("invalid display id %d", dpyId);
+        return INVALID_OPERATION;
+    }
+
+    drmModeModeInfo mode;
+    mode.hdisplay = timing->width;
+    mode.vdisplay = timing->height;
+    mode.vrefresh = timing->refresh;
+    // TODO: interlace needs to be replaced by flags
+    mode.flags = timing->interlace ? DRM_MODE_FLAG_INTERLACE : 0;
+    ITRACE("timing to set: %dx%d@%dHz", timing->width, timing->height, timing->refresh);
+    ExternalDevice *dev =
+        (ExternalDevice *)Hwcomposer::getInstance().getDisplayDevice(dpyId);
+    if (dev) {
+        dev->setDrmMode(mode);
+    }
+
+    mExternalDisplayTiming = true;
+    return 0;
+}
+
+/// Public interfaces
+
+status_t MultiDisplayObserver::notifyHotPlug(int disp, bool connected)
+{
+    Mutex::Autolock _l(mLock);
+    if (!mMDSClient) {
+        return NO_INIT;
+    }
+
+    if (connected == mDeviceConnected) {
+        WTRACE("hotplug event ignored");
+        return NO_ERROR;
+    }
+
+    // clear it after externel device is disconnected
+    if (!connected) mExternalDisplayTiming = false;
+
+    mDeviceConnected = connected;
+    return mMDSClient->notifyHotPlug((MDS_DISPLAY_ID)disp, connected);
+}
+
 status_t MultiDisplayObserver::getVideoSourceInfo(int sessionID, VideoSourceInfo* info)
 {
     Mutex::Autolock _l(mLock);
@@ -337,27 +371,10 @@ status_t MultiDisplayObserver::getVideoSourceInfo(int sessionID, VideoSourceInfo
     return ret;
 }
 
-status_t MultiDisplayObserver::setDisplayTiming(
-        MDS_DISPLAY_ID dpyId, MDSDisplayTiming *timing)
+bool MultiDisplayObserver::isExternalDeviceTimingFixed() const
 {
-    if ((int)dpyId != (int)IDisplayDevice::DEVICE_EXTERNAL) {
-        ETRACE("invalid display id %d", dpyId);
-        return INVALID_OPERATION;
-    }
-
-    drmModeModeInfo mode;
-    mode.hdisplay = timing->width;
-    mode.vdisplay = timing->height;
-    mode.vrefresh = timing->refresh;
-    // TODO: interlace needs to be replaced by flags
-    mode.flags = timing->interlace ? DRM_MODE_FLAG_INTERLACE : 0;
-    ITRACE("timing to set: %dx%d@%dHz", timing->width, timing->height, timing->refresh);
-    ExternalDevice *dev =
-        (ExternalDevice *)Hwcomposer::getInstance().getDisplayDevice(dpyId);
-    if (dev) {
-        dev->setDrmMode(mode);
-    }
-    return 0;
+    Mutex::Autolock _l(mLock);
+    return mExternalDisplayTiming;
 }
 
 #endif //TARGET_HAS_MULTIPLE_DISPLAY

@@ -79,6 +79,7 @@ public:
     void deinitialize();
     status_t notifyHotPlug(int disp, bool connected);
     status_t getVideoSourceInfo(int sessionID, VideoSourceInfo* info);
+    bool isExternalDeviceTimingFixed() const;
 
 private:
      bool isMDSRunning();
@@ -103,6 +104,8 @@ private:
     Condition mCondition;
     int mThreadLoopCount;
     bool mDeviceConnected;
+    // indicate external devices's timing is set
+    bool mExternalDisplayTiming;
     bool mInitialized;
 
 private:
@@ -121,6 +124,7 @@ public:
     void deinitialize() {}
     status_t notifyHotPlug(int disp, bool connected) { return NO_ERROR; }
     status_t getVideoSourceInfo(int sessionID, VideoSourceInfo* info) { return INVALID_OPERATION; }
+    bool isExternalDeviceTimingFixed() const { return false; }
 };
 
 #endif //TARGET_HAS_MULTIPLE_DISPLAY
