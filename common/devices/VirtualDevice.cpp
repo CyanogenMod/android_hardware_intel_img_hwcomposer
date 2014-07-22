@@ -248,6 +248,11 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
         FrameInfo frameInfo;
         memset(&frameInfo, 0, sizeof(frameInfo));
         frameInfo.frameType = HWC_FRAMETYPE_NOTHING;
+        frameInfo.contentWidth = streamingLayer.sourceCrop.right - streamingLayer.sourceCrop.left;
+        frameInfo.contentHeight = streamingLayer.sourceCrop.bottom - streamingLayer.sourceCrop.top;
+        frameInfo.contentFrameRateN = 60;
+        frameInfo.contentFrameRateD = 1;
+
         VTRACE("Clone mode");
         if (mCurrentConfig.forceNotify || memcmp(&frameInfo, &mLastInputFrameInfo, sizeof(frameInfo)) != 0) {
             // something changed, notify type change listener
