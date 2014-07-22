@@ -22,7 +22,8 @@ LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_SHARED_LIBRARIES := liblog libcutils libdrm \
                           libwsbm libutils libhardware \
-                          libva libva-tpi libva-android
+                          libva libva-tpi libva-android \
+                          libhwcwidi libbinder
 LOCAL_SRC_FILES := \
     ../../common/base/Drm.cpp \
     ../../common/base/HwcLayerList.cpp \
@@ -36,6 +37,7 @@ LOCAL_SRC_FILES := \
     ../../common/devices/PhysicalDevice.cpp \
     ../../common/devices/PrimaryDevice.cpp \
     ../../common/devices/ExternalDevice.cpp \
+    ../../common/devices/VirtualDevice.cpp \
     ../../common/observers/HotplugEventObserver.cpp \
     ../../common/observers/VsyncEventObserver.cpp \
     ../../common/observers/MultiDisplayObserver.cpp \
@@ -78,6 +80,7 @@ LOCAL_SRC_FILES += \
     PlatfBufferManager.cpp \
     PlatfPrimaryDevice.cpp \
     PlatfExternalDevice.cpp \
+    PlatfVirtualDevice.cpp \
     PlatfDisplayPlaneManager.cpp \
     PlatfHwcomposer.cpp
 
@@ -111,16 +114,6 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH) \
 LOCAL_MODULE_TAGS := eng
 LOCAL_MODULE := hwcomposer.$(TARGET_DEVICE)
 LOCAL_CFLAGS:= -DLINUX
-
-#$(error local path is: $(LOCAL_C_INCLUDES))
-ifeq ($(INTEL_WIDI_MERRIFIELD), true)
-LOCAL_SRC_FILES += \
-    ../../common/devices/VirtualDevice.cpp \
-    PlatfVirtualDevice.cpp
-
-   LOCAL_SHARED_LIBRARIES += libhwcwidi libbinder
-   LOCAL_CFLAGS += -DINTEL_WIDI_MERRIFIELD
-endif
 
 ifeq ($(TARGET_HAS_MULTIPLE_DISPLAY),true)
    LOCAL_SHARED_LIBRARIES += libmultidisplay libbinder
