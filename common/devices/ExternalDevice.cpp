@@ -110,13 +110,8 @@ bool ExternalDevice::setDrmMode(drmModeModeInfo& value)
     Drm *drm = Hwcomposer::getInstance().getDrm();
     drmModeModeInfo mode;
     drm->getModeInfo(mType, mode);
-    if (mode.hdisplay == value.hdisplay &&
-        mode.vdisplay == value.vdisplay &&
-        mode.vrefresh == value.vrefresh &&
-        (mode.flags & value.flags) == value.flags) {
-        ITRACE("Drm mode is not changed");
+    if (drm->isSameDrmMode(&value, &mode))
         return true;
-    }
 
     // any issue here by faking connection status?
     mConnected = false;

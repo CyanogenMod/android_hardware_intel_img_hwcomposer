@@ -452,13 +452,13 @@ void DisplayAnalyzer::handleVideoEvent(
         mOverlayAllowed = !preparing;
     }
     mVideoPlaying = playing;
+    mVideoInstances = instances;
+    mVideoInstanceId = instanceID;
 
     Hwcomposer *hwc = &Hwcomposer::getInstance();
     if ((playing && !preparing) || (!playing && !preparing)) {
         mVideoStateChanged = true;
     }
-    mVideoInstances = instances;
-    mVideoInstanceId = instanceID;
 
     if (preparing) {
         Hwcomposer::getInstance().getPlaneManager()->disableOverlayPlanes();
