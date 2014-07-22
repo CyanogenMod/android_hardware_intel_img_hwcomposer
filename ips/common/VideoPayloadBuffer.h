@@ -43,6 +43,7 @@ struct VideoPayloadBuffer {
     uint32_t renderStatus;
     unsigned int used_by_widi;
     int bob_deinterlace;
+    int tiling;
     uint32_t width;
     uint32_t height;
     uint32_t luma_stride;
