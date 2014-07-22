@@ -38,17 +38,17 @@ extern "C" {
 #endif
 
 // Helper to automatically preappend classname::functionname to the log message
-#define VTRACE(fmt,...)     LOGV("%s: "fmt, __func__, ##__VA_ARGS__)
-#define DTRACE(fmt,...)     LOGD("%s: "fmt, __func__, ##__VA_ARGS__)
-#define ITRACE(fmt,...)     LOGI("%s: "fmt, __func__, ##__VA_ARGS__)
-#define WTRACE(fmt,...)     LOGW("%s: "fmt, __func__, ##__VA_ARGS__)
-#define ETRACE(fmt,...)     LOGE("%s: "fmt, __func__, ##__VA_ARGS__)
+#define VTRACE(fmt,...)     ALOGV("%s: "fmt, __func__, ##__VA_ARGS__)
+#define DTRACE(fmt,...)     ALOGD("%s: "fmt, __func__, ##__VA_ARGS__)
+#define ITRACE(fmt,...)     ALOGI("%s: "fmt, __func__, ##__VA_ARGS__)
+#define WTRACE(fmt,...)     ALOGW("%s: "fmt, __func__, ##__VA_ARGS__)
+#define ETRACE(fmt,...)     ALOGE("%s: "fmt, __func__, ##__VA_ARGS__)
 
 
 // Function call tracing
 #if 0
-#define CTRACE()            LOGV("Calling %s", __func__)
-#define XTRACE()            LOGV("Leaving %s", __func__)
+#define CTRACE()            ALOGV("Calling %s", __func__)
+#define XTRACE()            ALOGV("Leaving %s", __func__)
 #else
 #define CTRACE()            ((void)0)
 #define XTRACE()            ((void)0)
@@ -57,7 +57,7 @@ extern "C" {
 
 // Arguments tracing
 #if 0
-#define ATRACE(fmt,...)     LOGV("%s(args): "fmt, __func__, ##__VA_ARGS__);
+#define ATRACE(fmt,...)     ALOGV("%s(args): "fmt, __func__, ##__VA_ARGS__);
 #else
 #define ATRACE(fmt,...)     ((void)0)
 #endif
