@@ -40,6 +40,9 @@
 
 #define NUM_CSC_BUFFERS 6
 
+#define QCIF_WIDTH 176
+#define QCIF_HEIGHT 144
+
 namespace android {
 namespace intel {
 
@@ -263,6 +266,13 @@ bool VirtualDevice::prepare(hwc_display_contents_1_t *display)
         for (size_t i = 0; i < display->numHwLayers-1; i++) {
             hwc_layer_1_t& layer = display->hwLayers[i];
             if (analyzer->isVideoLayer(layer)) {
+                /* If the resolution of the video layer is less than QCIF, then we are going to play it in clone mode only.*/
+                uint32_t vidContentWidth = layer.sourceCropf.right - layer.sourceCropf.left;
+                uint32_t vidContentHeight = layer.sourceCropf.bottom - layer.sourceCropf.top;
+                if ( (vidContentWidth * vidContentHeight) < (QCIF_WIDTH * QCIF_HEIGHT) ){
+                    VTRACE("Identified video layer of resolution < QCIF :playing in clone mode. mLayerToSend = %d", mLayerToSend);
+                    break;
+                }
                 isProtected = analyzer->isProtectedLayer(layer);
                 isVideoLayer = analyzer->isPresentationLayer(layer);
                 if (!isVideoLayer || isProtected) {
@@ -374,9 +384,6 @@ void VirtualDevice::sendToWidi(const hwc_layer_1_t& layer, bool isProtected)
     inputFrameInfo.contentFrameRateN = 60;
     inputFrameInfo.contentFrameRateD = 1;
     inputFrameInfo.isProtected = isProtected;
-
-    if ((inputFrameInfo.contentWidth < 176) || (inputFrameInfo.contentHeight < 144))
-        return;
 
     FrameInfo outputFrameInfo;
     outputFrameInfo = inputFrameInfo;
