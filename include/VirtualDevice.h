@@ -85,6 +85,8 @@ protected:
     FrameInfo mLastInputFrameInfo;
     FrameInfo mLastOutputFrameInfo;
 
+    int32_t mVideoFramerate;
+
     android::KeyedVector<uint32_t, android::sp<CachedBuffer> > mMappedBufferCache;
     android::Mutex mHeldBuffersLock;
     android::KeyedVector<uint32_t, android::sp<android::RefBase> > mHeldBuffers;
