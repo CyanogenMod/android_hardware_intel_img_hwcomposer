@@ -66,7 +66,7 @@ public:
     virtual ~HwcLayer();
 
     // plane operations
-    bool attachPlane(DisplayPlane *plane);
+    bool attachPlane(DisplayPlane *plane, int device);
     DisplayPlane* detachPlane();
 
     void setType(uint32_t type);
@@ -83,7 +83,7 @@ public:
     void setPriority(uint32_t priority);
     uint32_t getPriority() const;
 
-    bool update(hwc_layer_1_t *layer, int disp);
+    bool update(hwc_layer_1_t *layer);
 
 private:
     void setupAttributes();

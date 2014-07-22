@@ -111,9 +111,6 @@ bool DisplayPlaneManager::initialize()
                     ETRACE("failed to allocate plane %d, type %d", j, i);
                     DEINIT_AND_RETURN_FALSE();
                 }
-                // reset plane
-                plane->reset();
-
                 mPlanes[i].push_back(plane);
             }
         }
@@ -192,8 +189,7 @@ DisplayPlane* DisplayPlaneManager::getPlane(int type, int dsp)
     }
 
     // try to get free plane from reclaimed planes
-    if (type == DisplayPlane::PLANE_PRIMARY ||
-            type == DisplayPlane::PLANE_OVERLAY)
+    if (type == DisplayPlane::PLANE_PRIMARY)
         // primary planes are attached to specific displays
         freePlaneIndex = getPlane(mReclaimedPlanes[type], dsp);
     else
@@ -204,8 +200,7 @@ DisplayPlane* DisplayPlaneManager::getPlane(int type, int dsp)
         return mPlanes[type].itemAt(freePlaneIndex);
 
     // failed to get a free plane from reclaimed planes, try it on free planes
-    if (type == DisplayPlane::PLANE_PRIMARY ||
-            type == DisplayPlane::PLANE_OVERLAY)
+    if (type == DisplayPlane::PLANE_PRIMARY)
         freePlaneIndex = getPlane(mFreePlanes[type], dsp);
     else
         freePlaneIndex = getPlane(mFreePlanes[type]);
@@ -314,6 +309,7 @@ void DisplayPlaneManager::reclaimPlane(DisplayPlane& plane)
 void DisplayPlaneManager::disableReclaimedPlanes()
 {
     int i, j;
+    bool ret;
 
     RETURN_VOID_IF_NOT_INIT();
 
@@ -325,15 +321,18 @@ void DisplayPlaneManager::disableReclaimedPlanes()
                 if (mReclaimedPlanes[i] & bit) {
                     DisplayPlane* plane = mPlanes[i].itemAt(j);
                     // disable plane first
-                    plane->disable();
+                    ret = plane->disable();
                     // reset plane
-                    plane->reset();
+                    if (ret)
+                        ret = plane->reset();
+                    if (ret) {
+                        // only merge into free bitmap if it is successfully disabled and reset
+                        // otherwise, plane will be disabled and reset again.
+                        mFreePlanes[i] |=bit;
+                        mReclaimedPlanes[i] &= ~bit;
+                    }
                 }
             }
-
-            // merge into free bitmap
-            mFreePlanes[i] |= mReclaimedPlanes[i];
-            mReclaimedPlanes[i] = 0;
         }
     }
 }

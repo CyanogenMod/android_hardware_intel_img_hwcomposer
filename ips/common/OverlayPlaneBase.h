@@ -50,6 +50,8 @@ public:
     OverlayPlaneBase(int index, int disp);
     virtual ~OverlayPlaneBase();
 
+    virtual bool setDataBuffer(uint32_t handle);
+
     virtual void invalidateBufferCache();
 
     virtual bool assignToDevice(int disp);
@@ -69,6 +71,7 @@ public:
 protected:
     // generic overlay register flush
     virtual bool flush(uint32_t flags) = 0;
+    virtual bool isFlushed() = 0;
     virtual bool setDataBuffer(BufferMapper& mapper);
     virtual bool bufferOffsetSetup(BufferMapper& mapper);
     virtual uint32_t calculateSWidthSW(uint32_t offset, uint32_t width);
@@ -118,6 +121,15 @@ protected:
     Wsbm *mWsbm;
     // pipe config
     uint32_t mPipeConfig;
+
+    // variables for asynchronous overlay disabling
+    enum {
+        // maximum wait count before aborting overlay disabling
+        OVERLAY_DISABLING_COUNT_MAX = 60,
+    };
+    bool mDisablePending;
+    bool mDisablePendingDevice;
+    int mDisablePendingCount;
 };
 
 } // namespace intel
