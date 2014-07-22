@@ -40,7 +40,8 @@ namespace intel {
 
 DisplayAnalyzer::DisplayAnalyzer()
     : mInitialized(false),
-      mVideoExtendedMode(false)
+      mVideoExtendedMode(false),
+      mForceCloneMode(false)
 {
 }
 
@@ -60,7 +61,37 @@ void DisplayAnalyzer::uninitialize()
     mVideoExtendedMode = false;
 }
 
-void DisplayAnalyzer::analyzeContents(size_t numDisplays, hwc_display_contents_1_t** displays)
+void DisplayAnalyzer::analyzeContents(
+        size_t numDisplays, hwc_display_contents_1_t** displays)
+{
+    detectVideoExtendedMode(numDisplays, displays);
+    if (mVideoExtendedMode) {
+        detectTrickMode(displays[IDisplayDevice::DEVICE_PRIMARY]);
+    }
+}
+
+void DisplayAnalyzer::detectTrickMode(hwc_display_contents_1_t *list)
+{
+    if (list == NULL)
+        return;
+
+    bool detected = false;
+    for (size_t i = 0; i < list->numHwLayers; i++) {
+        hwc_layer_1_t *layer = &list->hwLayers[i];
+        if (layer && (layer->flags & HWC_TRICK_MODE)) {
+            detected = true;
+            break;
+        }
+    }
+
+    if (detected != mForceCloneMode) {
+        list->flags |= HWC_GEOMETRY_CHANGED;
+        mForceCloneMode = detected;
+    }
+}
+
+void DisplayAnalyzer::detectVideoExtendedMode(
+        size_t numDisplays, hwc_display_contents_1_t** displays)
 {
     bool geometryChanged = false;
     int activeDisplays = 0;
@@ -133,7 +164,7 @@ void DisplayAnalyzer::analyzeContents(size_t numDisplays, hwc_display_contents_1
 
 bool DisplayAnalyzer::checkVideoExtendedMode()
 {
-    return mVideoExtendedMode;
+    return mVideoExtendedMode && !mForceCloneMode;
 }
 
 bool DisplayAnalyzer::isVideoLayer(hwc_layer_1_t &layer)

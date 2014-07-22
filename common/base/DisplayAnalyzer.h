@@ -47,8 +47,12 @@ public:
     bool isVideoLayer(hwc_layer_1_t &layer);
 
 private:
+    void detectVideoExtendedMode(size_t numDisplays, hwc_display_contents_1_t** displays);
+    void detectTrickMode(hwc_display_contents_1_t *list);
+
     bool mInitialized;
     bool mVideoExtendedMode;
+    bool mForceCloneMode;
 
 };
 
