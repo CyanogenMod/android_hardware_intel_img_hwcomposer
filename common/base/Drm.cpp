@@ -27,10 +27,10 @@
  */
 #include <fcntl.h>
 #include <errno.h>
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <IDisplayDevice.h>
 #include <DrmConfig.h>
-#include <Drm.h>
+#include <common/base/Drm.h>
 #include <Hwcomposer.h>
 
 namespace android {

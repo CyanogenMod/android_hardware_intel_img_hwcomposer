@@ -25,12 +25,12 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <Hwcomposer.h>
 #include <BufferManager.h>
-#include <anniedale/AnnRGBPlane.h>
-#include <tangier/TngGrallocBuffer.h>
-#include <common/PixelFormat.h>
+#include <ips/anniedale/AnnRGBPlane.h>
+#include <ips/tangier/TngGrallocBuffer.h>
+#include <ips/common/PixelFormat.h>
 
 namespace android {
 namespace intel {
@@ -63,7 +63,7 @@ void* AnnRGBPlane::getContext() const
     return (void *)&mContext;
 }
 
-void AnnRGBPlane::setZOrderConfig(ZOrderConfig& config, void *nativeConfig)
+void AnnRGBPlane::setZOrderConfig(ZOrderConfig& /* config */, void * /* nativeConfig */)
 {
     CTRACE();
 }

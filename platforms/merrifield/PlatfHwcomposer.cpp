@@ -26,16 +26,16 @@
  *
  */
 #include <hal_public.h>
-#include <HwcTrace.h>
-#include <common/PowerManager.h>
+#include <common/utils/HwcTrace.h>
+#include <ips/common/PowerManager.h>
 #include <tangier/TngDisplayContext.h>
 #include <tangier/TngPlaneManager.h>
-#include <PlatfBufferManager.h>
+#include <platforms/merrifield/PlatfBufferManager.h>
 #include <IDisplayDevice.h>
-#include <PlatfPrimaryDevice.h>
-#include <PlatfExternalDevice.h>
-#include <PlatfVirtualDevice.h>
-#include <PlatfHwcomposer.h>
+#include <platforms/merrifield/PlatfPrimaryDevice.h>
+#include <platforms/merrifield/PlatfExternalDevice.h>
+#include <platforms/merrifield/PlatfVirtualDevice.h>
+#include <platforms/merrifield/PlatfHwcomposer.h>
 
 
 

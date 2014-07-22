@@ -26,13 +26,13 @@
  *
  */
 
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <IDisplayDevice.h>
 #include <DisplayQuery.h>
 #include <BufferManager.h>
 #include <DisplayPlaneManager.h>
 #include <Hwcomposer.h>
-#include <DisplayAnalyzer.h>
+#include <common/base/DisplayAnalyzer.h>
 #include <cutils/properties.h>
 #include <GraphicBuffer.h>
 #include <ExternalDevice.h>

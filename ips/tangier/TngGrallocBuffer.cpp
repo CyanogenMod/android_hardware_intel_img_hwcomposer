@@ -25,8 +25,8 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
-#include <tangier/TngGrallocBuffer.h>
+#include <common/utils/HwcTrace.h>
+#include <ips/tangier/TngGrallocBuffer.h>
 
 namespace android {
 namespace intel {

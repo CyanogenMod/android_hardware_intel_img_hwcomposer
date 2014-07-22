@@ -25,7 +25,7 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <Hwcomposer.h>
 #include <DisplayPlane.h>
 #include <GraphicBuffer.h>
@@ -346,7 +346,7 @@ bool DisplayPlane::assignToDevice(int disp)
     return true;
 }
 
-bool DisplayPlane::flip(void *ctx)
+bool DisplayPlane::flip(void * /* ctx */)
 {
     RETURN_FALSE_IF_NOT_INIT();
 

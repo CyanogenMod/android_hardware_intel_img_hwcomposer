@@ -26,8 +26,8 @@
  *
  */
 #include <hal_public.h>
-#include <HwcTrace.h>
-#include <common/PixelFormat.h>
+#include <common/utils/HwcTrace.h>
+#include <ips/common/PixelFormat.h>
 
 namespace android {
 namespace intel {

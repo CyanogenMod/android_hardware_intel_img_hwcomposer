@@ -25,9 +25,9 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
-#include <Drm.h>
-#include <HwcLayer.h>
+#include <common/utils/HwcTrace.h>
+#include <common/base/Drm.h>
+#include <common/base/HwcLayer.h>
 #include <Hwcomposer.h>
 #include <GraphicBuffer.h>
 #include <IDisplayDevice.h>

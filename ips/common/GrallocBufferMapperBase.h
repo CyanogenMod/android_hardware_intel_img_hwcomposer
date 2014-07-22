@@ -29,8 +29,8 @@
 #define GRALLOC_BUFFER_MAPPER_BASE_H
 
 #include <BufferMapper.h>
-#include <common/GrallocSubBuffer.h>
-#include <common/GrallocBufferBase.h>
+#include <ips/common/GrallocSubBuffer.h>
+#include <ips/common/GrallocBufferBase.h>
 
 namespace android {
 namespace intel {

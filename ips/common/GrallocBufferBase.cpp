@@ -25,8 +25,8 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
-#include <common/GrallocBufferBase.h>
+#include <common/utils/HwcTrace.h>
+#include <ips/common/GrallocBufferBase.h>
 #include <DisplayQuery.h>
 
 
@@ -46,7 +46,7 @@ void GrallocBufferBase::resetBuffer(uint32_t handle)
     initBuffer(handle);
 }
 
-void GrallocBufferBase::initBuffer(uint32_t handle)
+void GrallocBufferBase::initBuffer(uint32_t /* handle */)
 {
     // nothing to initialize
 }

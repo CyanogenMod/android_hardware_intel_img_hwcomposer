@@ -26,14 +26,14 @@
  *
  */
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <binder/IServiceManager.h>
 #include <Hwcomposer.h>
-#include <DisplayAnalyzer.h>
+#include <common/base/DisplayAnalyzer.h>
 #include <ExternalDevice.h>
 #endif
 
-#include <MultiDisplayObserver.h>
+#include <common/observers/MultiDisplayObserver.h>
 
 namespace android {
 namespace intel {

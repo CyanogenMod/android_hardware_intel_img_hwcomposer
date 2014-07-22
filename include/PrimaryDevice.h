@@ -31,8 +31,8 @@
 #include <DisplayPlane.h>
 #include <IVsyncControl.h>
 #include <IBlankControl.h>
-#include <VsyncEventObserver.h>
-#include <HwcLayerList.h>
+#include <common/observers/VsyncEventObserver.h>
+#include <common/base/HwcLayerList.h>
 #include <PhysicalDevice.h>
 
 namespace android {

@@ -25,8 +25,8 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
-#include <common/Wsbm.h>
+#include <common/utils/HwcTrace.h>
+#include <ips/common/Wsbm.h>
 
 Wsbm::Wsbm(int drmFD)
     : mInitialized(false)

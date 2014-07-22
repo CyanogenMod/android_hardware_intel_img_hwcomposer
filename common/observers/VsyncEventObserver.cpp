@@ -25,8 +25,8 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
-#include <VsyncEventObserver.h>
+#include <common/utils/HwcTrace.h>
+#include <common/observers/VsyncEventObserver.h>
 #include <PhysicalDevice.h>
 
 namespace android {

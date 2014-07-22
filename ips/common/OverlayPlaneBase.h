@@ -32,9 +32,9 @@
 #include <hal_public.h>
 #include <DisplayPlane.h>
 #include <BufferMapper.h>
-#include <common/Wsbm.h>
-#include <common/OverlayHardware.h>
-#include <common/VideoPayloadBuffer.h>
+#include <ips/common/Wsbm.h>
+#include <ips/common/OverlayHardware.h>
+#include <ips/common/VideoPayloadBuffer.h>
 
 namespace android {
 namespace intel {

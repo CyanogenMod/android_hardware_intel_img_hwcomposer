@@ -25,11 +25,11 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
-#include <Drm.h>
+#include <common/utils/HwcTrace.h>
+#include <common/base/Drm.h>
 #include <tangier/TngPrimaryPlane.h>
-#include <tangier/TngGrallocBuffer.h>
-#include <common/PixelFormat.h>
+#include <ips/tangier/TngGrallocBuffer.h>
+#include <ips/common/PixelFormat.h>
 
 namespace android {
 namespace intel {

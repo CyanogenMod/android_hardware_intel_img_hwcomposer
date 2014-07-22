@@ -25,8 +25,8 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
-#include <common/TTMBufferMapper.h>
+#include <common/utils/HwcTrace.h>
+#include <ips/common/TTMBufferMapper.h>
 
 namespace android {
 namespace intel {

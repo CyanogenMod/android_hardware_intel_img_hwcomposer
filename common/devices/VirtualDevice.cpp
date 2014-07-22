@@ -25,12 +25,12 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <Hwcomposer.h>
 #include <DisplayPlaneManager.h>
 #include <DisplayQuery.h>
 #include <VirtualDevice.h>
-#include <SoftVsyncObserver.h>
+#include <common/observers/SoftVsyncObserver.h>
 
 #include <binder/IServiceManager.h>
 #include <binder/ProcessState.h>

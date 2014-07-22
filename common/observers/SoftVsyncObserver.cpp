@@ -25,8 +25,8 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
-#include <SoftVsyncObserver.h>
+#include <common/utils/HwcTrace.h>
+#include <common/observers/SoftVsyncObserver.h>
 #include <IDisplayDevice.h>
 
 extern "C" int clock_nanosleep(clockid_t clock_id, int flags,

@@ -30,7 +30,7 @@
 
 #include <DataBuffer.h>
 #include <BufferMapper.h>
-#include <common/Wsbm.h>
+#include <ips/common/Wsbm.h>
 
 namespace android {
 namespace intel {
@@ -43,19 +43,19 @@ public:
     bool map();
     bool unmap();
 
-    uint32_t getGttOffsetInPage(int subIndex) const {
+    uint32_t getGttOffsetInPage(int /* subIndex */) const {
         return mGttOffsetInPage;
     }
-    void* getCpuAddress(int subIndex) const {
+    void* getCpuAddress(int /* subIndex */) const {
         return mCpuAddress;
     }
-    uint32_t getSize(int subIndex) const {
+    uint32_t getSize(int /* subIndex */) const {
         return mSize;
     }
-    uint32_t getKHandle(int subIndex) {
+    uint32_t getKHandle(int /* subIndex */) {
         return 0;
     }
-    uint32_t getFbHandle(int subIndex) {
+    uint32_t getFbHandle(int /* subIndex */) {
         return 0;
     }
     void putFbHandle() {

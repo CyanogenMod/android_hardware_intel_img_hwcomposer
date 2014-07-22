@@ -26,10 +26,10 @@
  *
  */
 
-#include <HwcTrace.h>
-#include <Drm.h>
+#include <common/utils/HwcTrace.h>
+#include <common/base/Drm.h>
 #include <Hwcomposer.h>
-#include <common/PrepareListener.h>
+#include <ips/common/PrepareListener.h>
 
 namespace android {
 namespace intel {

@@ -27,11 +27,11 @@
  */
 
 #include <math.h>
-#include <HwcTrace.h>
-#include <Drm.h>
+#include <common/utils/HwcTrace.h>
+#include <common/base/Drm.h>
 #include <Hwcomposer.h>
-#include <anniedale/AnnOverlayPlane.h>
-#include <tangier/TngGrallocBuffer.h>
+#include <ips/anniedale/AnnOverlayPlane.h>
+#include <ips/tangier/TngGrallocBuffer.h>
 
 // FIXME: remove it
 #include <OMX_IVCommon.h>
@@ -56,8 +56,8 @@ AnnOverlayPlane::~AnnOverlayPlane()
     CTRACE();
 }
 
-void AnnOverlayPlane::setZOrderConfig(ZOrderConfig& zorderConfig,
-                                            void *nativeConfig)
+void AnnOverlayPlane::setZOrderConfig(ZOrderConfig& /* zorderConfig */,
+        void *nativeConfig)
 {
     int slot = (int)nativeConfig;
 
@@ -717,7 +717,7 @@ void AnnOverlayPlane::signalVideoRotation(BufferMapper& mapper)
     }
 }
 
-bool AnnOverlayPlane::useOverlayRotation(BufferMapper& mapper)
+bool AnnOverlayPlane::useOverlayRotation(BufferMapper& /* mapper */)
 {
     if (mTransform == 0)
         return true;

@@ -28,7 +28,7 @@
 #ifndef SOFT_VSYNC_OBSERVER_H
 #define SOFT_VSYNC_OBSERVER_H
 
-#include <SimpleThread.h>
+#include <common/base/SimpleThread.h>
 
 namespace android {
 namespace intel {

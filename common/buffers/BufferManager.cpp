@@ -26,7 +26,7 @@
  *
  */
 
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <hardware/hwcomposer.h>
 #include <BufferManager.h>
 #include <DrmConfig.h>
@@ -147,7 +147,7 @@ DataBuffer* BufferManager::lockDataBuffer(uint32_t handle)
     return mDataBuffer;
 }
 
-void BufferManager::unlockDataBuffer(DataBuffer *buffer)
+void BufferManager::unlockDataBuffer(DataBuffer * /* buffer */)
 {
     mDataBufferLock.unlock();
 }

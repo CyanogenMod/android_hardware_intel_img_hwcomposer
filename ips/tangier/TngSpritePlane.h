@@ -31,10 +31,10 @@
 #include <utils/KeyedVector.h>
 #include <hal_public.h>
 #include <Hwcomposer.h>
-#include <BufferCache.h>
+#include <common/buffers/BufferCache.h>
 #include <DisplayPlane.h>
 
-#include <common/SpritePlaneBase.h>
+#include <ips/common/SpritePlaneBase.h>
 
 namespace android {
 namespace intel {

@@ -30,7 +30,7 @@
 
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
 #include <display/MultiDisplayService.h>
-#include <SimpleThread.h>
+#include <common/base/SimpleThread.h>
 #else
 #include <utils/Errors.h>
 #include <string.h>
@@ -134,14 +134,14 @@ public:
 
     bool initialize() { return true; }
     void deinitialize() {}
-    status_t notifyHotPlug(bool connected) { return NO_ERROR; }
-    status_t getVideoSourceInfo(int sessionID, VideoSourceInfo* info) { return INVALID_OPERATION; }
+    status_t notifyHotPlug(bool /* connected */) { return NO_ERROR; }
+    status_t getVideoSourceInfo(int /* sessionID */, VideoSourceInfo* /* info */) { return INVALID_OPERATION; }
     int  getVideoSessionNumber() { return 0; }
     bool isExternalDeviceTimingFixed() const { return false; }
-    status_t notifyWidiConnectionStatus(bool connected) { return NO_ERROR; }
+    status_t notifyWidiConnectionStatus(bool /* connected */) { return NO_ERROR; }
     status_t setDecoderOutputResolution(
-            int sessionID,
-            int32_t width, int32_t height,
+            int /* sessionID */,
+            int32_t /* width */, int32_t /* height */,
             int32_t, int32_t, int32_t, int32_t) { return NO_ERROR; }
 };
 

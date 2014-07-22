@@ -30,7 +30,7 @@
 
 #include <utils/KeyedVector.h>
 #include <hal_public.h>
-#include <BufferCache.h>
+#include <common/buffers/BufferCache.h>
 #include <DisplayPlane.h>
 
 namespace android {

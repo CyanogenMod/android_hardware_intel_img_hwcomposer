@@ -28,7 +28,7 @@
 #ifndef WSBM_H__
 #define WSBM_H__
 
-#include <common/WsbmWrapper.h>
+#include <ips/common/WsbmWrapper.h>
 
 /**
  * Class: WSBM

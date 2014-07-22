@@ -28,8 +28,8 @@
 #ifndef PNW_GRALLOC_BUFFER_H
 #define PNW_GRALLOC_BUFFER_H
 
-#include <common/GrallocSubBuffer.h>
-#include <common/GrallocBufferBase.h>
+#include <ips/common/GrallocSubBuffer.h>
+#include <ips/common/GrallocBufferBase.h>
 
 namespace android {
 namespace intel {

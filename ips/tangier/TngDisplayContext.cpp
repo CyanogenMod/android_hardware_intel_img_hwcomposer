@@ -25,12 +25,12 @@
  *    Jackie Li <yaodong.li@intel.com>
  *
  */
-#include <HwcTrace.h>
+#include <common/utils/HwcTrace.h>
 #include <Hwcomposer.h>
 #include <DisplayPlane.h>
 #include <IDisplayDevice.h>
-#include <HwcLayerList.h>
-#include <tangier/TngDisplayContext.h>
+#include <common/base/HwcLayerList.h>
+#include <ips/tangier/TngDisplayContext.h>
 
 
 namespace android {
@@ -73,7 +73,8 @@ bool TngDisplayContext::initialize()
     return true;
 }
 
-bool TngDisplayContext::commitBegin(size_t numDisplays, hwc_display_contents_1_t **displays)
+bool TngDisplayContext::commitBegin(size_t /* numDisplays */,
+        hwc_display_contents_1_t ** /* displays */)
 {
     RETURN_FALSE_IF_NOT_INIT();
     mCount = 0;

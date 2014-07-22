@@ -33,10 +33,10 @@
 #include <sys/time.h>
 #include <va/va_tpi.h>
 #include <va/va_vpp.h>
-#include <common/Wsbm.h>
+#include <ips/common/Wsbm.h>
 #include <utils/Timers.h>
 #include <va/va_android.h>
-#include <common/VideoPayloadBuffer.h>
+#include <ips/common/VideoPayloadBuffer.h>
 
 namespace android {
 namespace intel {

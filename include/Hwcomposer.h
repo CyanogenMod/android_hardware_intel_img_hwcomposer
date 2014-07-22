@@ -35,11 +35,11 @@
 #include <IDisplayDevice.h>
 #include <BufferManager.h>
 #include <IDisplayContext.h>
-#include <Drm.h>
+#include <common/base/Drm.h>
 #include <DisplayPlaneManager.h>
-#include <DisplayAnalyzer.h>
-#include <VsyncManager.h>
-#include <MultiDisplayObserver.h>
+#include <common/base/DisplayAnalyzer.h>
+#include <common/base/VsyncManager.h>
+#include <common/observers/MultiDisplayObserver.h>
 #include <UeventObserver.h>
 #include <IPowerManager.h>
 

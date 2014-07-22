@@ -28,9 +28,9 @@
 #ifndef DISPLAYPLANEMANAGER_H_
 #define DISPLAYPLANEMANAGER_H_
 
-#include <Dump.h>
+#include <common/utils/Dump.h>
 #include <DisplayPlane.h>
-#include <HwcLayer.h>
+#include <common/base/HwcLayer.h>
 #include <utils/Vector.h>
 
 namespace android {
