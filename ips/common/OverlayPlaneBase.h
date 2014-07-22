@@ -50,8 +50,6 @@ public:
     OverlayPlaneBase(int index, int disp);
     virtual ~OverlayPlaneBase();
 
-    virtual bool setDataBuffer(uint32_t handle);
-
     virtual void invalidateBufferCache();
 
     virtual bool assignToDevice(int disp);
@@ -72,7 +70,6 @@ public:
 protected:
     // generic overlay register flush
     virtual bool flush(uint32_t flags) = 0;
-    virtual bool isFlushed() = 0;
     virtual bool setDataBuffer(BufferMapper& mapper);
     virtual bool bufferOffsetSetup(BufferMapper& mapper);
     virtual uint32_t calculateSWidthSW(uint32_t offset, uint32_t width);
@@ -90,12 +87,14 @@ protected:
 protected:
     // back buffer operations
     virtual OverlayBackBuffer* createBackBuffer();
-    virtual void deleteBackBuffer();
-    virtual void resetBackBuffer();
+    virtual void deleteBackBuffer(int buf);
+    virtual void resetBackBuffer(int buf);
 
     virtual BufferMapper* getTTMMapper(BufferMapper& grallocMapper, struct VideoPayloadBuffer *payload);
     virtual void  putTTMMapper(BufferMapper* mapper);
     virtual bool rotatedBufferReady(BufferMapper& mapper, BufferMapper* &rotatedMapper);
+    virtual bool useOverlayRotation(BufferMapper& mapper);
+
 private:
     inline bool isActiveTTMBuffer(BufferMapper *mapper);
     void updateActiveTTMBuffers(BufferMapper *mapper);
@@ -111,7 +110,9 @@ protected:
     };
 
     enum {
-        OVERLAY_DATA_BUFFER_COUNT = 10,
+        OVERLAY_BACK_BUFFER_COUNT = 3,
+        MAX_ACTIVE_TTM_BUFFERS = 3,
+        OVERLAY_DATA_BUFFER_COUNT = 20,
     };
 
     // TTM data buffers
@@ -120,20 +121,12 @@ protected:
     Vector<BufferMapper*> mActiveTTMBuffers;
 
     // overlay back buffer
-    OverlayBackBuffer *mBackBuffer;
+    OverlayBackBuffer *mBackBuffer[OVERLAY_BACK_BUFFER_COUNT];
+    int mCurrent;
     // wsbm
     Wsbm *mWsbm;
     // pipe config
     uint32_t mPipeConfig;
-
-    // variables for asynchronous overlay disabling
-    enum {
-        // maximum wait count before aborting overlay disabling
-        OVERLAY_DISABLING_COUNT_MAX = 60,
-    };
-    bool mDisablePending;
-    bool mDisablePendingDevice;
-    int mDisablePendingCount;
 };
 
 } // namespace intel

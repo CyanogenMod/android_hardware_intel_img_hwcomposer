@@ -94,6 +94,11 @@ bool RotationBufferProvider::initialize()
 void RotationBufferProvider::deinitialize()
 {
     stopVA();
+    reset();
+}
+
+void RotationBufferProvider::reset()
+{
     if (mTTMWrappers.size()) {
         invalidateCaches();
     }
@@ -220,8 +225,14 @@ bool RotationBufferProvider::createVaSurface(VideoPayloadBuffer *payload, int tr
         vaSurfaceAttrib->buffers[0] = payload->khandle;
         surface = &mSourceSurface;
         /* set src surface width/height to video crop size */
-        width = payload->crop_width;
-        height = payload->crop_height;
+        if (payload->crop_width && payload->crop_height) {
+            width = payload->crop_width;
+            height = payload->crop_height;
+        } else {
+            VTRACE("Invalid cropping width or height");
+            payload->crop_width = width;
+            payload->crop_height = height;
+        }
     }
 
     vaStatus = vaCreateSurfacesWithAttribute(mVaDpy,
@@ -231,7 +242,13 @@ bool RotationBufferProvider::createVaSurface(VideoPayloadBuffer *payload, int tr
                                              1,
                                              surface,
                                              vaSurfaceAttrib);
-    CHECK_VA_STATUS_RETURN("vaCreateSurfacesWithAttribute");
+    if (vaStatus != VA_STATUS_SUCCESS) {
+        ETRACE("vaCreateSurfacesWithAttribute returns %d", vaStatus);
+        ETRACE("Attributes: target: %d, width: %d, height %d, bufferHeight %d, tiling %d",
+                isTarget, width, height, bufferHeight, payload->tiling);
+        *surface = 0;
+        return false;
+    }
 
     return true;
 }
@@ -370,7 +387,8 @@ bool RotationBufferProvider::setupRotationBuffer(VideoPayloadBuffer *payload, in
     bool ret = false;
 
     if (payload->format != VA_FOURCC_NV12 || payload->width == 0 || payload->height == 0) {
-        ETRACE("payload data is not correct");
+        WTRACE("payload data is not correct: format %#x, width %d, height %d",
+            payload->format, payload->width, payload->height);
         return ret;
     }
 
@@ -380,11 +398,11 @@ bool RotationBufferProvider::setupRotationBuffer(VideoPayloadBuffer *payload, in
 
     do {
         if (isContextChanged(payload->width, payload->height, transform)) {
-            ITRACE("Rotation config changes, will re-start VA");
+            DTRACE("VA is restarted as rotation context changes");
 
-            if (mVaInitialized)
+            if (mVaInitialized) {
                 stopVA(); // need to re-initialize VA for new rotation config
-
+            }
             mTransform = transform;
             mWidth = payload->width;
             mHeight = payload->height;
@@ -463,12 +481,13 @@ bool RotationBufferProvider::setupRotationBuffer(VideoPayloadBuffer *payload, in
         payload->rotated_width = mRotatedStride;
         payload->rotated_height = mRotatedHeight;
         payload->rotated_buffer_handle = mKhandles[mTargetIndex];
-        payload->client_transform = mTransform;
+        // setting client transform to 0 to force re-generating rotated buffer whenever needed.
+        payload->client_transform = 0;
         mTargetIndex++;
         if (mTargetIndex >= MAX_SURFACE_NUM)
             mTargetIndex = 0;
 
-    } while(0);
+    } while (0);
 
 #ifdef DEBUG_ROTATION_PERFROMANCE
     ITRACE("time spent %dms for setupRotationBuffer",
@@ -484,7 +503,12 @@ bool RotationBufferProvider::setupRotationBuffer(VideoPayloadBuffer *payload, in
 
     if (vaStatus != VA_STATUS_SUCCESS) {
         stopVA();
-        return false; // To not block in HWC, just abort instead of re-try
+        return false; // To not block HWC, just abort instead of retry
+    }
+
+    if (!payload->khandle) {
+        WTRACE("khandle is reset by decoder, surface is invalid!");
+        return false;
     }
 
     return true;

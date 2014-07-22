@@ -47,14 +47,14 @@ OverlayPlaneBase::OverlayPlaneBase(int index, int disp)
     : DisplayPlane(index, PLANE_OVERLAY, disp),
       mTTMBuffers(),
       mActiveTTMBuffers(),
-      mBackBuffer(0),
+      mCurrent(0),
       mWsbm(0),
-      mPipeConfig(0),
-      mDisablePending(false),
-      mDisablePendingDevice(0),
-      mDisablePendingCount(0)
+      mPipeConfig(0)
 {
     CTRACE();
+    for (int i = 0; i < OVERLAY_BACK_BUFFER_COUNT; i++) {
+        mBackBuffer[i] = 0;
+    }
 }
 
 OverlayPlaneBase::~OverlayPlaneBase()
@@ -87,22 +87,18 @@ bool OverlayPlaneBase::initialize(uint32_t bufferCount)
     }
 
     // create overlay back buffer
-    mBackBuffer = createBackBuffer();
-    if (!mBackBuffer) {
-        DEINIT_AND_RETURN_FALSE("failed to create overlay back buffer");
+    for (int i = 0; i < OVERLAY_BACK_BUFFER_COUNT; i++) {
+        mBackBuffer[i] = createBackBuffer();
+        if (!mBackBuffer[i]) {
+            DEINIT_AND_RETURN_FALSE("failed to create overlay back buffer");
+        }
+        // reset back buffer
+        resetBackBuffer(i);
     }
-
-    // reset back buffer
-    resetBackBuffer();
-
 
     // disable overlay when created
     flush(PLANE_DISABLE);
 
-    // overlay by default is in "disabled" status
-    mDisablePending = false;
-    mDisablePendingDevice = 0;
-    mDisablePendingCount = 0;
     return true;
 }
 
@@ -119,7 +115,7 @@ bool OverlayPlaneBase::isDisabled()
     // pass the pipe index to check its enabled status
     // now we can pass the device id directly since
     // their values are just equal
-    arg.plane.ctx = mDisablePendingDevice;
+    arg.plane.ctx = mDevice; // not used in kernel
 
     Drm *drm = Hwcomposer::getInstance().getDrm();
     bool ret = drm->writeReadIoctl(DRM_PSB_REGISTER_RW, &arg, sizeof(arg));
@@ -129,7 +125,7 @@ bool OverlayPlaneBase::isDisabled()
     }
 
     DTRACE("overlay %d status %s on device %d, current device %d",
-        mIndex, arg.plane.ctx ? "DISABLED" : "ENABLED", mDisablePendingDevice, mDevice);
+        mIndex, arg.plane.ctx ? "DISABLED" : "ENABLED", mDevice, mDevice);
 
     return arg.plane.ctx == PSB_DC_PLANE_DISABLED;
 }
@@ -144,32 +140,16 @@ void OverlayPlaneBase::deinitialize()
         invalidateActiveTTMBuffers();
     }
 
-    if (mBackBuffer) {
-        deleteBackBuffer();
+    // delete back buffer
+    for (int i = 0; i < OVERLAY_BACK_BUFFER_COUNT; i++) {
+        if (mBackBuffer[i]) {
+            deleteBackBuffer(i);
+            mBackBuffer[i] = NULL;
+        }
     }
-
     DEINIT_AND_DELETE_OBJ(mWsbm);
 
     DisplayPlane::deinitialize();
-}
-
-bool OverlayPlaneBase::setDataBuffer(uint32_t handle)
-{
-    if (mDisablePending) {
-        if (isDisabled() || mDisablePendingCount >= OVERLAY_DISABLING_COUNT_MAX) {
-            mDisablePending = false;
-            mDisablePendingDevice = 0;
-            mDisablePendingCount = 0;
-            enable();
-        } else {
-            mDisablePendingCount++;
-            WTRACE("overlay %d disabling on device %d is still pending, count: %d",
-                mIndex, mDisablePendingDevice, mDisablePendingCount);
-            return false;
-        }
-    }
-
-    return DisplayPlane::setDataBuffer(handle);
 }
 
 void OverlayPlaneBase::invalidateBufferCache()
@@ -205,9 +185,7 @@ bool OverlayPlaneBase::assignToDevice(int disp)
     mPipeConfig = pipeConfig;
     mDevice = disp;
 
-    if (!mDisablePending) {
-        enable();
-    }
+    enable();
 
     return true;
 }
@@ -216,10 +194,6 @@ void OverlayPlaneBase::setZOrderConfig(ZOrderConfig& zorderConfig,
                                             void *nativeConfig)
 {
     CTRACE();
-
-    OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
-    if (!backBuffer)
-        return;
 
     // setup overlay z order
     int ovaZOrder = -1;
@@ -235,30 +209,23 @@ void OverlayPlaneBase::setZOrderConfig(ZOrderConfig& zorderConfig,
         }
     }
 
-    // force overlay c above overlay a
-    if ((ovaZOrder >= 0) && (ovaZOrder < ovcZOrder)) {
-        backBuffer->OCONFIG |= (1 << 15);
-    } else {
-        backBuffer->OCONFIG &= ~(1 << 15);
+    for (int i = 0; i < OVERLAY_BACK_BUFFER_COUNT; i++) {
+        OverlayBackBufferBlk *backBuffer = mBackBuffer[i]->buf;
+        if (!backBuffer)
+            return;
+
+        // force overlay c above overlay a
+        if ((ovaZOrder >= 0) && (ovaZOrder < ovcZOrder)) {
+            backBuffer->OCONFIG |= (1 << 15);
+        } else {
+            backBuffer->OCONFIG &= ~(1 << 15);
+        }
     }
 }
 
 bool OverlayPlaneBase::reset()
 {
     RETURN_FALSE_IF_NOT_INIT();
-
-    if (mDisablePending) {
-        if (isDisabled() || mDisablePendingCount >= OVERLAY_DISABLING_COUNT_MAX) {
-            mDisablePending = false;
-            mDisablePendingDevice = 0;
-            mDisablePendingCount = 0;
-        } else {
-            mDisablePendingCount++;
-            WTRACE("overlay %d disabling is still pending on device %d, count %d",
-                 mIndex, mDisablePendingDevice, mDisablePendingCount);
-            return false;
-        }
-    }
 
     DisplayPlane::reset();
 
@@ -267,23 +234,26 @@ bool OverlayPlaneBase::reset()
         invalidateActiveTTMBuffers();
     }
 
-    // reset back buffer
-    resetBackBuffer();
-
+    // reset back buffers
+    for (int i = 0; i < OVERLAY_BACK_BUFFER_COUNT; i++) {
+        resetBackBuffer(i);
+    }
     return true;
 }
 
 bool OverlayPlaneBase::enable()
 {
     RETURN_FALSE_IF_NOT_INIT();
-    OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
-    if (!backBuffer)
-        return false;
+    for (int i = 0; i < OVERLAY_BACK_BUFFER_COUNT; i++) {
+        OverlayBackBufferBlk *backBuffer = mBackBuffer[i]->buf;
+        if (!backBuffer)
+            return false;
 
-    if (backBuffer->OCMD & 0x1)
-        return true;
+        if (backBuffer->OCMD & 0x1)
+            return true;
 
-    backBuffer->OCMD |= 0x1;
+        backBuffer->OCMD |= 0x1;
+    }
 
     // flush
     flush(PLANE_ENABLE);
@@ -293,28 +263,19 @@ bool OverlayPlaneBase::enable()
 bool OverlayPlaneBase::disable()
 {
     RETURN_FALSE_IF_NOT_INIT();
-    OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
-    if (!backBuffer)
-        return false;
+    for (int i = 0; i < OVERLAY_BACK_BUFFER_COUNT; i++) {
+        OverlayBackBufferBlk *backBuffer = mBackBuffer[i]->buf;
+        if (!backBuffer)
+            return false;
 
-    if (!(backBuffer->OCMD & 0x1))
-        return true;
+        if (!(backBuffer->OCMD & 0x1))
+            return true;
 
-    if (mDisablePending) {
-        WTRACE("overlay %d disabling is still pending on device %d, skip disabling",
-             mIndex, mDisablePendingDevice);
-        return true;
+        backBuffer->OCMD &= ~0x1;
     }
-
-    backBuffer->OCMD &= ~0x1;
 
     // flush
     flush(PLANE_DISABLE);
-
-    // "disable" is asynchronous and needs at least one vsync to complete
-    mDisablePending = true;
-    mDisablePendingDevice = mDevice;
-    mDisablePendingCount = 0;
     return true;
 }
 
@@ -351,29 +312,29 @@ OverlayBackBuffer* OverlayPlaneBase::createBackBuffer()
     return backBuffer;
 }
 
-void OverlayPlaneBase::deleteBackBuffer()
+void OverlayPlaneBase::deleteBackBuffer(int buf)
 {
-    if (!mBackBuffer)
+    if (!mBackBuffer[buf])
         return;
 
-    void *wsbmBufferObject = (void *)mBackBuffer->bufObject;
+    void *wsbmBufferObject = (void *)mBackBuffer[buf]->bufObject;
     bool ret = mWsbm->destroyTTMBuffer(wsbmBufferObject);
     if (ret == false) {
         WTRACE("failed to destroy TTM buffer");
     }
     // free back buffer
-    free(mBackBuffer);
-    mBackBuffer = 0;
+    free(mBackBuffer[buf]);
+    mBackBuffer[buf] = 0;
 }
 
-void OverlayPlaneBase::resetBackBuffer()
+void OverlayPlaneBase::resetBackBuffer(int buf)
 {
     CTRACE();
 
-    if (!mBackBuffer || !mBackBuffer->buf)
+    if (!mBackBuffer[buf] || !mBackBuffer[buf]->buf)
         return;
 
-    OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
+    OverlayBackBufferBlk *backBuffer = mBackBuffer[buf]->buf;
 
     memset(backBuffer, 0, sizeof(OverlayBackBufferBlk));
 
@@ -566,7 +527,7 @@ bool OverlayPlaneBase::isActiveTTMBuffer(BufferMapper *mapper)
 void OverlayPlaneBase::updateActiveTTMBuffers(BufferMapper *mapper)
 {
     // unmap the first entry (oldest buffer)
-    if (mActiveTTMBuffers.size() >= MIN_DATA_BUFFER_COUNT) {
+    if (mActiveTTMBuffers.size() >= MAX_ACTIVE_TTM_BUFFERS) {
         BufferMapper *oldest = mActiveTTMBuffers.itemAt(0);
         putTTMMapper(oldest);
         mActiveTTMBuffers.removeAt(0);
@@ -641,6 +602,13 @@ bool OverlayPlaneBase::rotatedBufferReady(BufferMapper& mapper, BufferMapper* &r
     return true;
 }
 
+
+bool OverlayPlaneBase::useOverlayRotation(BufferMapper& mapper)
+{
+    // by default overlay plane does not support rotation.
+    return false;
+}
+
 void OverlayPlaneBase::checkPosition(int& x, int& y, int& w, int& h)
 {
     Drm *drm = Hwcomposer::getInstance().getDrm();
@@ -665,7 +633,7 @@ void OverlayPlaneBase::checkCrop(int& srcX, int& srcY, int& srcW, int& srcH,
                                int coded_width, int coded_height)
 {
     int tmp;
-    if (mTransform == PLANE_TRANSFORM_90 || mTransform == PLANE_TRANSFORM_270) {
+    if (mTransform == HWC_TRANSFORM_ROT_90 || mTransform == HWC_TRANSFORM_ROT_270) {
         tmp = srcH;
         srcH = srcW;
         srcW = tmp;
@@ -681,14 +649,14 @@ void OverlayPlaneBase::checkCrop(int& srcX, int& srcY, int& srcW, int& srcH,
 
     // skip pading bytes in rotate buffer
     switch(mTransform) {
-    case PLANE_TRANSFORM_90:
+    case HWC_TRANSFORM_ROT_90:
         srcX = coded_width - srcW - srcX;
         break;
-    case PLANE_TRANSFORM_180:
+    case HWC_TRANSFORM_ROT_180:
         srcX = coded_width - srcW - srcX;
         srcY = coded_height - srcH - srcY;
         break;
-    case PLANE_TRANSFORM_270:
+    case HWC_TRANSFORM_ROT_270:
         srcY = coded_height - srcH - srcY;
         break;
     default:
@@ -701,7 +669,7 @@ bool OverlayPlaneBase::bufferOffsetSetup(BufferMapper& mapper)
 {
     CTRACE();
 
-    OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
+    OverlayBackBufferBlk *backBuffer = mBackBuffer[mCurrent]->buf;
     if (!backBuffer) {
         ETRACE("invalid back buffer");
         return false;
@@ -829,7 +797,7 @@ bool OverlayPlaneBase::coordinateSetup(BufferMapper& mapper)
 {
     CTRACE();
 
-    OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
+    OverlayBackBufferBlk *backBuffer = mBackBuffer[mCurrent]->buf;
     if (!backBuffer) {
         ETRACE("invalid back buffer");
         return false;
@@ -1023,7 +991,7 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
     bool scaleChanged = false;
     int x, y, w, h;
 
-    OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
+    OverlayBackBufferBlk *backBuffer = mBackBuffer[mCurrent]->buf;
     if (!backBuffer) {
         ETRACE("invalid back buffer");
         return false;
@@ -1169,9 +1137,9 @@ bool OverlayPlaneBase::setDataBuffer(BufferMapper& grallocMapper)
 
     // get gralloc mapper
     mapper = &grallocMapper;
-    if (mTransform) {
+    if (mTransform && !useOverlayRotation(grallocMapper)) {
         if (!rotatedBufferReady(grallocMapper, rotatedMapper)) {
-            WTRACE("rotated buffer is not ready");
+            DTRACE("rotated buffer is not ready");
             return false;
         }
 
@@ -1182,7 +1150,7 @@ bool OverlayPlaneBase::setDataBuffer(BufferMapper& grallocMapper)
         mapper = rotatedMapper;
     }
 
-    OverlayBackBufferBlk *backBuffer = mBackBuffer->buf;
+    OverlayBackBufferBlk *backBuffer = mBackBuffer[mCurrent]->buf;
     if (!backBuffer) {
         ETRACE("invalid back buffer");
         return false;

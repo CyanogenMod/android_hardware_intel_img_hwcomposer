@@ -120,7 +120,7 @@ void PowerManager::enterIdleState()
         return;
     }
 
-    DTRACE("enter s0i1 mode");
+    DTRACE("entering s0i1 mode");
     Drm *drm = Hwcomposer::getInstance().getDrm();
     struct drm_psb_idle_ctrl ctrl = {IDLE_CTRL_ENTER, 0};
     Hwcomposer::getInstance().getDrm()->writeIoctl(
@@ -135,7 +135,7 @@ void PowerManager::exitIdleState()
         WTRACE("invalid idle state");
         return;
     }
-    DTRACE("exit s0i1 mode");
+    DTRACE("exiting s0i1 mode");
     struct drm_psb_idle_ctrl ctrl = {IDLE_CTRL_EXIT, 0};
     Hwcomposer::getInstance().getDrm()->writeIoctl(
         DRM_PSB_IDLE_CTRL, &ctrl, sizeof(struct drm_psb_idle_ctrl));

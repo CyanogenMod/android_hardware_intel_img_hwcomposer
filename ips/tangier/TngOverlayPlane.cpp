@@ -58,17 +58,28 @@ bool TngOverlayPlane::flip(void *ctx)
 
     mContext.type = DC_OVERLAY_PLANE;
     mContext.ctx.ov_ctx.ovadd = 0x0;
-    mContext.ctx.ov_ctx.ovadd = (mBackBuffer->gttOffsetInPage << 12);
+    mContext.ctx.ov_ctx.ovadd = (mBackBuffer[mCurrent]->gttOffsetInPage << 12);
     mContext.ctx.ov_ctx.index = mIndex;
     mContext.ctx.ov_ctx.pipe = mDevice;
     mContext.ctx.ov_ctx.ovadd |= mPipeConfig;
     mContext.ctx.ov_ctx.ovadd |= 0x1;
+
+    // move to next back buffer
+    //mCurrent = (mCurrent + 1) % OVERLAY_BACK_BUFFER_COUNT;
 
     VTRACE("ovadd = %#x, index = %d, device = %d",
           mContext.ctx.ov_ctx.ovadd,
           mIndex,
           mDevice);
 
+    return true;
+}
+
+bool TngOverlayPlane::reset()
+{
+    OverlayPlaneBase::reset();
+    if (mRotationBufProvider)
+        mRotationBufProvider->reset();
     return true;
 }
 
@@ -87,8 +98,8 @@ bool TngOverlayPlane::setDataBuffer(BufferMapper& mapper)
     if (mIsProtectedBuffer) {
         // Bit 0: Decryption request, only allowed to change on a synchronous flip
         // This request will be qualified with the separate decryption enable bit for OV
-        mBackBuffer->buf->OSTART_0Y |= 0x1;
-        mBackBuffer->buf->OSTART_1Y |= 0x1;
+        mBackBuffer[mCurrent]->buf->OSTART_0Y |= 0x1;
+        mBackBuffer[mCurrent]->buf->OSTART_1Y |= 0x1;
     }
     return true;
 }
@@ -124,22 +135,22 @@ bool TngOverlayPlane::rotatedBufferReady(BufferMapper& mapper, BufferMapper* &ro
 
     if (format != OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar &&
         format != OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled &&
-        format != HAL_PIXEL_FORMAT_NV12)
+        format != HAL_PIXEL_FORMAT_NV12) {
+        ETRACE("Invalid video format %#x", format);
         return false;
+    }
 
     payload = (struct VideoPayloadBuffer *)mapper.getCpuAddress(SUB_BUFFER1);
 
-    if (payload == NULL && format == HAL_PIXEL_FORMAT_NV12) { /* need to populate buffer_info */
-        bool ret;
-        void *p;
-
-        p = mapper.getCpuAddress(SUB_BUFFER0);
+    if (payload == NULL && format == HAL_PIXEL_FORMAT_NV12) {
+         // need to populate buffer_info
+        void *p = mapper.getCpuAddress(SUB_BUFFER0);
         if (!p) {
             ETRACE("failed to get buffer user pointer");
             return false;
         }
 
-        ret = mRotationBufProvider->prepareBufferInfo(mapper.getWidth(),
+        bool ret = mRotationBufProvider->prepareBufferInfo(mapper.getWidth(),
                                                 mapper.getHeight(),
                                                 mapper.getStride().yuv.yStride,
                                                 &buffer_info, p);
@@ -164,9 +175,7 @@ bool TngOverlayPlane::rotatedBufferReady(BufferMapper& mapper, BufferMapper* &ro
     if (payload->client_transform != mTransform) {
         payload->hwc_timestamp = systemTime();
         payload->layer_transform = mTransform;
-        if (mRotationBufProvider->setupRotationBuffer(payload, mTransform)) {
-            return true;
-        } else {
+        if (!mRotationBufProvider->setupRotationBuffer(payload, mTransform)) {
             ETRACE("failed to setup rotation buffer");
             return false;
         }
@@ -175,14 +184,6 @@ bool TngOverlayPlane::rotatedBufferReady(BufferMapper& mapper, BufferMapper* &ro
     rotatedMapper = getTTMMapper(mapper, payload);
 
     return true;
-}
-
-void TngOverlayPlane::invalidateBufferCache()
-{
-    // clear plane buffer cache
-    OverlayPlaneBase::invalidateBufferCache();
-    if (mRotationBufProvider)
-        mRotationBufProvider->invalidateCaches();
 }
 
 bool TngOverlayPlane::flush(uint32_t flags)
@@ -203,7 +204,7 @@ bool TngOverlayPlane::flush(uint32_t flags)
 
     arg.plane.type = DC_OVERLAY_PLANE;
     arg.plane.index = mIndex;
-    arg.plane.ctx = (mBackBuffer->gttOffsetInPage << 12);
+    arg.plane.ctx = (mBackBuffer[mCurrent]->gttOffsetInPage << 12);
     // pipe select
     arg.plane.ctx |= mPipeConfig;
 
@@ -220,33 +221,6 @@ bool TngOverlayPlane::flush(uint32_t flags)
     }
 
     return true;
-}
-
-bool TngOverlayPlane::isFlushed()
-{
-    RETURN_FALSE_IF_NOT_INIT();
-
-    struct drm_psb_register_rw_arg arg;
-    memset(&arg, 0, sizeof(struct drm_psb_register_rw_arg));
-
-    arg.overlay_read_mask = OVSTATUS_REGRBIT_OVR_UPDT;
-    arg.plane.type = DC_OVERLAY_PLANE;
-    arg.plane.index = mIndex;
-    // pass the pipe index to check its enabled status
-    // now we can pass the device id directly since
-    // their values are just equal
-    arg.plane.ctx = mDisablePendingDevice;
-
-    Drm *drm = Hwcomposer::getInstance().getDrm();
-    bool ret = drm->writeReadIoctl(DRM_PSB_REGISTER_RW, &arg, sizeof(arg));
-    if (ret == false) {
-        WTRACE("overlay read failed with error code %d", ret);
-        return false;
-    }
-
-    DTRACE("overlay %d flush status %s on device %d, current device %d",
-        mIndex, arg.plane.ctx ? "DONE" : "PENDING", mDisablePendingDevice, mDevice);
-    return arg.plane.ctx == 1;
 }
 
 } // namespace intel

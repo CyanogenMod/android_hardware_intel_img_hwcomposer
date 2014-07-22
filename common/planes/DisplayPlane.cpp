@@ -43,9 +43,9 @@ DisplayPlane::DisplayPlane(int index, int type, int disp)
       mActiveBuffers(),
       mCacheCapacity(0),
       mIsProtectedBuffer(false),
-      mTransform(PLANE_TRANSFORM_0),
+      mTransform(0),
       mPlaneAlpha(0),
-      mBlending(PLANE_BLENDING_NONE),
+      mBlending(HWC_BLENDING_NONE),
       mCurrentDataBuffer(0),
       mUpdateMasks(0)
 {
@@ -152,16 +152,7 @@ void DisplayPlane::setTransform(int trans)
         return;
     }
 
-    switch (trans) {
-    case PLANE_TRANSFORM_90:
-    case PLANE_TRANSFORM_180:
-    case PLANE_TRANSFORM_270:
-        mTransform = trans;
-        break;
-    default:
-        mTransform = PLANE_TRANSFORM_0;
-        break;
-    }
+    mTransform = trans;
 
     mUpdateMasks |= PLANE_TRANSFORM_CHANGED;
 }

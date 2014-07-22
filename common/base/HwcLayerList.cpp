@@ -184,11 +184,7 @@ bool HwcLayerList::initialize()
         return false;
     }
 
-#if 1
-    allocatePlanesV2();
-#else
-    allocatePlanesV1();
-#endif
+    allocatePlanes();
 
     //dump();
     return true;
@@ -221,71 +217,8 @@ void HwcLayerList::deinitialize()
     mLayerCount = 0;
 }
 
-bool HwcLayerList::allocatePlanesV1()
-{
-    DisplayPlaneManager *planeManager = Hwcomposer::getInstance().getPlaneManager();
-    int overlayCandidates = (int)mOverlayCandidates.size();
-    int spriteCandidates = (int)mSpriteCandidates.size();
-    int overlayPlanes = planeManager->getFreePlanes(mDisplayIndex, DisplayPlane::PLANE_OVERLAY);
-    int spritePlanes = planeManager->getFreePlanes(mDisplayIndex, DisplayPlane::PLANE_SPRITE);
-    ZOrderLayer *zOverlay = NULL, *zSprite = NULL;
-    //DTRACE("overlayCandidates %d, overlayPlanes %d, spriteCandidates %d, spritePlanes %d",
-    //        overlayCandidates, overlayPlanes, spriteCandidates, spritePlanes);
 
-    if (overlayPlanes > overlayCandidates)
-        overlayPlanes = overlayCandidates;
-
-    if (spritePlanes > spriteCandidates)
-        spritePlanes = spriteCandidates;
-
-    int overlayIndex(0), spriteIndex(0);
-    for (overlayIndex = 0; overlayIndex < overlayPlanes; overlayIndex++) {
-        zOverlay = addZOrderLayer(DisplayPlane::PLANE_OVERLAY, mOverlayCandidates[overlayIndex]);
-    }
-
-    for (spriteIndex = 0; spriteIndex < spritePlanes; spriteIndex++) {
-        zSprite = addZOrderLayer(DisplayPlane::PLANE_SPRITE, mSpriteCandidates[spriteIndex]);
-    }
-
-    bool again = false;
-    do {
-        if (assignPrimaryPlane())
-            return true;
-
-        // try other possible candidate in lower priority
-        again = false;
-
-        if (spritePlanes && spriteIndex < spriteCandidates) {
-            removeZOrderLayer(zSprite);
-            zSprite = addZOrderLayer(DisplayPlane::PLANE_SPRITE, mSpriteCandidates[spriteIndex]);
-            spriteIndex++;
-            again = true;
-            continue;
-        }
-
-        if (overlayPlanes && overlayIndex < overlayCandidates) {
-            removeZOrderLayer(zOverlay);
-            zOverlay = addZOrderLayer(DisplayPlane::PLANE_OVERLAY, mOverlayCandidates[overlayIndex]);
-            overlayIndex++;
-            again = true;
-            continue;
-        }
-    } while (again);
-
-    while (mZOrderConfig.size()) {
-        // remove layer with the least priority
-        ZOrderLayer *layer = mZOrderConfig[mZOrderConfig.size() - 1];
-        removeZOrderLayer(layer);
-        if (assignPrimaryPlane())
-            return true;
-    }
-
-    ETRACE("no plane allocated, should never happen");
-    return false;
-}
-
-
-bool HwcLayerList::allocatePlanesV2()
+bool HwcLayerList::allocatePlanes()
 {
     return assignOverlayPlanes();
 }
@@ -412,7 +345,7 @@ bool HwcLayerList::assignPrimaryPlane()
         // primary plane is configured as sprite, all sprite candidates are offloaded to display planes
         ok = assignPrimaryPlaneHelper(spriteLayer);
         if (!ok) {
-            DTRACE("failed to use primary as sprite plane");
+            VTRACE("failed to use primary as sprite plane");
         }
     } else if (candidates == 0) {
         // none assigned, use primary plane for frame buffer target and set zorder to 0
@@ -424,7 +357,7 @@ bool HwcLayerList::assignPrimaryPlane()
         // all assigned, primary plane may be used during ZOrder config.
         ok = attachPlanes();
         if (!ok) {
-            ETRACE("failed to assign layers without primary");
+            VTRACE("failed to assign layers without primary");
         }
     } else {
         // check if the remaining planes can be composed to frame buffer target (FBT)
@@ -636,6 +569,62 @@ void HwcLayerList::setupSmartComposition()
     }
 }
 
+#if 1  // support overlay fallback to GLES
+
+bool HwcLayerList::update(hwc_display_contents_1_t *list)
+{
+    bool ret;
+
+    // basic check to make sure the consistance
+    if (!list) {
+        ETRACE("null layer list");
+        return false;
+    }
+
+    if ((int)list->numHwLayers != mLayerCount) {
+        ETRACE("layer count doesn't match (%d, %d)", list->numHwLayers, mLayerCount);
+        return false;
+    }
+
+    // update list
+    mList = list;
+
+    bool ok = true;
+    // update all layers, call each layer's update()
+    for (int i = 0; i < mLayerCount; i++) {
+        HwcLayer *hwcLayer = mLayers.itemAt(i);
+        if (!hwcLayer) {
+            ETRACE("no HWC layer for layer %d", i);
+            continue;
+        }
+
+        if (!hwcLayer->update(&list->hwLayers[i])) {
+            ok = false;
+            hwcLayer->setCompositionType(HWC_FORCE_FRAMEBUFFER);
+        }
+    }
+
+    if (!ok) {
+        ITRACE("overlay fallback to GLES. flags: %#x", list->flags);
+        for (int i = 0; i < mLayerCount - 1; i++) {
+            HwcLayer *hwcLayer = mLayers.itemAt(i);
+            if (hwcLayer->getPlane() &&
+                hwcLayer->getCompositionType() == HWC_OVERLAY) {
+                hwcLayer->setCompositionType(HWC_FRAMEBUFFER);
+            }
+        }
+        mLayers.itemAt(mLayerCount - 1)->setCompositionType(HWC_FRAMEBUFFER_TARGET);
+        deinitialize();
+        mList = list;
+        initialize();
+    }
+
+    setupSmartComposition();
+    return true;
+}
+
+#else
+
 bool HwcLayerList::update(hwc_display_contents_1_t *list)
 {
     bool ret;
@@ -669,6 +658,8 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
     return true;
 }
 
+#endif
+
 DisplayPlane* HwcLayerList::getPlane(uint32_t index) const
 {
     HwcLayer *hwcLayer;
@@ -686,7 +677,7 @@ DisplayPlane* HwcLayerList::getPlane(uint32_t index) const
     }
 
     if (hwcLayer->getHandle() == 0) {
-        WTRACE("plane is attached with invalid handle");
+        DTRACE("plane is attached with invalid handle");
         return 0;
     }
 

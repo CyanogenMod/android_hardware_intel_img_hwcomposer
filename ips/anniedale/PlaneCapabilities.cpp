@@ -69,8 +69,9 @@ bool PlaneCapabilities::isFormatSupported(int planeType, HwcLayer *hwcLayer)
                 WTRACE("180 degree rotation is not supported yet");
             }
             return trans ? false : true;
-        case HAL_PIXEL_FORMAT_NV12:
         case HAL_PIXEL_FORMAT_YV12:
+            return trans ? false: true;
+        case HAL_PIXEL_FORMAT_NV12:
         case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:
         case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled:
             return true;
@@ -153,10 +154,10 @@ bool PlaneCapabilities::isBlendingSupported(int planeType, HwcLayer *hwcLayer)
     if (planeType == DisplayPlane::PLANE_SPRITE || planeType == DisplayPlane::PLANE_PRIMARY) {
         // support premultipled & none blanding
         switch (blending) {
-        case DisplayPlane::PLANE_BLENDING_NONE:
-        case DisplayPlane::PLANE_BLENDING_PREMULT:
+        case HWC_BLENDING_NONE:
+        case HWC_BLENDING_PREMULT:
         // add coverage alpha support for ann
-        case DisplayPlane::PLANE_BLENDING_COVERAGE:
+        case HWC_BLENDING_COVERAGE:
             return true;
         default:
             VTRACE("unsupported blending %#x", blending);
@@ -164,7 +165,7 @@ bool PlaneCapabilities::isBlendingSupported(int planeType, HwcLayer *hwcLayer)
         }
     } else if (planeType == DisplayPlane::PLANE_OVERLAY) {
         // overlay doesn't support blending
-        return (blending == DisplayPlane::PLANE_BLENDING_NONE) ? true : false;
+        return (blending == HWC_BLENDING_NONE) ? true : false;
     } else {
         ETRACE("invalid plane type %d", planeType);
         return false;
@@ -212,7 +213,7 @@ bool PlaneCapabilities::isScalingSupported(int planeType, HwcLayer *hwcLayer)
                 DTRACE("offset %d is not 64 bytes aligned, fall back to GLES", (int)src.left);
                 return false;
             }
-
+#if 0
             int scaleX = srcW / dstW;
             int scaleY = srcH / dstH;
             if (trans && (scaleX >= 3 || scaleY >= 3)) {
@@ -225,6 +226,7 @@ bool PlaneCapabilities::isScalingSupported(int planeType, HwcLayer *hwcLayer)
                 DTRACE("overlay rotation with uneven scaling, fall back to GLES");
                 return false;
             }
+#endif
         }
 
         return true;
@@ -241,10 +243,10 @@ bool PlaneCapabilities::isTransformSupported(int planeType, HwcLayer *hwcLayer)
     if (planeType == DisplayPlane::PLANE_OVERLAY) {
         // overlay does not support FLIP_H/FLIP_V
         switch (trans) {
-        case DisplayPlane::PLANE_TRANSFORM_0:
-        case DisplayPlane::PLANE_TRANSFORM_90:
-        case DisplayPlane::PLANE_TRANSFORM_180:
-        case DisplayPlane::PLANE_TRANSFORM_270:
+        case 0:
+        case HAL_TRANSFORM_ROT_90:
+        case HAL_TRANSFORM_ROT_180:
+        case HAL_TRANSFORM_ROT_270:
             return true;
         default:
             return false;

@@ -258,9 +258,9 @@ void Hwcomposer::hotplug(int disp, bool connected)
     mMultiDisplayObserver->notifyHotPlug(mDrm->isConnected(disp));
 
     if (mProcs && mProcs->hotplug) {
-        ITRACE("report hotplug on disp %d, connected %d", disp, connected);
+        DTRACE("report hotplug on disp %d, connected %d", disp, connected);
         mProcs->hotplug(const_cast<hwc_procs_t*>(mProcs), disp, connected);
-        ITRACE("hotplug callback processed and returned!");
+        DTRACE("hotplug callback processed and returned!");
     }
 
     mDisplayAnalyzer->postHotplugEvent(connected);
@@ -271,7 +271,7 @@ void Hwcomposer::invalidate()
     RETURN_VOID_IF_NOT_INIT();
 
     if (mProcs && mProcs->invalidate) {
-        ITRACE("invalidating screen...");
+        DTRACE("invalidating screen...");
         mProcs->invalidate(const_cast<hwc_procs_t*>(mProcs));
     }
 }
