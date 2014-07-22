@@ -127,6 +127,8 @@ protected:
     Wsbm *mWsbm;
     // pipe config
     uint32_t mPipeConfig;
+
+    int mBobDeinterlace;
 };
 
 } // namespace intel
