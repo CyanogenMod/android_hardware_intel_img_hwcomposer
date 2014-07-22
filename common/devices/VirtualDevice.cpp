@@ -312,6 +312,20 @@ bool VirtualDevice::blank(bool blank)
     return true;
 }
 
+bool VirtualDevice::getDisplaySize(int *width, int *height)
+{
+    RETURN_FALSE_IF_NOT_INIT();
+    if (!width || !height) {
+        ETRACE("invalid parameters");
+        return false;
+    }
+
+    // TODO: make this platform specifc
+    *width = 1280;
+    *height = 720;
+    return true;
+}
+
 bool VirtualDevice::getDisplayConfigs(uint32_t *configs,
                                          size_t *numConfigs)
 {

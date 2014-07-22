@@ -89,6 +89,7 @@ public:
 
     virtual bool vsyncControl(bool enabled) = 0;
     virtual bool blank(bool blank) = 0;
+    virtual bool getDisplaySize(int *width, int *height) = 0;
     virtual bool getDisplayConfigs(uint32_t *configs,
                                        size_t *numConfigs) = 0;
     virtual bool getDisplayAttributes(uint32_t config,

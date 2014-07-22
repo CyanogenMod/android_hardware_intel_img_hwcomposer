@@ -48,7 +48,7 @@ public:
     bool checkVideoExtendedMode();
     bool isVideoExtendedModeEnabled();
     bool isVideoLayer(hwc_layer_1_t &layer);
-    bool isVideoEmbedded(hwc_layer_1_t &layer);
+    bool isVideoFullScreen(int device, hwc_layer_1_t &layer);
     bool isVideoPlaying();
     bool isOverlayAllowed();
     void postHotplugEvent(bool connected);

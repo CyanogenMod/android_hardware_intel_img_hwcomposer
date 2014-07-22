@@ -190,6 +190,29 @@ bool PhysicalDevice::blank(bool blank)
     return true;
 }
 
+bool PhysicalDevice::getDisplaySize(int *width, int *height)
+{
+    RETURN_FALSE_IF_NOT_INIT();
+    Mutex::Autolock _l(mLock);
+    if (!width || !height) {
+        ETRACE("invalid parameters");
+        return false;
+    }
+
+    *width = 0;
+    *height = 0;
+    drmModeModeInfo mode;
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+    bool ret = drm->getModeInfo(mType, mode);
+    if (!ret) {
+        return false;
+    }
+
+    *width = mode.hdisplay;
+    *height = mode.vdisplay;
+    return true;
+}
+
 bool PhysicalDevice::getDisplayConfigs(uint32_t *configs,
                                          size_t *numConfigs)
 {
