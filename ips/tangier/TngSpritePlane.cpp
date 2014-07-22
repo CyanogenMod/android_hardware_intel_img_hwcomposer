@@ -80,7 +80,7 @@ bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
     linoff = srcY * stride + srcX * bpp;
 
     // setup plane alpha
-    if ((mPlaneAlpha > 0) && (mPlaneAlpha < 0xff)) {
+    if ((mBlending == PLANE_BLENDING_PREMULT) && (mPlaneAlpha == 0)) {
        planeAlpha = mPlaneAlpha | 0x80000000;
     } else {
        // disable plane alpha to offload HW

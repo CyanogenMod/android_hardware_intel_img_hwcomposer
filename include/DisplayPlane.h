@@ -101,7 +101,7 @@ public:
     virtual void setPosition(int x, int y, int w, int h);
     virtual void setSourceCrop(int x, int y, int w, int h);
     virtual void setTransform(int transform);
-    virtual void setPlaneAlpha(uint8_t alpha);
+    virtual void setPlaneAlpha(uint8_t alpha, uint32_t blending);
 
     // data source
     virtual bool setDataBuffer(uint32_t handle);
@@ -158,6 +158,7 @@ protected:
     bool mIsProtectedBuffer;
     int mTransform;
     uint8_t mPlaneAlpha;
+    uint32_t mBlending;
     uint32_t mCurrentDataBuffer;
     uint32_t mUpdateMasks;
 };

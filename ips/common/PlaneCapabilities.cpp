@@ -139,14 +139,21 @@ bool PlaneCapabilities::isSizeSupported(int planeType,
     }
 }
 
-bool PlaneCapabilities::isBlendingSupported(int planeType, uint32_t blending)
+bool PlaneCapabilities::isBlendingSupported(int planeType, uint32_t blending, uint8_t planeAlpha)
 {
     if (planeType == DisplayPlane::PLANE_SPRITE || planeType == DisplayPlane::PLANE_PRIMARY) {
+        bool ret = false;
+
         // support premultipled & none blanding
         switch (blending) {
         case DisplayPlane::PLANE_BLENDING_NONE:
-        case DisplayPlane::PLANE_BLENDING_PREMULT:
             return true;
+        case DisplayPlane::PLANE_BLENDING_PREMULT:
+            ret = false;
+            if ((planeAlpha == 0) || (planeAlpha == 255)) {
+                ret = true;
+            }
+            return ret;
         default:
             VTRACE("unsupported blending %#x", blending);
             return false;

@@ -45,6 +45,7 @@ DisplayPlane::DisplayPlane(int index, int type, int disp)
       mIsProtectedBuffer(false),
       mTransform(PLANE_TRANSFORM_0),
       mPlaneAlpha(0),
+      mBlending(PLANE_BLENDING_NONE),
       mCurrentDataBuffer(0),
       mUpdateMasks(0)
 {
@@ -165,12 +166,17 @@ void DisplayPlane::setTransform(int trans)
     mUpdateMasks |= PLANE_TRANSFORM_CHANGED;
 }
 
-void DisplayPlane::setPlaneAlpha(uint8_t alpha)
+void DisplayPlane::setPlaneAlpha(uint8_t alpha, uint32_t blending)
 {
     ATRACE("plane alpha = 0x%x", alpha);
 
     if (mPlaneAlpha != alpha) {
         mPlaneAlpha = alpha;
+        mUpdateMasks |= PLANE_BUFFER_CHANGED;
+    }
+
+    if (mBlending != blending) {
+        mBlending = blending;
         mUpdateMasks |= PLANE_BUFFER_CHANGED;
     }
 }
