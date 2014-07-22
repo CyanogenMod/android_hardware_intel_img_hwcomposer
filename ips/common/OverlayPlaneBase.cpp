@@ -424,7 +424,7 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
 
         w = payload->rotated_width;
         h = payload->rotated_height;
-        checkCrop(srcX, srcY, srcW, srcH);
+        checkCrop(srcX, srcY, srcW, srcH, payload->coded_width, payload->coded_height);
 
         uint32_t format = grallocMapper.getFormat();
         // this is for sw decode with tiled buffer in landscape mode
@@ -529,7 +529,7 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
         mapper = reinterpret_cast<TTMBufferMapper *>(mTTMBuffers.valueAt(index));
         if (mapper->getCrop().x != srcX || mapper->getCrop().y != srcY ||
             mapper->getCrop().w != srcW || mapper->getCrop().h != srcH) {
-            checkCrop(srcX, srcY, srcW, srcH);
+            checkCrop(srcX, srcY, srcW, srcH, payload->coded_width, payload->coded_height);
             mapper->setCrop(srcX, srcY, srcW, srcH);
         }
     }
@@ -661,10 +661,10 @@ void OverlayPlaneBase::checkPosition(int& x, int& y, int& w, int& h)
         h = mode->vdisplay - y;
 }
 
-void OverlayPlaneBase::checkCrop(int& srcX, int& srcY, int& srcW, int& srcH)
+void OverlayPlaneBase::checkCrop(int& srcX, int& srcY, int& srcW, int& srcH,
+                               int coded_width, int coded_height)
 {
     int tmp;
-
     if (mTransform == PLANE_TRANSFORM_90 || mTransform == PLANE_TRANSFORM_270) {
         tmp = srcH;
         srcH = srcW;
@@ -673,19 +673,23 @@ void OverlayPlaneBase::checkCrop(int& srcX, int& srcY, int& srcW, int& srcH)
         tmp = srcX;
         srcX = srcY;
         srcY = tmp;
+
+        tmp = coded_width;
+        coded_width = coded_height;
+        coded_height = tmp;
     }
 
     // skip pading bytes in rotate buffer
     switch(mTransform) {
     case PLANE_TRANSFORM_90:
-        srcX += ((srcW + 0xf) & ~0xf) - srcW;
+        srcX = coded_width - srcW - srcX;
         break;
     case PLANE_TRANSFORM_180:
-        srcX += ((srcW + 0xf) & ~0xf) - srcW;
-        srcY += ((srcH + 0xf) & ~0xf) - srcH;
+        srcX = coded_width - srcW - srcX;
+        srcY = coded_height - srcH - srcY;
         break;
     case PLANE_TRANSFORM_270:
-        srcY += ((srcH + 0xf) & ~0xf) - srcH;
+        srcY = coded_height - srcH - srcY;
         break;
     default:
         break;
@@ -1070,7 +1074,6 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
     // Calculate the UV scaling factor
     xscaleFractUV = xscaleFract / uvratio;
     yscaleFractUV = yscaleFract / uvratio;
-
 
     // To keep the relative Y and UV ratios exact, round the Y scales
     // to a multiple of the Y/UV ratio.

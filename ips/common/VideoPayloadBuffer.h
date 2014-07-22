@@ -72,6 +72,9 @@ struct VideoPayloadBuffer {
 
     uint32_t crop_width;
     uint32_t crop_height;
+
+    uint32_t coded_width;
+    uint32_t coded_height;
 };
 
 
