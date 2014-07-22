@@ -39,11 +39,11 @@ namespace android {
 namespace intel {
 
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
+
 ////// MultiDisplayCallback
 
 MultiDisplayCallback::MultiDisplayCallback(MultiDisplayObserver *dispObserver)
     : mDispObserver(dispObserver),
-      mPhoneState(MDS_PHONE_STATE_OFF),
       mVideoState(MDS_VIDEO_STATE_UNKNOWN)
 {
 }
@@ -54,49 +54,43 @@ MultiDisplayCallback::~MultiDisplayCallback()
     mDispObserver = NULL;
 }
 
-status_t MultiDisplayCallback::setPhoneState(MDS_PHONE_STATE state)
+status_t MultiDisplayCallback::blankSecondaryDisplay(bool blank)
 {
-    mPhoneState = state;
-    ITRACE("state: %d", state);
-    mDispObserver->setPhoneState(state);
+    ITRACE("blank: %d", blank);
+    mDispObserver->blankSecondaryDisplay(blank);
     return NO_ERROR;
 }
 
-status_t MultiDisplayCallback::setVideoState(int sessionNum, int sessionId, MDS_VIDEO_STATE state)
+status_t MultiDisplayCallback::updateVideoState(int sessionId, MDS_VIDEO_STATE state)
 {
     mVideoState = state;
-    // TODO: check why setVideoState is called multiple times during startup
     ITRACE("state: %d", state);
-    mDispObserver->setVideoState(sessionNum, sessionId, state);
+    mDispObserver->updateVideoState(sessionId, state);
     return NO_ERROR;
 }
 
-status_t MultiDisplayCallback::setDisplayTiming(
-        MDS_DISPLAY_ID dpyId, MDSDisplayTiming *timing)
+status_t MultiDisplayCallback::setHdmiTiming(const MDSHdmiTiming& timing)
 {
-    mDispObserver->setDisplayTiming(dpyId, timing);
+    mDispObserver->setHdmiTiming(timing);
     return NO_ERROR;
 }
 
-status_t MultiDisplayCallback::setDisplayState(
-        MDS_DISPLAY_ID dpyId, MDS_DISPLAY_STATE state)
+status_t MultiDisplayCallback::updateInputState(bool state)
 {
-    ITRACE("id: %d state: %d", dpyId, state);
+    ITRACE("input state: %d", state);
     return NO_ERROR;
 }
 
-status_t MultiDisplayCallback::setScalingType(
-        MDS_DISPLAY_ID dpyId, MDS_SCALING_TYPE type)
+status_t MultiDisplayCallback::setHdmiScalingType(MDS_SCALING_TYPE type)
 {
-    ITRACE("id: %d state: %d", dpyId, type);
+    ITRACE("scaling type: %d", type);
     // Merrifield doesn't implement this API
     return INVALID_OPERATION;
 }
 
-status_t MultiDisplayCallback::setOverscan(
-        MDS_DISPLAY_ID dpyId, int hValue, int vValue)
+status_t MultiDisplayCallback::setHdmiOverscan(int hValue, int vValue)
 {
-    ITRACE("id: %d h: %d v: %d", dpyId, hValue, vValue);
+    ITRACE("oversacn compensation, h: %d v: %d", hValue, vValue);
     // Merrifield doesn't implement this API
     return INVALID_OPERATION;
 }
@@ -104,13 +98,15 @@ status_t MultiDisplayCallback::setOverscan(
 ////// MultiDisplayObserver
 
 MultiDisplayObserver::MultiDisplayObserver()
-    : mMDSClient(NULL),
-      mMDSCallback(),
+    : mMDSCbRegistrar(NULL),
+      mMDSInfoProvider(NULL),
+      mMDSConnObserver(NULL),
+      mMDSCallback(NULL),
       mLock(),
       mCondition(),
       mThreadLoopCount(0),
       mDeviceConnected(false),
-      mExternalDisplayTiming(false),
+      mExternalHdmiTiming(false),
       mInitialized(false)
 {
     CTRACE();
@@ -130,7 +126,7 @@ bool MultiDisplayObserver::isMDSRunning()
         return false;
     }
 
-    sp<IBinder> service = sm->checkService(String16("MultiDisplay"));
+    sp<IBinder> service = sm->checkService(String16(INTEL_MDS_SERVICE_NAME));
     if (service == NULL) {
         VTRACE("fail to get MultiDisplay service!");
         return false;
@@ -141,9 +137,20 @@ bool MultiDisplayObserver::isMDSRunning()
 
 bool MultiDisplayObserver::initMDSClient()
 {
-    mMDSClient = new MultiDisplayClient();
-    if (mMDSClient == NULL) {
-        ETRACE("failed to create MultiDisplayClient");
+    sp<IServiceManager> sm = defaultServiceManager();
+    if (sm == NULL) {
+        ETRACE("Fail to get service manager");
+        return false;
+    }
+    sp<IMDService> mds = interface_cast<IMDService>(
+            sm->getService(String16(INTEL_MDS_SERVICE_NAME)));
+    if (mds == NULL) {
+        ETRACE("Fail to get MDS service");
+        return false;
+    }
+    mMDSCbRegistrar = mds->getCallbackRegistrar();
+    if (mMDSCbRegistrar.get() == NULL) {
+        ETRACE("failed to create mds base Client");
         return false;
     }
 
@@ -153,8 +160,19 @@ bool MultiDisplayObserver::initMDSClient()
         deinitMDSClient();
         return false;
     }
+    mMDSInfoProvider = mds->getInfoProvider();
+    if (mMDSInfoProvider.get() == NULL) {
+        ETRACE("failed to create mds video Client");
+        return false;
+    }
 
-    status_t ret = mMDSClient->registerCallback(mMDSCallback);
+    mMDSConnObserver = mds->getConnectionObserver();
+    if (mMDSConnObserver.get() == NULL) {
+        ETRACE("failed to create mds video Client");
+        return false;
+    }
+
+    status_t ret = mMDSCbRegistrar->registerCallback(mMDSCallback);
     if (ret != NO_ERROR) {
         ETRACE("failed to register callback");
         deinitMDSClient();
@@ -169,17 +187,15 @@ bool MultiDisplayObserver::initMDSClient()
 
 void MultiDisplayObserver::deinitMDSClient()
 {
-    if (mMDSCallback.get() && mMDSClient) {
-        mMDSClient->unregisterCallback();
-    }
-
-    if (mMDSClient) {
-        delete mMDSClient;
-        mMDSClient = NULL;
+    if (mMDSCallback.get() && mMDSCbRegistrar.get()) {
+        mMDSCbRegistrar->unregisterCallback(mMDSCallback);
     }
 
     mDeviceConnected = false;
+    mMDSCbRegistrar = NULL;
+    mMDSInfoProvider = NULL;
     mMDSCallback = NULL;
+    mMDSConnObserver = NULL;
 }
 
 bool MultiDisplayObserver::initMDSClientAsync()
@@ -282,46 +298,38 @@ bool MultiDisplayObserver::threadLoop()
 }
 
 
-status_t MultiDisplayObserver::setPhoneState(MDS_PHONE_STATE state)
+status_t MultiDisplayObserver::blankSecondaryDisplay(bool blank)
 {
-    // blank secondary display if phone call is active
-    bool blank = (state == MDS_PHONE_STATE_ON);
+    // blank secondary display
     Hwcomposer::getInstance().getDisplayAnalyzer()->postBlankEvent(blank);
     return 0;
 }
 
-status_t MultiDisplayObserver::setVideoState(int sessionNum, int sessionId, MDS_VIDEO_STATE state)
+status_t MultiDisplayObserver::updateVideoState(int sessionId, MDS_VIDEO_STATE state)
 {
     bool preparing = (state == MDS_VIDEO_PREPARING || state == MDS_VIDEO_UNPREPARING);
     bool playing = (state != MDS_VIDEO_UNPREPARED);
-    ITRACE("video state: preparing %d, playing %d", preparing, playing);
+    VTRACE("video state: preparing %d, playing %d", preparing, playing);
     Hwcomposer::getInstance().getDisplayAnalyzer()->postVideoEvent(
-        sessionNum, sessionId, preparing, playing);
+        sessionId, preparing, playing);
     return 0;
 }
 
-status_t MultiDisplayObserver::setDisplayTiming(
-        MDS_DISPLAY_ID dpyId, MDSDisplayTiming *timing)
+status_t MultiDisplayObserver::setHdmiTiming(const MDSHdmiTiming& timing)
 {
-    if ((int)dpyId != (int)IDisplayDevice::DEVICE_EXTERNAL) {
-        ETRACE("invalid display id %d", dpyId);
-        return INVALID_OPERATION;
-    }
-
     drmModeModeInfo mode;
-    mode.hdisplay = timing->width;
-    mode.vdisplay = timing->height;
-    mode.vrefresh = timing->refresh;
-    // TODO: interlace needs to be replaced by flags
-    mode.flags = timing->interlace ? DRM_MODE_FLAG_INTERLACE : 0;
-    ITRACE("timing to set: %dx%d@%dHz", timing->width, timing->height, timing->refresh);
+    mode.hdisplay = timing.width;
+    mode.vdisplay = timing.height;
+    mode.vrefresh = timing.refresh;
+    mode.flags = timing.flags;
+    ITRACE("timing to set: %dx%d@%dHz", timing.width, timing.height, timing.refresh);
     ExternalDevice *dev =
-        (ExternalDevice *)Hwcomposer::getInstance().getDisplayDevice(dpyId);
+        (ExternalDevice *)Hwcomposer::getInstance().getDisplayDevice(HWC_DISPLAY_EXTERNAL);
     if (dev) {
         dev->setDrmMode(mode);
     }
 
-    mExternalDisplayTiming = true;
+    mExternalHdmiTiming = true;
     return 0;
 }
 
@@ -330,26 +338,30 @@ status_t MultiDisplayObserver::setDisplayTiming(
 status_t MultiDisplayObserver::notifyHotPlug(int disp, bool connected)
 {
     Mutex::Autolock _l(mLock);
-    if (!mMDSClient) {
+    if (mMDSConnObserver.get() == NULL) {
         return NO_INIT;
     }
 
+    if (disp != IDisplayDevice::DEVICE_EXTERNAL) {
+        WTRACE("Only hanlding external display hotplug");
+        return NO_ERROR;
+    }
     if (connected == mDeviceConnected) {
         WTRACE("hotplug event ignored");
         return NO_ERROR;
     }
 
     // clear it after externel device is disconnected
-    if (!connected) mExternalDisplayTiming = false;
+    if (!connected) mExternalHdmiTiming = false;
 
     mDeviceConnected = connected;
-    return mMDSClient->notifyHotPlug((MDS_DISPLAY_ID)disp, connected);
+    return mMDSConnObserver->updateHdmiConnectionStatus(connected);
 }
 
 status_t MultiDisplayObserver::getVideoSourceInfo(int sessionID, VideoSourceInfo* info)
 {
     Mutex::Autolock _l(mLock);
-    if (!mMDSClient) {
+    if (mMDSInfoProvider.get() == NULL) {
         return NO_INIT;
     }
 
@@ -360,7 +372,7 @@ status_t MultiDisplayObserver::getVideoSourceInfo(int sessionID, VideoSourceInfo
 
     MDSVideoSourceInfo videoInfo;
     memset(&videoInfo, 0, sizeof(MDSVideoSourceInfo));
-    status_t ret = mMDSClient->getVideoSourceInfo(sessionID, &videoInfo);
+    status_t ret = mMDSInfoProvider->getVideoSourceInfo(sessionID, &videoInfo);
     if (ret == NO_ERROR) {
         info->width     = videoInfo.displayW;
         info->height    = videoInfo.displayH;
@@ -371,10 +383,20 @@ status_t MultiDisplayObserver::getVideoSourceInfo(int sessionID, VideoSourceInfo
     return ret;
 }
 
+int MultiDisplayObserver::getVideoSessionNumber()
+{
+    Mutex::Autolock _l(mLock);
+    if (mMDSInfoProvider.get() == NULL) {
+        return 0;
+    }
+
+    return mMDSInfoProvider->getVideoSessionNumber();
+}
+
 bool MultiDisplayObserver::isExternalDeviceTimingFixed() const
 {
     Mutex::Autolock _l(mLock);
-    return mExternalDisplayTiming;
+    return mExternalHdmiTiming;
 }
 
 #endif //TARGET_HAS_MULTIPLE_DISPLAY

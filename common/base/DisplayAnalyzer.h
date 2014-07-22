@@ -53,7 +53,7 @@ public:
     bool isOverlayAllowed();
     int  getVideoInstances();
     void postHotplugEvent(bool connected);
-    void postVideoEvent(int instances, int instanceID, bool preparing, bool playing);
+    void postVideoEvent(int instanceID, bool preparing, bool playing);
     void postBlankEvent(bool blank);
     bool isPresentationLayer(hwc_layer_1_t &layer);
     bool isProtectedLayer(hwc_layer_1_t &layer);
@@ -69,7 +69,6 @@ private:
         int type;
 
         struct VideoEvent {
-            int instances;
             int instanceID;
             bool preparing;
             bool playing;
@@ -85,7 +84,7 @@ private:
     void handlePendingEvents();
     void handleHotplugEvent(bool connected);
     void handleBlankEvent(bool blank);
-    void handleVideoEvent(int instances, int instanceID, bool preparing, bool playing);
+    void handleVideoEvent(int instanceID, bool preparing, bool playing);
 
     void blankSecondaryDevice();
     void detectVideoExtendedMode();
