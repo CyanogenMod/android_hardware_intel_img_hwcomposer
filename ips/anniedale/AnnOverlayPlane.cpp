@@ -121,6 +121,9 @@ void AnnOverlayPlane::deinitialize()
 
 bool AnnOverlayPlane::setDataBuffer(uint32_t handle)
 {
+    if (mIndex == 1 && mTransform != 0)
+        return false;
+
     if (mDisablePending) {
         if (isFlushed() || mDisablePendingCount >= OVERLAY_DISABLING_COUNT_MAX) {
             mDisablePending = false;
