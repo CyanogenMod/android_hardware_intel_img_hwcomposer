@@ -36,18 +36,7 @@
 namespace android {
 namespace intel {
 
-struct TngIMGGrallocBuffer{
-    native_handle_t base;
-    int syncFD;
-    int bufFd[SUB_BUFFER_MAX];
-    unsigned long long ui64Stamp;
-    int usage;
-    int w;
-    int h;
-    int pixelFormat;
-    int bytesPerPixel;
-}__attribute__((aligned(sizeof(int)),packed));
-
+typedef IMG_native_handle_t TngIMGGrallocBuffer;
 
 class TngGrallocBuffer : public GrallocBufferBase {
 public:

@@ -52,7 +52,7 @@ private:
     enum {
         MAXIMUM_LAYER_NUMBER = 20,
     };
-    IMG_framebuffer_device_public_t *mFBDev;
+    IMG_display_device_public_t *mIMGDisplayDevice;
     IMG_hwc_layer_t mImgLayers[MAXIMUM_LAYER_NUMBER];
     bool mInitialized;
     int mCount;
