@@ -34,6 +34,8 @@
 #include <common/OverlayPlaneBase.h>
 #include <common/TTMBufferMapper.h>
 #include <common/GrallocSubBuffer.h>
+#include <DisplayQuery.h>
+
 
 // FIXME: remove it
 #include <OMX_IVCommon.h>
@@ -400,7 +402,15 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
         switch (grallocMapper.getFormat()) {
         case HAL_PIXEL_FORMAT_YV12:
         case HAL_PIXEL_FORMAT_I420:
-            yStride = align_to(align_to(w, 32), 64);
+            uint32_t yStride_align;
+            if (yStride_align = DisplayQuery::getOverlayLumaStrideAlignment(grallocMapper.getFormat()))
+            {
+                yStride = align_to(align_to(w, 32), yStride_align);
+            }
+            else
+            {
+                yStride = align_to(align_to(w, 32), 64);
+            }
             uvStride = align_to(yStride >> 1, 64);
             stride.yuv.yStride = yStride;
             stride.yuv.uvStride = uvStride;

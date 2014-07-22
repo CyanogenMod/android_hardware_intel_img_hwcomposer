@@ -34,7 +34,7 @@ class DisplayQuery
 {
 public:
     static bool isVideoFormat(uint32_t format);
-    static int  getOverlayStrideAlignment(uint32_t format);
+    static int  getOverlayLumaStrideAlignment(uint32_t format);
 };
 
 } // namespace intel

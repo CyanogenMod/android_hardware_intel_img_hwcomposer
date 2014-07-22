@@ -45,7 +45,7 @@ bool DisplayQuery::isVideoFormat(uint32_t format)
     }
 }
 
-int  DisplayQuery::getOverlayStrideAlignment(uint32_t format)
+int  DisplayQuery::getOverlayLumaStrideAlignment(uint32_t format)
 {
     // both luma and chroma stride need to be 64-byte aligned for overlay
     switch (format) {
