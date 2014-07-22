@@ -250,7 +250,11 @@ void ExternalDevice::hotplugListener()
     if (mConnected == false) {
         mHotplugEventPending = false;
         mHdcpControl->stopHdcp();
-        mHwc.hotplug(mType, mConnected);
+        // FIXME:Don't inform SF an unplug state if device enters screen off state
+        // At clone/Extended mode, there isn't any issue,
+        // but at presentation mode, it make SF can't setup right layer list for HDMI at next power on.
+        if (!mBlank)
+            mHwc.hotplug(mType, mConnected);
     } else {
         DTRACE("start HDCP asynchronously...");
          // delay sending hotplug event till HDCP is authenticated.
