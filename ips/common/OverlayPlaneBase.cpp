@@ -56,7 +56,6 @@ OverlayPlaneBase::OverlayPlaneBase(int index, int disp)
 OverlayPlaneBase::~OverlayPlaneBase()
 {
     CTRACE();
-    deinitialize();
 }
 
 bool OverlayPlaneBase::initialize(uint32_t bufferCount)
