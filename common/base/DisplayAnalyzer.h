@@ -46,6 +46,7 @@ public:
     void deinitialize();
     void analyzeContents(size_t numDisplays, hwc_display_contents_1_t** displays);
     bool checkVideoExtendedMode();
+    bool isVideoExtendedModeEnabled();
     bool isVideoLayer(hwc_layer_1_t &layer);
     bool isVideoEmbedded(hwc_layer_1_t &layer);
     bool isVideoPlaying();
@@ -87,6 +88,7 @@ private:
 
 private:
     bool mInitialized;
+    bool mEnableVideoExtendedMode;
     bool mVideoExtendedMode;
     bool mForceCloneMode;
     bool mBlankDevice;
