@@ -146,18 +146,9 @@ bool OverlayPlaneBase::setDataBuffer(uint32_t handle)
 
 void OverlayPlaneBase::invalidateBufferCache()
 {
-    BufferMapper* mapper;
-
     // clear plane buffer cache
     DisplayPlane::invalidateBufferCache();
-
-    // clear TTM buffer cache
-    for (size_t i = 0; i < mTTMBuffers.size(); i++) {
-        mapper = mTTMBuffers.valueAt(i);
-        // putTTMMapper removes mapper from cache
-        putTTMMapper(mapper);
-    }
-    mTTMBuffers.clear();
+    invalidateTTMBuffers();
 }
 
 bool OverlayPlaneBase::assignToDevice(int disp)
@@ -491,7 +482,7 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
             ret = mapper->map();
             if (!ret) {
                 ETRACE("failed to map");
-                invalidateBufferCache();
+                invalidateTTMBuffers();
                 ret = mapper->map();
                 if (!ret) {
                     ETRACE("failed to remap");
@@ -500,7 +491,7 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper)
             }
 
             if (mTTMBuffers.size() >= OVERLAY_DATA_BUFFER_COUNT) {
-                invalidateBufferCache();
+                invalidateTTMBuffers();
             }
 
             // add mapper
@@ -590,6 +581,17 @@ void OverlayPlaneBase::invalidateActiveTTMBuffers()
 
     // clear recorded data buffers
     mActiveTTMBuffers.clear();
+}
+
+void OverlayPlaneBase::invalidateTTMBuffers()
+{
+    BufferMapper* mapper;
+    for (size_t i = 0; i < mTTMBuffers.size(); i++) {
+        mapper = mTTMBuffers.valueAt(i);
+        // putTTMMapper removes mapper from cache
+        putTTMMapper(mapper);
+    }
+    mTTMBuffers.clear();
 }
 
 bool OverlayPlaneBase::rotatedBufferReady(BufferMapper& mapper)
