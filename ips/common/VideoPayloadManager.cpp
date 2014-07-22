@@ -68,6 +68,8 @@ bool VideoPayloadManager::getMetaData(BufferMapper *mapper, MetaData *metadata)
         metadata->chromaUStride = p->chroma_u_stride;
         metadata->chromaVStride = p->chroma_v_stride;
         metadata->kHandle = p->khandle;
+        metadata->crop_width = p->crop_width;
+        metadata->crop_height = p->crop_height;
     } else {
         metadata->width = p->rotated_width;
         metadata->height = p->rotated_height;
@@ -75,6 +77,8 @@ bool VideoPayloadManager::getMetaData(BufferMapper *mapper, MetaData *metadata)
         metadata->chromaUStride = p->rotate_chroma_u_stride;
         metadata->chromaVStride = p->rotate_chroma_v_stride;
         metadata->kHandle = p->rotated_buffer_handle;
+        metadata->crop_width = p->crop_height;
+        metadata->crop_height = p->crop_width;
     }
 
     return true;

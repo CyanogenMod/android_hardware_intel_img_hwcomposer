@@ -51,6 +51,8 @@ public:
         uint16_t chromaUStride;
         uint16_t chromaVStride;
         int64_t  timestamp;
+        uint32_t crop_width;
+        uint32_t crop_height;
     };
 
 public:
