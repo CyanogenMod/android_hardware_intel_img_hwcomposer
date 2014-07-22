@@ -307,6 +307,11 @@ bool DisplayAnalyzer::isOverlayAllowed()
     return mOverlayAllowed;
 }
 
+int DisplayAnalyzer::getVideoInstances()
+{
+    return mVideoInstances;
+}
+
 void DisplayAnalyzer::postHotplugEvent(bool connected)
 {
     // TODO: turn on primary display immeidately
