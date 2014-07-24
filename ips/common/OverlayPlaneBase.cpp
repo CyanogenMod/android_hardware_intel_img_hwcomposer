@@ -1,30 +1,18 @@
 /*
- * Copyright © 2012 Intel Corporation
- * All rights reserved.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- *
- * Authors:
- *    Jackie Li <yaodong.li@intel.com>
- *
- */
+// Copyright (c) 2014 Intel Corporation 
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+*/
 
 #include <math.h>
 #include <common/utils/HwcTrace.h>
@@ -851,129 +839,23 @@ bool OverlayPlaneBase::coordinateSetup(BufferMapper& mapper)
     return true;
 }
 
-bool OverlayPlaneBase::setCoeffRegs(double *coeff, int mantSize,
-                                  coeffPtr pCoeff, int pos)
+bool OverlayPlaneBase::setCoeffRegs(__attribute__((unused))double *coeff,
+                                    __attribute__((unused))int mantSize,
+                                    __attribute__((unused))coeffPtr pCoeff,
+                                    __attribute__((unused))int pos)
 {
-    int maxVal, icoeff, res;
-    int sign;
-    double c;
-
-    sign = 0;
-    maxVal = 1 << mantSize;
-    c = *coeff;
-    if (c < 0.0) {
-        sign = 1;
-        c = -c;
-    }
-
-    res = 12 - mantSize;
-    if ((icoeff = (int)(c * 4 * maxVal + 0.5)) < maxVal) {
-        pCoeff[pos].exponent = 3;
-        pCoeff[pos].mantissa = icoeff << res;
-        *coeff = (double)icoeff / (double)(4 * maxVal);
-    } else if ((icoeff = (int)(c * 2 * maxVal + 0.5)) < maxVal) {
-        pCoeff[pos].exponent = 2;
-        pCoeff[pos].mantissa = icoeff << res;
-        *coeff = (double)icoeff / (double)(2 * maxVal);
-    } else if ((icoeff = (int)(c * maxVal + 0.5)) < maxVal) {
-        pCoeff[pos].exponent = 1;
-        pCoeff[pos].mantissa = icoeff << res;
-        *coeff = (double)icoeff / (double)(maxVal);
-    } else if ((icoeff = (int)(c * maxVal * 0.5 + 0.5)) < maxVal) {
-        pCoeff[pos].exponent = 0;
-        pCoeff[pos].mantissa = icoeff << res;
-        *coeff = (double)icoeff / (double)(maxVal / 2);
-    } else {
-        // Coeff out of range
-        return false;
-    }
-
-    pCoeff[pos].sign = sign;
-    if (sign)
-        *coeff = -(*coeff);
+    /* FIXME: PLEASE IMPLEMENT */
     return true;
 }
 
-void OverlayPlaneBase::updateCoeff(int taps, double fCutoff,
-                                 bool isHoriz, bool isY,
-                                 coeffPtr pCoeff)
+void OverlayPlaneBase::updateCoeff(__attribute__((unused))int taps,
+                                   __attribute__((unused))double fCutoff,
+                                   __attribute__((unused))bool isHoriz,
+                                   __attribute__((unused))bool isY,
+                                   __attribute__((unused))coeffPtr pCoeff)
 {
-    int i, j, j1, num, pos, mantSize;
-    double pi = 3.1415926535, val, sinc, window, sum;
-    double rawCoeff[MAX_TAPS * 32], coeffs[N_PHASES][MAX_TAPS];
-    double diff;
-    int tapAdjust[MAX_TAPS], tap2Fix;
-    bool isVertAndUV;
-
-    if (isHoriz)
-        mantSize = 7;
-    else
-        mantSize = 6;
-
-    isVertAndUV = !isHoriz && !isY;
-    num = taps * 16;
-    for (i = 0; i < num  * 2; i++) {
-        val = (1.0 / fCutoff) * taps * pi * (i - num) / (2 * num);
-        if (val == 0.0)
-            sinc = 1.0;
-        else
-            sinc = sin(val) / val;
-
-        // Hamming window
-        window = (0.54 - 0.46 * cos(2 * i * pi / (2 * num - 1)));
-        rawCoeff[i] = sinc * window;
-    }
-
-    for (i = 0; i < N_PHASES; i++) {
-        // Normalise the coefficients
-        sum = 0.0;
-        for (j = 0; j < taps; j++) {
-            pos = i + j * 32;
-            sum += rawCoeff[pos];
-        }
-        for (j = 0; j < taps; j++) {
-            pos = i + j * 32;
-            coeffs[i][j] = rawCoeff[pos] / sum;
-        }
-
-        // Set the register values
-        for (j = 0; j < taps; j++) {
-            pos = j + i * taps;
-            if ((j == (taps - 1) / 2) && !isVertAndUV)
-                setCoeffRegs(&coeffs[i][j], mantSize + 2, pCoeff, pos);
-            else
-                setCoeffRegs(&coeffs[i][j], mantSize, pCoeff, pos);
-        }
-
-        tapAdjust[0] = (taps - 1) / 2;
-        for (j = 1, j1 = 1; j <= tapAdjust[0]; j++, j1++) {
-            tapAdjust[j1] = tapAdjust[0] - j;
-            tapAdjust[++j1] = tapAdjust[0] + j;
-        }
-
-        // Adjust the coefficients
-        sum = 0.0;
-        for (j = 0; j < taps; j++)
-            sum += coeffs[i][j];
-        if (sum != 1.0) {
-            for (j1 = 0; j1 < taps; j1++) {
-                tap2Fix = tapAdjust[j1];
-                diff = 1.0 - sum;
-                coeffs[i][tap2Fix] += diff;
-                pos = tap2Fix + i * taps;
-                if ((tap2Fix == (taps - 1) / 2) && !isVertAndUV)
-                    setCoeffRegs(&coeffs[i][tap2Fix], mantSize + 2, pCoeff, pos);
-                else
-                    setCoeffRegs(&coeffs[i][tap2Fix], mantSize, pCoeff, pos);
-
-                sum = 0.0;
-                for (j = 0; j < taps; j++)
-                    sum += coeffs[i][j];
-                if (sum == 1.0)
-                    break;
-            }
-        }
-    }
+    /* FIXME: PLEASE IMPLEMENT */
+    return;
 }
 
 bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
