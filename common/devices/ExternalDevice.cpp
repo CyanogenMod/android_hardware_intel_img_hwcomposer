@@ -295,5 +295,80 @@ void ExternalDevice::setRefreshRate(int hz)
     mHwc.getVsyncManager()->enableDynamicVsync(true);
 }
 
+
+bool ExternalDevice::getDisplaySize(int *width, int *height)
+{
+#ifndef INTEL_SUPPORT_HDMI_PRIMARY
+    return PhysicalDevice::getDisplaySize(width, height);
+#else
+    if (mConnected)
+        return PhysicalDevice::getDisplaySize(width, height);
+
+    if (!width || !height)
+        return false;
+
+    *width = 1920;
+    *height = 1080;
+    return true;
+#endif
+}
+
+bool ExternalDevice::getDisplayConfigs(uint32_t *configs, size_t *numConfigs)
+{
+#ifndef INTEL_SUPPORT_HDMI_PRIMARY
+    return PhysicalDevice::getDisplayConfigs(configs, numConfigs);
+#else
+    if (mConnected)
+        return PhysicalDevice::getDisplayConfigs(configs, numConfigs);
+
+    if (!configs || !numConfigs)
+        return false;
+
+    *configs = 0;
+    *numConfigs = 1;
+    return true;
+#endif
+}
+
+bool ExternalDevice::getDisplayAttributes(uint32_t config,
+                                      const uint32_t *attributes,
+                                      int32_t *values)
+{
+#ifndef INTEL_SUPPORT_HDMI_PRIMARY
+    return PhysicalDevice::getDisplayAttributes(config, attributes, values);
+#else
+    if (mConnected)
+        return PhysicalDevice::getDisplayAttributes(config, attributes, values);
+    if (!attributes || !values)
+        return false;
+    int i = 0;
+    while (attributes[i] != HWC_DISPLAY_NO_ATTRIBUTE) {
+        switch (attributes[i]) {
+        case HWC_DISPLAY_VSYNC_PERIOD:
+            values[i] = 1e9 / 60;
+            break;
+        case HWC_DISPLAY_WIDTH:
+            values[i] = 1920;
+            break;
+        case HWC_DISPLAY_HEIGHT:
+            values[i] = 1080;
+            break;
+        case HWC_DISPLAY_DPI_X:
+            values[i] = 1;
+            break;
+        case HWC_DISPLAY_DPI_Y:
+            values[i] = 1;
+            break;
+        default:
+            ETRACE("unknown attribute %d", attributes[i]);
+            break;
+        }
+        i++;
+    }
+    return true;
+#endif
+}
+
+
 } // namespace intel
 } // namespace android

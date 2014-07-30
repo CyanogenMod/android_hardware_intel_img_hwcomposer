@@ -34,6 +34,13 @@ public:
     virtual void deinitialize();
     virtual bool setDrmMode(drmModeModeInfo& value);
     virtual void setRefreshRate(int hz);
+    virtual bool getDisplaySize(int *width, int *height);
+    virtual bool getDisplayConfigs(uint32_t *configs,
+                                       size_t *numConfigs);
+    virtual bool getDisplayAttributes(uint32_t config,
+                                          const uint32_t *attributes,
+                                          int32_t *values);
+
 
 private:
     static void HdcpLinkStatusListener(bool success, void *userData);
