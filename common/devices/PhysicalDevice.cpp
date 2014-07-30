@@ -140,16 +140,6 @@ bool PhysicalDevice::blank(bool blank)
 {
     RETURN_FALSE_IF_NOT_INIT();
 
-    if ((!mConnected) && (!blank))
-    {
-        int i = 0;
-        while ((!mConnected ) && (i <= 1000))
-        {
-            usleep(1000);
-            i ++ ;
-        }
-    }
-
     if (!mConnected)
         return false;
 
