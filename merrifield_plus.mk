@@ -95,7 +95,7 @@ LOCAL_C_INCLUDES := \
     frameworks/native/include/media/openmax \
     vendor/intel/moorefield/prebuilts/hardware/rgx/include \
     vendor/intel/hardware/anniedale/rgx/include \
-    vendor/intel/hardware/PRIVATE/rgx/rogue/android/graphicshal
+    $(TARGET_OUT_HEADERS)/pvr/hal
 
 ifeq ($(INTEL_WIDI_MERRIFIELD), true)
 LOCAL_SRC_FILES += \
