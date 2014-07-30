@@ -140,9 +140,6 @@ bool PhysicalDevice::blank(bool blank)
 {
     RETURN_FALSE_IF_NOT_INIT();
 
-    if (!mConnected)
-        return false;
-
     mBlank = blank;
     bool ret = mBlankControl->blank(mType, blank);
     if (ret == false) {

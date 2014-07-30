@@ -436,6 +436,9 @@ void DisplayAnalyzer::handlePendingEvents()
 void DisplayAnalyzer::handleHotplugEvent(bool connected)
 {
     if (connected) {
+        for (int i = 0; i < mCachedNumDisplays; i++) {
+            setCompositionType(i, HWC_FRAMEBUFFER, true);
+        }
         Hwcomposer::getInstance().getPowerManager()->disableIdleControl();
     } else {
         if (mVideoStateMap.size() == 0) {
