@@ -18,7 +18,7 @@
 #include <wsbm_driver.h>
 #include <wsbm_manager.h>
 #include <wsbm_util.h>
-#include <ttm/ttm_placement.h>
+#include <drm/ttm/ttm_placement.h>
 #include <linux/psb_drm.h>
 #include <xf86drm.h>
 #include <common/utils/HwcTrace.h>
