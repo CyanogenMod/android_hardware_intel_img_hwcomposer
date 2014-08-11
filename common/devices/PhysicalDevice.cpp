@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 #include <common/utils/HwcTrace.h>
-#include <common/base/Drm.h>
 #include <Hwcomposer.h>
+#include <common/base/Drm.h>
 #include <PhysicalDevice.h>
 
 namespace android {
@@ -172,6 +172,11 @@ bool PhysicalDevice::getDisplaySize(int *width, int *height)
     return true;
 }
 
+template <typename T>
+static inline T min(T a, T b) {
+    return a<b ? a : b;
+}
+
 bool PhysicalDevice::getDisplayConfigs(uint32_t *configs,
                                          size_t *numConfigs)
 {
@@ -184,18 +189,21 @@ bool PhysicalDevice::getDisplayConfigs(uint32_t *configs,
         return false;
     }
 
-    if (!configs || !numConfigs) {
+    if (!configs || !numConfigs || *numConfigs < 1) {
         ETRACE("invalid parameters");
         return false;
     }
 
-    *configs = 0;
-    *numConfigs = mDisplayConfigs.size();
+    // fill in all config handles
+    *numConfigs = min(*numConfigs, mDisplayConfigs.size());
+    for (int i = 0; i < static_cast<int>(*numConfigs); i++) {
+        configs[i] = i;
+    }
 
     return true;
 }
 
-bool PhysicalDevice::getDisplayAttributes(uint32_t /* configs */,
+bool PhysicalDevice::getDisplayAttributes(uint32_t config,
         const uint32_t *attributes,
         int32_t *values)
 {
@@ -213,8 +221,8 @@ bool PhysicalDevice::getDisplayAttributes(uint32_t /* configs */,
         return false;
     }
 
-    DisplayConfig *config = mDisplayConfigs.itemAt(mActiveDisplayConfig);
-    if  (!config) {
+    DisplayConfig *configChosen = mDisplayConfigs.itemAt(config);
+    if  (!configChosen) {
         WTRACE("failed to get display config");
         return false;
     }
@@ -223,24 +231,24 @@ bool PhysicalDevice::getDisplayAttributes(uint32_t /* configs */,
     while (attributes[i] != HWC_DISPLAY_NO_ATTRIBUTE) {
         switch (attributes[i]) {
         case HWC_DISPLAY_VSYNC_PERIOD:
-            if (config->getRefreshRate()) {
-                values[i] = 1e9 / config->getRefreshRate();
+            if (configChosen->getRefreshRate()) {
+                values[i] = 1e9 / configChosen->getRefreshRate();
             } else {
                 ETRACE("refresh rate is 0!!!");
                 values[i] = 0;
             }
             break;
         case HWC_DISPLAY_WIDTH:
-            values[i] = config->getWidth();
+            values[i] = configChosen->getWidth();
             break;
         case HWC_DISPLAY_HEIGHT:
-            values[i] = config->getHeight();
+            values[i] = configChosen->getHeight();
             break;
         case HWC_DISPLAY_DPI_X:
-            values[i] = config->getDpiX() * 1000.0f;
+            values[i] = configChosen->getDpiX() * 1000.0f;
             break;
         case HWC_DISPLAY_DPI_Y:
-            values[i] = config->getDpiY() * 1000.0f;
+            values[i] = configChosen->getDpiY() * 1000.0f;
             break;
         default:
             ETRACE("unknown attribute %d", attributes[i]);
@@ -338,6 +346,30 @@ bool PhysicalDevice::updateDisplayConfigs()
 
     // init the active display config
     mActiveDisplayConfig = 0;
+
+    drmModeModeInfoPtr modes;
+    drmModeModeInfoPtr compatMode;
+    int modeCount = 0;
+
+    modes = drm->detectAllConfigs(mType, &modeCount);
+
+    for (int i = 0; i < modeCount; i++) {
+        if (modes) {
+            compatMode = &modes[i];
+            if (!compatMode)
+                continue;
+            if (compatMode->hdisplay == mode.hdisplay &&
+                compatMode->vdisplay == mode.vdisplay &&
+                compatMode->vrefresh != mode.vrefresh) {
+                DisplayConfig *config = new DisplayConfig(compatMode->vrefresh,
+                                              compatMode->hdisplay,
+                                              compatMode->vdisplay,
+                                              dpiX, dpiY);
+                // add it to the end of configs
+                mDisplayConfigs.push_back(config);
+            }
+        }
+    }
 
     return true;
 }
@@ -446,6 +478,40 @@ void PhysicalDevice::dump(Dump& d)
     // dump layer list
     if (mLayerList)
         mLayerList->dump(d);
+}
+
+bool PhysicalDevice::setPowerMode(int mode)
+{
+    // TODO: set proper blanking modes for HWC 1.4 modes
+    switch (mode) {
+        case HWC_POWER_MODE_OFF:
+        case HWC_POWER_MODE_DOZE:
+            return blank(true);
+        case HWC_POWER_MODE_NORMAL:
+        case HWC_POWER_MODE_DOZE_SUSPEND:
+            return blank(false);
+        default:
+            return false;
+    }
+    return false;
+}
+
+int PhysicalDevice::getActiveConfig()
+{
+    return mActiveDisplayConfig;
+}
+
+bool PhysicalDevice::setActiveConfig(int index)
+{
+    // TODO: for now only implement in external
+    if (index == 0)
+        return true;
+    return false;
+}
+
+bool PhysicalDevice::setCursorPositionAsync(int /*x*/, int /*y*/)
+{
+    return false;
 }
 
 } // namespace intel

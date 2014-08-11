@@ -281,6 +281,7 @@ void ExternalDevice::hotplugListener()
             mHwc.hotplug(mType, mConnected);
         }
     }
+    mActiveDisplayConfig = 0;
 }
 
 void ExternalDevice::setRefreshRate(int hz)
@@ -395,6 +396,37 @@ bool ExternalDevice::getDisplayAttributes(uint32_t config,
     return true;
 #endif
 }
+
+int ExternalDevice::getActiveConfig()
+{
+    if (!mConnected) {
+        return 0;
+    }
+    return mActiveDisplayConfig;
+}
+
+bool ExternalDevice::setActiveConfig(int index)
+{
+    if (!mConnected) {
+        if (index == 0)
+            return true;
+        else
+            return false;
+    }
+
+    // for now we will only permit the frequency change.  In the future
+    // we may need to set mode as well.
+    if (index >= 0 && index < static_cast<int>(mDisplayConfigs.size())) {
+        DisplayConfig *config = mDisplayConfigs.itemAt(index);
+        setRefreshRate(config->getRefreshRate());
+        mActiveDisplayConfig = index;
+        return true;
+    } else {
+        return false;
+    }
+    return true;
+}
+
 
 
 } // namespace intel

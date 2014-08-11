@@ -135,6 +135,12 @@ void HwcLayer::setType(uint32_t type)
     case LAYER_FORCE_FB:
         mLayer->compositionType = HWC_FRAMEBUFFER;
         break;
+    case LAYER_SIDEBAND:
+        mLayer->compositionType = HWC_SIDEBAND;
+        break;
+    case LAYER_CURSOR_OVERLAY:
+        mLayer->compositionType = HWC_CURSOR_OVERLAY;
+        break;
     default:
         break;
     }

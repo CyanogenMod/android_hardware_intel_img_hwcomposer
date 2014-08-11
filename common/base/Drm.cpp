@@ -673,6 +673,39 @@ int Drm::getPanelOrientation(int device)
     return output->panelOrientation;
 }
 
+// HWC 1.4 requires that we return all of the compatible configs in getDisplayConfigs
+// this is needed so getActiveConfig/setActiveConfig work correctly.  It is up to the
+// user space to decide what speed to send.
+drmModeModeInfoPtr Drm::detectAllConfigs(int device, int *modeCount)
+{
+    RETURN_NULL_IF_NOT_INIT();
+    Mutex::Autolock _l(mLock);
+
+    if (modeCount != NULL)
+        *modeCount = 0;
+    else
+        return NULL;
+
+    int outputIndex = getOutputIndex(device);
+    if (outputIndex < 0) {
+        ETRACE("invalid device");
+        return NULL;
+    }
+
+    DrmOutput *output= &mOutputs[outputIndex];
+    if (!output->connected) {
+        ETRACE("device is not connected");
+        return NULL;
+    }
+
+    if (output->connector->count_modes <= 0) {
+        ETRACE("invalid count of modes");
+        return NULL;
+    }
+
+    *modeCount = output->connector->count_modes;
+    return output->connector->modes;
+}
 
 } // namespace intel
 } // namespace android

@@ -172,6 +172,54 @@ static int hwc_compositionComplete(hwc_composer_device_1_t *dev, int disp)
     return 0;
 }
 
+static int hwc_setPowerMode(hwc_composer_device_1_t *dev, int disp, int mode)
+{
+    GET_HWC_RETURN_ERROR_IF_NULL();
+    bool ret = hwc->setPowerMode(disp, mode);
+    if (ret == false) {
+        WTRACE("failed to set power mode of disp %d", disp);
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+static int hwc_getActiveConfig(hwc_composer_device_1_t *dev, int disp)
+{
+    GET_HWC_RETURN_ERROR_IF_NULL();
+    int ret = hwc->getActiveConfig(disp);
+    if (ret == -1) {
+        WTRACE("failed to get active config of disp %d", disp);
+        return -EINVAL;
+    }
+
+    return ret;
+}
+
+static int hwc_setActiveConfig(hwc_composer_device_1_t *dev, int disp, int index)
+{
+    GET_HWC_RETURN_ERROR_IF_NULL();
+    bool ret = hwc->setActiveConfig(disp, index);
+    if (ret == false) {
+        WTRACE("failed to set active config of disp %d", disp);
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+static int hwc_setCursorPositionAsync(hwc_composer_device_1_t *dev, int disp, int x, int y)
+{
+    GET_HWC_RETURN_ERROR_IF_NULL();
+    bool ret = hwc->setCursorPositionAsync(disp, x, y);
+    if (ret == false) {
+        WTRACE("failed to set cursor position of disp %d", disp);
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 //------------------------------------------------------------------------------
 
 static int hwc_device_open(const struct hw_module_t* module,
@@ -200,7 +248,6 @@ static int hwc_device_open(const struct hw_module_t* module,
 
     // initialize the procs
     hwc.hwc_composer_device_1_t::common.tag = HARDWARE_DEVICE_TAG;
-    hwc.hwc_composer_device_1_t::common.version = HWC_DEVICE_API_VERSION_1_3;
     hwc.hwc_composer_device_1_t::common.module =
         const_cast<hw_module_t*>(module);
     hwc.hwc_composer_device_1_t::common.close = hwc_device_close;
@@ -211,13 +258,18 @@ static int hwc_device_open(const struct hw_module_t* module,
     hwc.hwc_composer_device_1_t::registerProcs = hwc_registerProcs;
     hwc.hwc_composer_device_1_t::query = hwc_query;
 
-    hwc.hwc_composer_device_1_t::blank = hwc_blank;
     hwc.hwc_composer_device_1_t::eventControl = hwc_eventControl;
     hwc.hwc_composer_device_1_t::getDisplayConfigs = hwc_getDisplayConfigs;
     hwc.hwc_composer_device_1_t::getDisplayAttributes = hwc_getDisplayAttributes;
 
     // This is used to hack FBO switch flush issue in SurfaceFlinger.
     hwc.hwc_composer_device_1_t::reserved_proc[0] = (void*)hwc_compositionComplete;
+    hwc.hwc_composer_device_1_t::common.version = HWC_DEVICE_API_VERSION_1_4;
+    hwc.hwc_composer_device_1_t::setPowerMode = hwc_setPowerMode;
+    hwc.hwc_composer_device_1_t::getActiveConfig = hwc_getActiveConfig;
+    hwc.hwc_composer_device_1_t::setActiveConfig = hwc_setActiveConfig;
+    // Todo: add hwc_setCursorPositionAsync after supporting patches
+    hwc.hwc_composer_device_1_t::setCursorPositionAsync = NULL;
 
     *device = &hwc.hwc_composer_device_1_t::common;
 
@@ -235,7 +287,7 @@ hwc_module_t HAL_MODULE_INFO_SYM = {
     common: {
         tag: HARDWARE_MODULE_TAG,
         version_major: 1,
-        version_minor: 2,
+        version_minor: 4,
         id: HWC_HARDWARE_MODULE_ID,
         name: "Intel Hardware Composer",
         author: "Intel",

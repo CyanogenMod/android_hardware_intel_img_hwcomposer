@@ -57,6 +57,8 @@ public:
     bool isSameDrmMode(drmModeModeInfoPtr mode, drmModeModeInfoPtr base) const;
     int getPanelOrientation(int device);
 
+    drmModeModeInfoPtr detectAllConfigs(int device, int *modeCount);
+
 private:
     bool initDrmMode(int index);
     bool setDrmMode(int index, drmModeModeInfoPtr mode);

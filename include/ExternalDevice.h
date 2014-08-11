@@ -40,7 +40,8 @@ public:
     virtual bool getDisplayAttributes(uint32_t config,
                                           const uint32_t *attributes,
                                           int32_t *values);
-
+    virtual int  getActiveConfig();
+    virtual bool setActiveConfig(int index);
 
 private:
     static void HdcpLinkStatusListener(bool success, void *userData);

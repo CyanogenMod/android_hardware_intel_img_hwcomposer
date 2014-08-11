@@ -228,6 +228,8 @@ bool HwcLayerList::initialize()
             } else {
                 // noncandidate layer
             }
+        } else if (layer->compositionType == HWC_SIDEBAND){
+            hwcLayer->setType(HwcLayer::LAYER_SIDEBAND);
         } else {
             DEINIT_AND_RETURN_FALSE("invalid composition type %d", layer->compositionType);
         }
@@ -807,6 +809,12 @@ void HwcLayerList::dump(Dump& d)
                 break;
             case HwcLayer::LAYER_FRAMEBUFFER_TARGET:
                 type = "HWC_FRAMEBUFFER_TARGET";
+                break;
+            case HwcLayer::LAYER_SIDEBAND:
+                type = "HWC_SIDEBAND";
+                break;
+            case HwcLayer::LAYER_CURSOR_OVERLAY:
+                type = "HWC_CURSOR_OVERLAY";
                 break;
             default:
                 type = "Unknown";

@@ -87,6 +87,11 @@ public:
                                           int32_t *values) = 0;
     virtual bool compositionComplete() = 0;
 
+    virtual bool setPowerMode(int mode) = 0;
+    virtual int  getActiveConfig() = 0;
+    virtual bool setActiveConfig(int index) = 0;
+    virtual bool setCursorPositionAsync(int x, int y) = 0;
+
     virtual bool initialize() = 0;
     virtual void deinitialize() = 0;
     virtual bool isConnected() const = 0;

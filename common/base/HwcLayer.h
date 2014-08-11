@@ -40,6 +40,10 @@ public:
         LAYER_SKIPPED,
         // LAYER_FRAMEBUFFER_TARGET layers are marked as HWC_FRAMEBUFFER_TARGET
         LAYER_FRAMEBUFFER_TARGET,
+        // LAYER_SIDEBAND layers have alternate path bypassing HWC after setup
+        LAYER_SIDEBAND,
+        // LAYER_CURSOR_OVERLAY layers support hardware cursor planes
+        LAYER_CURSOR_OVERLAY,
     };
 
     enum {
