@@ -726,12 +726,15 @@ bool AnnOverlayPlane::useOverlayRotation(BufferMapper& /* mapper */)
             DTRACE("offset is not 64 bytes aligned, use VA rotated buffer");
         }
         fallback = true;
-    } else if (mTransform != HAL_TRANSFORM_ROT_180 && scaleX != scaleY) {
+    }
+#if 0
+    else if (mTransform != HAL_TRANSFORM_ROT_180 && scaleX != scaleY) {
         if (mUseOverlayRotation) {
             DTRACE("overlay rotation with uneven scaling, use VA rotated buffer");
         }
         fallback = true;
     }
+#endif
 
     if (fallback || mBobDeinterlace) {
         mUseOverlayRotation = false;
