@@ -39,10 +39,6 @@ public:
 protected:
     virtual IVsyncControl* createVsyncControl() = 0;
     virtual IBlankControl* createBlankControl() = 0;
-
-private:
-    static void repeatedFrameEventListener(void *data);
-    void repeatedFrameListener();
 };
 
 }

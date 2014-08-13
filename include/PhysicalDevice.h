@@ -19,7 +19,6 @@
 #include <DisplayPlane.h>
 #include <IVsyncControl.h>
 #include <IBlankControl.h>
-#include <IPrepareListener.h>
 #include <common/observers/VsyncEventObserver.h>
 #include <common/base/HwcLayerList.h>
 #include <common/base/Drm.h>
@@ -72,7 +71,6 @@ protected:
     bool updateDisplayConfigs();
     virtual IVsyncControl* createVsyncControl() = 0;
     virtual IBlankControl* createBlankControl() = 0;
-    virtual IPrepareListener* createPrepareListener() = 0;
     friend class VsyncEventObserver;
 
 protected:
@@ -88,7 +86,6 @@ protected:
 
 
     IBlankControl *mBlankControl;
-    IPrepareListener *mPrepareListener;
     VsyncEventObserver *mVsyncObserver;
 
     // layer list

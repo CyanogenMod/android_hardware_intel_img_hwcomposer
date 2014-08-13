@@ -33,115 +33,35 @@ public:
     bool initialize();
     void deinitialize();
     void analyzeContents(size_t numDisplays, hwc_display_contents_1_t** displays);
-    bool isVideoExtModeActive();
-    bool isVideoExtModeEnabled();
-    bool isVideoLayer(hwc_layer_1_t &layer);
-    bool isVideoFullScreen(int device, hwc_layer_1_t &layer);
-    bool isOverlayAllowed();
-    int  getVideoInstances();
     void postHotplugEvent(bool connected);
-    void postVideoEvent(int instanceID, int state);
-    void postInputEvent(bool active);
-    void postVideoEvent(int instances, int instanceID, bool preparing, bool playing);
-    void postBlankEvent(bool blank);
-    void postIdleEntryEvent();
-    bool isPresentationLayer(hwc_layer_1_t &layer);
-    bool isProtectedLayer(hwc_layer_1_t &layer);
-    bool ignoreVideoSkipFlag();
-    int  getFirstVideoInstanceSessionID();
 
 private:
     enum DisplayEventType {
         HOTPLUG_EVENT,
-        BLANK_EVENT,
-        VIDEO_EVENT,
-        TIMING_EVENT,
-        INPUT_EVENT,
-        DPMS_EVENT,
-        IDLE_ENTRY_EVENT,
-        IDLE_EXIT_EVENT,
-        VIDEO_CHECK_EVENT,
     };
 
     struct Event {
         int type;
 
-        struct VideoEvent {
-            int instanceID;
-            int state;
-        };
-
         union {
             bool bValue;
             int  nValue;
-            VideoEvent videoEvent;
         };
     };
     inline void postEvent(Event& e);
     inline bool getEvent(Event& e);
     void handlePendingEvents();
     void handleHotplugEvent(bool connected);
-    void handleBlankEvent(bool blank);
-    void handleVideoEvent(int instanceID, int state);
-    void handleTimingEvent();
-    void handleInputEvent(bool active);
-    void handleDpmsEvent(int delayCount);
-    void handleIdleEntryEvent(int count);
-    void handleIdleExitEvent();
-    void handleVideoCheckEvent();
-
-    void blankSecondaryDevice();
-    void handleVideoExtMode();
-    void checkVideoExtMode();
-    void enterVideoExtMode();
-    void exitVideoExtMode();
-    bool hasProtectedLayer();
-    bool hasVideoLayer(int device);
     inline void setCompositionType(hwc_display_contents_1_t *content, int type);
     inline void setCompositionType(int device, int type, bool reset);
 
-private:
-    // Video playback state, must match defintion in Multi Display Service
-    enum
-    {
-        VIDEO_PLAYBACK_IDLE,
-        VIDEO_PLAYBACK_STARTING,
-        VIDEO_PLAYBACK_STARTED,
-        VIDEO_PLAYBACK_STOPPING,
-        VIDEO_PLAYBACK_STOPPED,
-    };
-
-    enum
-    {
-        // number of idle flips before display can enter idle mode
-        // we can set maxfifo even with more than one plane is active,
-        // display controller will check whether condition is met to
-        // enter into maxfifo, so no need to delay.
-        DELAY_BEFORE_IDLE_ENTRY = 0,
-
-        // number of flips before display can be powered off in video extended mode
-        DELAY_BEFORE_DPMS_OFF = 0,
-    };
 
 private:
     bool mInitialized;
-    bool mVideoExtModeEnabled;
-    bool mVideoExtModeEligible;
-    bool mVideoExtModeActive;
-    bool mBlankDevice;
-    bool mOverlayAllowed;
-    bool mActiveInputState;
-    // workaround HWC_SKIP_LAYER set during rotation for extended video mode
-    // by default if layer has HWC_SKIP_LAYER flag it should not be processed by HWC
-    bool mIgnoreVideoSkipFlag;
-    bool mProtectedVideoSession;
-    // map video instance ID to video state
-    KeyedVector<int, int> mVideoStateMap;
     int mCachedNumDisplays;
     hwc_display_contents_1_t** mCachedDisplays;
     Vector<Event> mPendingEvents;
     Mutex mEventMutex;
-    Condition mEventHandledCondition;
 };
 
 } // namespace intel

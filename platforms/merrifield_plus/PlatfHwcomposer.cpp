@@ -15,16 +15,12 @@
 */
 #include <common/utils/HwcTrace.h>
 #include <ips/tangier/TngDisplayContext.h>
-#include <ips/common/PowerManager.h>
 #include <ips/anniedale/AnnPlaneManager.h>
 #include <platforms/merrifield_plus/PlatfBufferManager.h>
 #include <DummyDevice.h>
 #include <IDisplayDevice.h>
 #include <platforms/merrifield_plus/PlatfPrimaryDevice.h>
 #include <platforms/merrifield_plus/PlatfExternalDevice.h>
-#ifdef INTEL_WIDI_MERRIFIELD
-#include <platforms/merrifield_plus/PlatfVirtualDevice.h>
-#endif
 #include <platforms/merrifield_plus/PlatfHwcomposer.h>
 
 
@@ -75,10 +71,9 @@ IDisplayDevice* PlatfHwcomposer::createDisplayDevice(int disp,
             return new PlatfExternalDevice(*this, dpm);
 #endif
 
-#ifdef INTEL_WIDI_MERRIFIELD
         case IDisplayDevice::DEVICE_VIRTUAL:
-            return new PlatfVirtualDevice(*this, dpm);
-#endif
+            return new DummyDevice(*this);
+
         default:
             ETRACE("invalid display device %d", disp);
             return NULL;
@@ -89,11 +84,6 @@ IDisplayContext* PlatfHwcomposer::createDisplayContext()
 {
     CTRACE();
     return new TngDisplayContext();
-}
-
-IPowerManager* PlatfHwcomposer::createPowerManager()
-{
-    return new PowerManager();
 }
 
 Hwcomposer* Hwcomposer::createHwcomposer()

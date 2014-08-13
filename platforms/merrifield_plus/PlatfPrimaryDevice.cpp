@@ -17,7 +17,6 @@
 #include <platforms/merrifield_plus/PlatfPrimaryDevice.h>
 #include <ips/common/VsyncControl.h>
 #include <ips/common/BlankControl.h>
-#include <ips/common/PrepareListener.h>
 
 
 namespace android {
@@ -43,11 +42,6 @@ IVsyncControl* PlatfPrimaryDevice::createVsyncControl()
 IBlankControl* PlatfPrimaryDevice::createBlankControl()
 {
     return new BlankControl();
-}
-
-IPrepareListener* PlatfPrimaryDevice::createPrepareListener()
-{
-    return new PrepareListener();
 }
 
 } // namespace intel

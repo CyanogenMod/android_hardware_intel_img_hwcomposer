@@ -12,15 +12,92 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+ifeq ($(INTEL_HWC_MOOREFIELD),true)
+
 LOCAL_PATH := $(call my-dir)
 
-LOCAL_ROOT_PATH := $(call my-dir)
+# HAL module implemenation, not prelinked and stored in
+# hw/<OVERLAY_HARDWARE_MODULE_ID>.<ro.product.board>.so
+include $(CLEAR_VARS)
 
-ifeq ($(INTEL_HWC_MERRIFIELD),true)
-include $(LOCAL_PATH)/merrifield.mk
+LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE := hwcomposer.$(TARGET_BOARD_PLATFORM)
+LOCAL_CFLAGS := -Werror
+
+LOCAL_SHARED_LIBRARIES := liblog libcutils libdrm \
+                          libwsbm libutils libhardware \
+                          libva libva-tpi libva-android libsync
+
+LOCAL_SRC_FILES := \
+    common/base/Drm.cpp \
+    common/base/HwcLayer.cpp \
+    common/base/HwcLayerList.cpp \
+    common/base/Hwcomposer.cpp \
+    common/base/HwcModule.cpp \
+    common/base/DisplayAnalyzer.cpp \
+    common/buffers/BufferCache.cpp \
+    common/buffers/GraphicBuffer.cpp \
+    common/buffers/BufferManager.cpp \
+    common/devices/DummyDevice.cpp \
+    common/devices/PhysicalDevice.cpp \
+    common/devices/PrimaryDevice.cpp \
+    common/devices/ExternalDevice.cpp \
+    common/observers/UeventObserver.cpp \
+    common/observers/VsyncEventObserver.cpp \
+    common/observers/SoftVsyncObserver.cpp \
+    common/planes/DisplayPlane.cpp \
+    common/planes/DisplayPlaneManager.cpp \
+    common/utils/Dump.cpp
+
+LOCAL_SRC_FILES += \
+    ips/common/BlankControl.cpp \
+    ips/common/HdcpControl.cpp \
+    ips/common/DrmControl.cpp \
+    ips/common/VsyncControl.cpp \
+    ips/common/OverlayPlaneBase.cpp \
+    ips/common/SpritePlaneBase.cpp \
+    ips/common/PixelFormat.cpp \
+    ips/common/GrallocBufferBase.cpp \
+    ips/common/GrallocBufferMapperBase.cpp \
+    ips/common/TTMBufferMapper.cpp \
+    ips/common/DrmConfig.cpp \
+    ips/common/Wsbm.cpp \
+    ips/common/WsbmWrapper.c \
+    ips/common/RotationBufferProvider.cpp
+
+LOCAL_SRC_FILES += \
+    ips/tangier/TngGrallocBuffer.cpp \
+    ips/tangier/TngGrallocBufferMapper.cpp \
+    ips/tangier/TngDisplayQuery.cpp \
+    ips/tangier/TngDisplayContext.cpp
+
+LOCAL_SRC_FILES += \
+    ips/anniedale/AnnPlaneManager.cpp \
+    ips/anniedale/AnnOverlayPlane.cpp \
+    ips/anniedale/AnnRGBPlane.cpp \
+    ips/anniedale/PlaneCapabilities.cpp
+
+LOCAL_SRC_FILES += \
+    platforms/merrifield_plus/PlatfBufferManager.cpp \
+    platforms/merrifield_plus/PlatfPrimaryDevice.cpp \
+    platforms/merrifield_plus/PlatfExternalDevice.cpp \
+    platforms/merrifield_plus/PlatfHwcomposer.cpp
+
+LOCAL_C_INCLUDES := \
+    $(LOCAL_PATH)/include \
+    $(TARGET_OUT_HEADERS)/libdrm \
+    $(TARGET_OUT_HEADERS)/libwsbm/wsbm \
+    $(TARGET_OUT_HEADERS)/libttm \
+    frameworks/native/include/media/openmax \
+    vendor/intel/hardware/anniedale/rgx/include \
+    $(TARGET_OUT_HEADERS)/pvr/hal
+
+
+ifeq ($(TARGET_SUPPORT_HDMI_PRIMARY),true)
+   LOCAL_CFLAGS += -DINTEL_SUPPORT_HDMI_PRIMARY
 endif
 
-ifeq ($(INTEL_HWC_MOOREFIELD),true)
-include $(LOCAL_PATH)/merrifield_plus.mk
-endif
+include $(BUILD_SHARED_LIBRARY)
 
+endif

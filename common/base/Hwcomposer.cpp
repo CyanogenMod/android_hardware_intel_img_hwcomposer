@@ -30,10 +30,7 @@ Hwcomposer::Hwcomposer()
       mBufferManager(0),
       mDisplayAnalyzer(0),
       mDisplayContext(0),
-      mVsyncManager(0),
-      mMultiDisplayObserver(0),
       mUeventObserver(0),
-      mPowerManager(0),
       mInitialized(false)
 {
     CTRACE();
@@ -149,7 +146,21 @@ bool Hwcomposer::vsyncControl(int disp, int enabled)
 {
     RETURN_FALSE_IF_NOT_INIT();
     ATRACE("disp = %d, enabled = %d", disp, enabled);
-    return mVsyncManager->handleVsyncControl(disp, enabled ? true : false);
+
+    if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
+        ETRACE("invalid disp %d", disp);
+        return false;
+    }
+    if (disp >= (int) mDisplayDevices.size()) {
+        return false;
+    }
+    IDisplayDevice *device = mDisplayDevices.itemAt(disp);
+    if (!device) {
+        ETRACE("no device found");
+        return false;
+    }
+
+    return device->vsyncControl(enabled ? true : false);
 }
 
 bool Hwcomposer::blank(int disp, int blank)
@@ -253,13 +264,9 @@ void Hwcomposer::vsync(int disp, int64_t timestamp)
     }
 }
 
-void Hwcomposer::hotplug(int disp, bool connected)
+void Hwcomposer::hotplug(__attribute__((unused))int disp, bool connected)
 {
     RETURN_VOID_IF_NOT_INIT();
-
-    // TODO: Two fake hotplug events are sent during mode setting. To avoid
-    // unnecessary audio switch, real connection status should be sent to MDS
-    mMultiDisplayObserver->notifyHotPlug(mDrm->isConnected(disp));
 
 #ifndef INTEL_SUPPORT_HDMI_PRIMARY
     if (mProcs && mProcs->hotplug) {
@@ -352,11 +359,6 @@ bool Hwcomposer::initialize()
         DEINIT_AND_RETURN_FALSE("failed to create display context");
     }
 
-    mPowerManager = createPowerManager();
-    if (!mPowerManager || !mPowerManager->initialize()) {
-        DEINIT_AND_RETURN_FALSE("failed to initialize power manager");
-    }
-
     mUeventObserver = new UeventObserver();
     if (!mUeventObserver || !mUeventObserver->initialize()) {
         DEINIT_AND_RETURN_FALSE("failed to initialize uevent observer");
@@ -373,19 +375,9 @@ bool Hwcomposer::initialize()
         mDisplayDevices.insertAt(device, i, 1);
     }
 
-    mVsyncManager = new VsyncManager(mDisplayDevices);
-    if (!mVsyncManager || !mVsyncManager->initialize()) {
-        DEINIT_AND_RETURN_FALSE("failed to create Vsync Manager");
-    }
-
     mDisplayAnalyzer = new DisplayAnalyzer();
     if (!mDisplayAnalyzer || !mDisplayAnalyzer->initialize()) {
         DEINIT_AND_RETURN_FALSE("failed to initialize display analyzer");
-    }
-
-    mMultiDisplayObserver = new MultiDisplayObserver();
-    if (!mMultiDisplayObserver || !mMultiDisplayObserver->initialize()) {
-        DEINIT_AND_RETURN_FALSE("failed to initialize display observer");
     }
 
     // all initialized, starting uevent observer
@@ -397,10 +389,7 @@ bool Hwcomposer::initialize()
 
 void Hwcomposer::deinitialize()
 {
-    DEINIT_AND_DELETE_OBJ(mMultiDisplayObserver);
     DEINIT_AND_DELETE_OBJ(mDisplayAnalyzer);
-    // delete mVsyncManager first as it holds reference to display devices.
-    DEINIT_AND_DELETE_OBJ(mVsyncManager);
 
     DEINIT_AND_DELETE_OBJ(mUeventObserver);
     // destroy display devices
@@ -410,7 +399,6 @@ void Hwcomposer::deinitialize()
     }
     mDisplayDevices.clear();
 
-    DEINIT_AND_DELETE_OBJ(mPowerManager);
     DEINIT_AND_DELETE_OBJ(mDisplayContext);
     DEINIT_AND_DELETE_OBJ(mPlaneManager);
     DEINIT_AND_DELETE_OBJ(mBufferManager);
@@ -443,11 +431,6 @@ DisplayAnalyzer* Hwcomposer::getDisplayAnalyzer()
     return mDisplayAnalyzer;
 }
 
-MultiDisplayObserver* Hwcomposer::getMultiDisplayObserver()
-{
-    return mMultiDisplayObserver;
-}
-
 IDisplayDevice* Hwcomposer::getDisplayDevice(int disp)
 {
     if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
@@ -460,20 +443,11 @@ IDisplayDevice* Hwcomposer::getDisplayDevice(int disp)
     return mDisplayDevices.itemAt(disp);
 }
 
-VsyncManager* Hwcomposer::getVsyncManager()
-{
-    return mVsyncManager;
-}
-
 UeventObserver* Hwcomposer::getUeventObserver()
 {
     return mUeventObserver;
 }
 
-IPowerManager* Hwcomposer::getPowerManager()
-{
-    return mPowerManager;
-}
 
 } // namespace intel
 } // namespace android
