@@ -88,20 +88,16 @@ static ZOrderDescription PIPE_A_ZORDER_DESC[] =
 // workaround: use only overlay C on pipe B
 static ZOrderDescription PIPE_B_ZORDER_DESC[] =
 {
-#ifndef INTEL_SUPPORT_HDMI_PRIMARY
     {0, "BD"},    // no overlay
     {1, "HBD"},   // overlay C at bottom (1 << 0)
-//    {1, "GBD"},   // overlay A at bottom (1 << 0)
+    {1, "GBD"},   // overlay A at bottom (1 << 0)
     {2, "BHD"},   // overlay C at middle (1 << 1)
-//   {2, "BGD"},   // overlay A at middle (1 << 1)
+    {2, "BGD"},   // overlay A at middle (1 << 1)
     {3, "GHBD"},  // overlay A and C at bottom ( 1 << 0 + 1 << 1)
     {4, "BDH"},   // overlay C at top (1 << 2)
     {4, "BDG"},   // overlay A at top (1 << 2)
     {6, "BGHD"},  // overlay A/C at middle  1 << 1 + 1 << 2)
     {12, "BDGH"}  // overlay A/C at top (1 << 2 + 1 << 3)
-#else
-    {0, "BD"},    // no overlay
-#endif
 };
 
 static const int PIPE_A_ZORDER_COMBINATIONS =
