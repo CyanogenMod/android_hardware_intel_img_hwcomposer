@@ -25,30 +25,46 @@
 #define HAL_PUBLIC_H
 
 /* Authors of third party hardware composer (HWC) modules will need to include
- * this header to access functionality in the gralloc and framebuffer HALs.
+ * this header to access functionality in the gralloc HAL.
  */
+
+#define PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC
+#define SUPPORT_ANDROID_MEMTRACK_HAL
 
 #include <hardware/gralloc.h>
 #include <hardware/hwcomposer.h>
 
-#define ALIGN(x,a)	(((x) + (a) - 1L) & ~((a) - 1L))
-#define HW_ALIGN	32
+#define ALIGN(x,a)		(((x) + (a) - 1L) & ~((a) - 1L))
+#define HW_ALIGN		32
 #define CAMERA_ALIGN    64
 
+/** YV12 specific (to handle different alignment) ****************************/
+
+/* We must align YV12 to a multiple of 32bytes as NEON optimizations
+ * in stagefright require the YV12 planes to be 128bit aligned.
+ * while display controller requires 64 bytes alignement
+ */
+#define YV12_ALIGN 128
+
+#define HAL_PIXEL_FORMAT_BGRX_8888 0x101 // Keep consistent with android_utils.h 
 enum {
-    HAL_PIXEL_FORMAT_BGRX_8888          = 0x1FF,
+	HAL_PIXEL_FORMAT_NV12   = 0x3231564E, // YCrCb 4:2:0 SP
+	HAL_PIXEL_FORMAT_NV21   = 0x3132564E, // YCrCb 4:2:0 SP
+	HAL_PIXEL_FORMAT_I420   = 0x30323449,
+	HAL_PIXEL_FORMAT_YUY2   = 0x32595559,
+	HAL_PIXEL_FORMAT_UYVY   = 0x59565955,
 
-    HAL_PIXEL_FORMAT_NV12   = 0x3231564E, // YCrCb 4:2:0 SP
-    HAL_PIXEL_FORMAT_NV21   = 0x3132564E, // YCrCb 4:2:0 SP
-    HAL_PIXEL_FORMAT_I420   = 0x30323449,
-    HAL_PIXEL_FORMAT_YUY2   = 0x32595559,
-    HAL_PIXEL_FORMAT_UYVY   = 0x59565955,
+	// Intel video decode formats
+	HAL_PIXEL_FORMAT_NV12_VED = 0x7FA00E00, //OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar
+	HAL_PIXEL_FORMAT_NV12_VEDT = 0x7FA00F00, //OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled
 
-    HAL_PIXEL_FORMAT_YCbCr_422_P        = 0x12, // IYUV
-    HAL_PIXEL_FORMAT_YCbCr_420_P        = 0x13, // YUV9
-    HAL_PIXEL_FORMAT_YCbCr_420_I       = 0x15,
-    HAL_PIXEL_FORMAT_YCbCr_420_SP       = 0x121,
-    HAL_PIXEL_FORMAT_ZSL                = 0x100,
+	HAL_PIXEL_FORMAT_YCbCr_422_P        = 0x12, // IYUV
+	HAL_PIXEL_FORMAT_YCbCr_420_P        = 0x13, // YUV9
+	HAL_PIXEL_FORMAT_YCbCr_420_I        = 0x15,
+
+	HAL_PIXEL_FORMAT_INTEL_UYVY  		= 0x107,
+	HAL_PIXEL_FORMAT_YCbCr_420_SP       = 0x108,
+	HAL_PIXEL_FORMAT_ZSL                = 0x109,
 };
 
 /* This can be tuned down as appropriate for the SOC.
@@ -66,16 +82,12 @@ enum {
  * on a build option, but we have no choice because 'fd' fields must all
  * be utilized so they are valid to be dup'ed, and we don't need some of
  * the extra fds in a native_fence_sync build.
-
+ */
 #if defined(PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC)
 #define MAX_SRV_SYNC_OBJS    2
 #else
 #define MAX_SRV_SYNC_OBJS    4
 #endif
- */
-
-/* this file is also accessed by HWC/Widi/LibMix, so move the macro definition out */
-#define MAX_SRV_SYNC_OBJS    2
 
 typedef struct
 {
@@ -93,9 +105,6 @@ typedef struct
 	 * This table has entries inserted either by alloc()
 	 * (alloc_device_t) or map() (gralloc_module_t). Entries are removed
 	 * by free() (alloc_device_t) and unmap() (gralloc_module_t).
-	 *
-	 * As a special case for framebuffer_device_t, framebuffer_open()
-	 * will add and framebuffer_close() will remove from this table.
 	 */
 
 #define IMG_NATIVE_HANDLE_NUMFDS (MAX_SRV_SYNC_OBJS + MAX_SUB_ALLOCS)
@@ -113,8 +122,7 @@ typedef struct
 
 	/* The `fd' field is used to "export" a meminfo to another process.
 	 * Therefore, it is allocated by alloc_device_t, and consumed by
-	 * gralloc_module_t. The framebuffer_device_t does not need a handle,
-	 * and the special value IMG_FRAMEBUFFER_FD is used instead.
+	 * gralloc_module_t.
 	 */
 	int fd[MAX_SUB_ALLOCS];
 
@@ -157,6 +165,13 @@ typedef int (*IMG_buffer_format_compute_params_pfn)(
 	unsigned int uiPlane, int *piWidth, int *piHeight, int *piStride,
 	int *piVStride, unsigned long *pulPlaneOffset);
 
+#define IMG_BFF_YUV					(1 << 0)
+#define IMG_BFF_UVCbCrORDERING		(1 << 1)
+#define IMG_BFF_CPU_CLEAR			(1 << 2)
+#define IMG_BFF_DONT_GPU_CLEAR		(1 << 3)
+#define IMG_BFF_PARTIAL_ALLOC		(1 << 4)
+#define IMG_BFF_NEVER_COMPRESS		(1 << 5)
+
 /* Keep this in sync with SGX */
 typedef struct IMG_buffer_format_public_t
 {
@@ -180,103 +195,42 @@ typedef struct IMG_buffer_format_public_t
 	 */
 	int iSupportedUsage;
 
-	/* YUV output format */
-	int bIsYUVFormat;
-
-	/* TRUE if U/Cb follows Y, FALSE if V/Cr follows Y */
-	int bUVCbCrOrdering;
+	/* Allocation description flags */
+	unsigned int uiFlags;
 
 	/* Utility function for adjusting YUV per-plane parameters */
 	IMG_buffer_format_compute_params_pfn pfnComputeParams;
 }
 IMG_buffer_format_public_t;
 
-/* This structure loosely mirrors the inner fields of hwc_layer_t.
- * It should be kept in sync, as the HWC interface grows.
- *
- * We don't support HWC_BACKGROUND right now, so we don't need the
- * `compositionType' field. The HWC implementation should handle
- * `hints' and `flags', so we don't include those either.
- *
- * For more information about what these fields mean, look in:
- * hardware/libhardware/include/hardware/hwcomposer.h
- *
- * SurfaceFlinger will sort the hwc_layer_t by z-order when passing
- * them to the hardware composer. The Post2() interface also requires
- * that layers are in z-order, from furthest (lowest) z-order first to
- * nearest (highest) z-order last.
- *
- * NOTE: The `custom' field is new here. This will be passed through
- * to your display engine in the ui32Custom field of the CONFIG_INFO.
- *
- * It can be any arbitrary word-sized data, however conventionally
- * it would be the overlay index (pipe index), if the display engine
- * differentiates between pipe order and z-order.
- */
+#if defined(SUPPORT_ANDROID_MEMTRACK_HAL)
+
+#include <hardware/memtrack.h>
+
 typedef struct
 {
-#if defined(SUPPORT_ANDROID_FRAMEBUFFER_HAL)
-	/* Handle of buffer to compose */
-	buffer_handle_t handle;
+	/* Base memtrack record, copied to caller */
+	struct memtrack_record	base;
 
-	/* Transform to apply to buffer during composition */
-	uint32_t transform;
+	/* Record type, for filtering cached records */
+	enum memtrack_type		eType;
 
-	/* Blending to apply during composition */
-	int32_t blending;
+	/* Process ID, for filtering cached records */
+	pid_t					pid;
+}
+IMG_memtrack_record_public_t;
 
-	/* Area of the source to consider */
-	hwc_rect_t sourceCrop;
+#endif /* defined(SUPPORT_ANDROID_MEMTRACK_HAL) */
 
-	/* Where to composite source crop on the display.
-	 * NOTE: This is how to exploit scaling and translation.
-	 */
-	hwc_rect_t displayFrame;
-
-#else /* defined(SUPPORT_ANDROID_FRAMEBUFFER_HAL) */
+typedef struct
+{
 	/* The original hwc layer */
 	hwc_layer_1_t *psLayer;
-#endif /* defined(SUPPORT_ANDROID_FRAMEBUFFER_HAL) */
-	
+
 	/* Custom data for the display engine */
 	uint32_t custom;
 }
 IMG_hwc_layer_t;
-
-#if defined(SUPPORT_ANDROID_FRAMEBUFFER_HAL)
-
-typedef struct
-{
-	framebuffer_device_t base;
-
-	/* The HWC was loaded. post() is no longer responsible for presents */
-	int bBypassPost;
-
-	/* Maximum number of discrete display pipes / overlay planes */
-	unsigned int uiMaxPipes;
-
-	/* Reference count to this device*/
-	unsigned int uiRefCount;
-
-	/* Check to see if a DC configuration will apply based on a
-	 * HWC layer list.
-	 *
-	 * Returns <0: If there was an internal graphics HAL consistency problem.
-	 * Returns  0: If the configuration would apply.
-	 * Returns >0: If the code should be cast to PVRSRV_ERROR (provides more
-	 *             information about why the config failed to apply.
-	 */
-	int (*Post2Check)(framebuffer_device_t *fb, IMG_hwc_layer_t *layers,
-					  int num_layers);
-
-	/* Apply a DC configuration based on HWC layer list. */
-	int (*Post2)(framebuffer_device_t *fb, IMG_hwc_layer_t *layers,
-				 int num_layers);
-}
-IMG_framebuffer_device_public_t;
-
-#endif /* defined(SUPPORT_ANDROID_FRAMEBUFFER_HAL) */
-
 
 typedef struct IMG_display_device_public_t {
 	int (*post)(struct IMG_display_device_public_t *dev, IMG_hwc_layer_t *layers,
@@ -286,21 +240,14 @@ typedef struct IMG_display_device_public_t {
 typedef struct IMG_gralloc_module_public_t
 {
 	gralloc_module_t base;
+	IMG_display_device_public_t *psDisplayDevice;
 
-#if defined(SUPPORT_ANDROID_FRAMEBUFFER_HAL)
-	/* If the framebuffer has been opened, this will point to the
-	 * framebuffer device data required by the allocator, WSEGL
-	 * modules and composerhal.
-	 */
-	IMG_framebuffer_device_public_t *psFrameBufferDevice;
-#endif /* defined(SUPPORT_ANDROID_FRAMEBUFFER_HAL) */
-
+	/* Gets the head of the linked list of all registered formats */
 	const IMG_buffer_format_public_t *(*GetBufferFormats)(void);
 
 	/* Functionality before this point should be in sync with SGX.
 	 * After this point will be different.
 	 */
-	IMG_display_device_public_t *psDisplayDevice;
 
 	/* Custom-blit components in lieu of overlay hardware */
 	int (*Blit)(struct IMG_gralloc_module_public_t const *module,
@@ -308,10 +255,21 @@ typedef struct IMG_gralloc_module_public_t
 				 int w, int h, int x, int y,
 				 int transform,
 				 int async);
+
 	int (*Blit3)(struct IMG_gralloc_module_public_t const *module,
-				unsigned long long ui64SrcStamp, int iSrcWidth,
-				int iSrcHeight, int iSrcFormat, int eSrcRotation,
-				buffer_handle_t dest, int eDestRotation);
+				 unsigned long long ui64SrcStamp, int iSrcWidth,
+				 int iSrcHeight, int iSrcFormat, int eSrcRotation,
+				 buffer_handle_t dest, int eDestRotation);
+
+#if defined(SUPPORT_ANDROID_MEMTRACK_HAL)
+	int (*GetMemTrackRecords)(struct IMG_gralloc_module_public_t const *module,
+							  IMG_memtrack_record_public_t **ppsRecords,
+							  size_t *puNumRecords);
+#endif /* defined(SUPPORT_ANDROID_MEMTRACK_HAL) */
+
+	/* Walk the above list and return only the specified format */
+	const IMG_buffer_format_public_t *(*GetBufferFormat)(int iFormat);
+/* intel hwc extension */
 	int (*getCpuAddress)(struct IMG_gralloc_module_public_t const *module,
 				buffer_handle_t handle,
 				void **virt, uint32_t *size);
