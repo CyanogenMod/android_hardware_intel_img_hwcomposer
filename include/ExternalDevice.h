@@ -32,6 +32,7 @@ public:
 public:
     virtual bool initialize();
     virtual void deinitialize();
+    virtual bool blank(bool blank);
     virtual bool setDrmMode(drmModeModeInfo& value);
     virtual void setRefreshRate(int hz);
     virtual bool getDisplaySize(int *width, int *height);
