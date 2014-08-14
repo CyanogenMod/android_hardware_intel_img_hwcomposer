@@ -29,7 +29,7 @@
  */
 
 #define PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC
-#define SUPPORT_ANDROID_MEMTRACK_HAL
+//#define SUPPORT_ANDROID_MEMTRACK_HAL
 
 #include <hardware/gralloc.h>
 #include <hardware/hwcomposer.h>
