@@ -252,6 +252,78 @@ bool Hwcomposer::compositionComplete(int disp)
     return device->compositionComplete();
 }
 
+bool Hwcomposer::setPowerMode(int disp, int mode)
+{
+    RETURN_FALSE_IF_NOT_INIT();
+
+    if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
+        ETRACE("invalid disp %d", disp);
+        return false;
+    }
+
+    IDisplayDevice *device = mDisplayDevices.itemAt(disp);
+    if (!device) {
+        ETRACE("no device found");
+        return false;
+    }
+
+    return device->setPowerMode(mode);
+}
+
+int Hwcomposer::getActiveConfig(int disp)
+{
+    RETURN_NULL_IF_NOT_INIT();
+
+    if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
+        ETRACE("invalid disp %d", disp);
+        return -1;
+    }
+
+    IDisplayDevice *device = mDisplayDevices.itemAt(disp);
+    if (!device) {
+        ETRACE("no device found");
+        return -1;
+    }
+
+    return device->getActiveConfig();
+}
+
+bool Hwcomposer::setActiveConfig(int disp, int index)
+{
+    RETURN_FALSE_IF_NOT_INIT();
+
+    if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
+        ETRACE("invalid disp %d", disp);
+        return false;
+    }
+
+    IDisplayDevice *device = mDisplayDevices.itemAt(disp);
+    if (!device) {
+        ETRACE("no device found");
+        return false;
+    }
+
+    return device->setActiveConfig(index);
+}
+
+bool Hwcomposer::setCursorPositionAsync(int disp, int x, int y)
+{
+    RETURN_FALSE_IF_NOT_INIT();
+
+    if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
+        ETRACE("invalid disp %d", disp);
+        return false;
+    }
+
+    IDisplayDevice *device = mDisplayDevices.itemAt(disp);
+    if (!device) {
+        ETRACE("no device found");
+        return false;
+    }
+
+    return device->setCursorPositionAsync(x, y);
+}
+
 void Hwcomposer::vsync(int disp, int64_t timestamp)
 {
     RETURN_VOID_IF_NOT_INIT();

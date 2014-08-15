@@ -49,6 +49,11 @@ public:
                                           int32_t *values);
     virtual bool compositionComplete();
 
+    virtual bool setPowerMode(int mode);
+    virtual int  getActiveConfig();
+    virtual bool setActiveConfig(int index);
+    virtual bool setCursorPositionAsync(int x, int y);
+
     // display config operations
     virtual void removeDisplayConfigs();
     virtual bool detectDisplayConfigs();

@@ -225,5 +225,25 @@ void DummyDevice::deinitialize()
     mInitialized = false;
 }
 
+bool DummyDevice::setPowerMode(int /*mode*/)
+{
+    return true;
+}
+
+int DummyDevice::getActiveConfig()
+{
+    return 0;
+}
+
+bool DummyDevice::setActiveConfig(int /*index*/)
+{
+    return false;
+}
+
+bool DummyDevice::setCursorPositionAsync(int /*x*/, int /*y*/)
+{
+    return false;
+}
+
 } // namespace intel
 } // namespace android

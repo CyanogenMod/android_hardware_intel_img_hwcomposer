@@ -44,6 +44,12 @@ public:
                                           const uint32_t *attributes,
                                           int32_t *values);
     virtual bool compositionComplete();
+
+    virtual bool setPowerMode(int mode);
+    virtual int  getActiveConfig();
+    virtual bool setActiveConfig(int index);
+    virtual bool setCursorPositionAsync(int x, int y);
+
     virtual bool initialize();
     virtual void deinitialize();
     virtual bool isConnected() const;

@@ -55,6 +55,11 @@ public:
                                           int32_t *values);
     virtual bool compositionComplete(int disp);
 
+    virtual bool setPowerMode(int disp, int mode);
+    virtual int  getActiveConfig(int disp);
+    virtual bool setActiveConfig(int disp, int index);
+    virtual bool setCursorPositionAsync(int disp, int x, int y);
+
     // callbacks
     virtual void vsync(int disp, int64_t timestamp);
     virtual void hotplug(int disp, bool connected);
