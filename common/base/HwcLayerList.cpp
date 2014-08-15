@@ -465,7 +465,7 @@ bool HwcLayerList::useAsFrameBufferTarget(HwcLayer *target)
     }
 
     // check candidate and noncandidate layers above this candidate does not overlap
-    for (unsigned int above = targetLayerIndex + 1; above < mFBLayers.size() - 1; above++) {
+    for (unsigned int above = targetLayerIndex + 1; above < mFBLayers.size(); above++) {
         if (mFBLayers[above]->mPlaneCandidate) {
             continue;
         } else {
