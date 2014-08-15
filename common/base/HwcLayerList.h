@@ -48,6 +48,7 @@ public:
 
 private:
     bool checkSupported(int planeType, HwcLayer *hwcLayer);
+    bool checkRgbOverlaySupported(HwcLayer *hwcLayer);
     bool allocatePlanes();
     bool assignOverlayPlanes();
     bool assignOverlayPlanes(int index, int planeNumber);

@@ -53,6 +53,7 @@ protected:
     virtual bool setDataBuffer(BufferMapper& mapper);
     virtual bool flush(uint32_t flags);
     virtual bool bufferOffsetSetup(BufferMapper& mapper);
+    virtual bool coordinateSetup(BufferMapper& mapper);
     virtual bool scalingSetup(BufferMapper& mapper);
 
     virtual void resetBackBuffer(int buf);
