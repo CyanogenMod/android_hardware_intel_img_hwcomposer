@@ -86,17 +86,18 @@ LOCAL_SRC_FILES += \
 
 LOCAL_C_INCLUDES := \
     $(LOCAL_PATH)/include \
+    $(LOCAL_PATH)/include/pvr/hal \
     $(TARGET_OUT_HEADERS)/libdrm \
     $(TARGET_OUT_HEADERS)/libwsbm/wsbm \
     $(TARGET_OUT_HEADERS)/libttm \
-    frameworks/native/include/media/openmax \
-    vendor/intel/hardware/anniedale/rgx/include \
-    $(TARGET_OUT_HEADERS)/pvr/hal
-
+    frameworks/native/include/media/openmax
 
 ifeq ($(TARGET_SUPPORT_HDMI_PRIMARY),true)
    LOCAL_CFLAGS += -DINTEL_SUPPORT_HDMI_PRIMARY
 endif
+
+LOCAL_COPY_HEADERS:=include/pvr/hal/hal_public.h
+LOCAL_COPY_HEADERS_TO:=pvr/hal
 
 include $(BUILD_SHARED_LIBRARY)
 
