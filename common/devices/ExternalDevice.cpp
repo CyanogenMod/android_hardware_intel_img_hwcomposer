@@ -116,6 +116,20 @@ void ExternalDevice::deinitialize()
     PhysicalDevice::deinitialize();
 }
 
+bool ExternalDevice::blank(bool blank)
+{
+    if (!PhysicalDevice::blank(blank)) {
+        return false;
+    }
+
+    if (blank) {
+        mHdcpControl->stopHdcp();
+    } else if (mConnected) {
+        mHdcpControl->startHdcpAsync(HdcpLinkStatusListener, this);
+    }
+    return true;
+}
+
 bool ExternalDevice::setDrmMode(drmModeModeInfo& value)
 {
     if (!mConnected) {
