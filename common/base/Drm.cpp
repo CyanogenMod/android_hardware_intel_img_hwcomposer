@@ -436,6 +436,14 @@ bool Drm::getModeInfo(int device, drmModeModeInfo& mode)
     }
 
     memcpy(&mode, &output->mode, sizeof(drmModeModeInfo));
+
+#ifdef INTEL_SUPPORT_HDMI_PRIMARY
+    // FIXME: use default fb size instead of hdmi mode, because to
+    // support hdmi primary, we cannot report dynamic mode to SF.
+    mode.hdisplay = DEFAULT_DRM_FB_WIDTH;
+    mode.vdisplay = DEFAULT_DRM_FB_HEIGHT;
+#endif
+
     return true;
 }
 
@@ -597,8 +605,13 @@ bool Drm::setDrmMode(int index, drmModeModeInfoPtr mode)
 
     // allocate frame buffer
     int stride = 0;
+#ifdef INTEL_SUPPORT_HDMI_PRIMARY
+    output->fbHandle = Hwcomposer::getInstance().getBufferManager()->allocFrameBuffer(
+        DEFAULT_DRM_FB_WIDTH, DEFAULT_DRM_FB_HEIGHT, &stride);
+#else
     output->fbHandle = Hwcomposer::getInstance().getBufferManager()->allocFrameBuffer(
         mode->hdisplay, mode->vdisplay, &stride);
+#endif
     if (output->fbHandle == 0) {
         ELOGTRACE("failed to allocate frame buffer");
         return false;
@@ -607,8 +620,13 @@ bool Drm::setDrmMode(int index, drmModeModeInfoPtr mode)
     int ret = 0;
     ret = drmModeAddFB(
         mDrmFd,
+#ifdef INTEL_SUPPORT_HDMI_PRIMARY
+        DEFAULT_DRM_FB_WIDTH,
+        DEFAULT_DRM_FB_HEIGHT,
+#else
         mode->hdisplay,
         mode->vdisplay,
+#endif
         DrmConfig::getFrameBufferDepth(),
         DrmConfig::getFrameBufferBpp(),
         stride,
