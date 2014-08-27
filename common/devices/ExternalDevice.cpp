@@ -19,13 +19,6 @@
 #include <DrmConfig.h>
 #include <Hwcomposer.h>
 #include <ExternalDevice.h>
-#include <cutils/properties.h>
-
-#define HDMI_WIDTH_PROPERTY     "persist.hdmi.width"
-#define HDMI_HEIGHT_PROPERTY    "persist.hdmi.height"
-#define HDMI_WIDTH_DEFAULT      1920
-#define HDMI_HEIGHT_DEFAULT     1080
-
 
 namespace android {
 namespace intel {
@@ -36,9 +29,7 @@ ExternalDevice::ExternalDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm)
       mAbortModeSettingCond(),
       mPendingDrmMode(),
       mHotplugEventPending(false),
-      mExpectedRefreshRate(0),
-      mDefaultWidth(HDMI_WIDTH_DEFAULT),
-      mDefaultHeight(HDMI_HEIGHT_DEFAULT)
+      mExpectedRefreshRate(0)
 {
     CTRACE();
 }
@@ -63,27 +54,6 @@ bool ExternalDevice::initialize()
     if (mConnected) {
         mHdcpControl->startHdcpAsync(HdcpLinkStatusListener, this);
     }
-
-#ifdef INTEL_SUPPORT_HDMI_PRIMARY
-    if (mConnected) {
-        drmModeModeInfo mode;
-        Hwcomposer::getInstance().getDrm()->getModeInfo(mType, mode);
-        mDefaultWidth = mode.hdisplay;
-        mDefaultHeight = mode.vdisplay;
-        char prop[PROPERTY_VALUE_MAX];
-        sprintf(prop, "%d", mDefaultWidth);
-        if (property_set(HDMI_WIDTH_PROPERTY, prop) != 0) {
-            ETRACE("failed to set property %s", HDMI_WIDTH_PROPERTY);
-        }
-        sprintf(prop, "%d", mDefaultHeight);
-        if (property_set(HDMI_HEIGHT_PROPERTY, prop) != 0) {
-            ETRACE("failed to set property %s", HDMI_HEIGHT_PROPERTY);
-        }
-    } else {
-        mDefaultWidth = property_get_int32(HDMI_WIDTH_PROPERTY, HDMI_WIDTH_DEFAULT);
-        mDefaultHeight = property_get_int32(HDMI_HEIGHT_PROPERTY, HDMI_HEIGHT_DEFAULT);
-    }
-#endif
 
     UeventObserver *observer = Hwcomposer::getInstance().getUeventObserver();
     if (observer) {
@@ -274,17 +244,6 @@ void ExternalDevice::hotplugListener()
         mHdcpControl->stopHdcp();
         mHwc.hotplug(mType, mConnected);
     } else {
-#ifdef INTEL_SUPPORT_HDMI_PRIMARY
-        drmModeModeInfo mode;
-        Hwcomposer::getInstance().getDrm()->getModeInfo(mType, mode);
-        if (mode.hdisplay != mDefaultWidth ||
-            mode.vdisplay != mDefaultHeight) {
-            WTRACE("default width %d, height %d, new width %d, height %d",
-                mDefaultWidth, mDefaultHeight, mode.hdisplay, mode.vdisplay);
-            WTRACE("rebooting device...");
-            system("reboot");
-        }
-#endif
         DTRACE("start HDCP asynchronously...");
          // delay sending hotplug event till HDCP is authenticated.
         mHotplugEventPending = true;
@@ -349,8 +308,8 @@ bool ExternalDevice::getDisplaySize(int *width, int *height)
     if (!width || !height)
         return false;
 
-    *width = mDefaultWidth;
-    *height = mDefaultHeight;
+    *width = 1920;
+    *height = 1080;
     return true;
 #endif
 }
@@ -390,10 +349,10 @@ bool ExternalDevice::getDisplayAttributes(uint32_t config,
             values[i] = 1e9 / 60;
             break;
         case HWC_DISPLAY_WIDTH:
-            values[i] = mDefaultWidth;
+            values[i] = 1920;
             break;
         case HWC_DISPLAY_HEIGHT:
-            values[i] = mDefaultHeight;
+            values[i] = 1080;
             break;
         case HWC_DISPLAY_DPI_X:
             values[i] = 1;
