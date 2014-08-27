@@ -64,8 +64,6 @@ private:
     drmModeModeInfo mPendingDrmMode;
     bool mHotplugEventPending;
     int mExpectedRefreshRate;
-    int mDefaultWidth;
-    int mDefaultHeight;
 
 private:
     DECLARE_THREAD(ModeSettingThread, ExternalDevice);
