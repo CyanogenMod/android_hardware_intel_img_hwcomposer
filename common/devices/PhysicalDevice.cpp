@@ -361,6 +361,20 @@ bool PhysicalDevice::updateDisplayConfigs()
             if (compatMode->hdisplay == mode.hdisplay &&
                 compatMode->vdisplay == mode.vdisplay &&
                 compatMode->vrefresh != mode.vrefresh) {
+
+                bool found = false;
+                for (size_t j = 0; j < mDisplayConfigs.size(); j++) {
+                     DisplayConfig *config = mDisplayConfigs.itemAt(j);
+                     if (config->getRefreshRate() == (int)compatMode->vrefresh) {
+                         found = true;
+                         break;
+                     }
+                }
+
+                if (found) {
+                    continue;
+                }
+
                 DisplayConfig *config = new DisplayConfig(compatMode->vrefresh,
                                               compatMode->hdisplay,
                                               compatMode->vdisplay,
