@@ -13,6 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 */
+
+#define ATRACE_TAG (ATRACE_TAG_GRAPHICS | ATRACE_TAG_HAL)
+
 #include <hardware/hardware.h>
 #include <string.h>
 #include <stdio.h>
@@ -20,6 +23,7 @@
 #include <errno.h>
 #include <common/utils/HwcTrace.h>
 #include <Hwcomposer.h>
+#include <utils/Trace.h>
 
 #define GET_HWC_RETURN_X_IF_NULL(X) \
     CTRACE(); \
@@ -43,6 +47,7 @@ static int hwc_prepare(struct hwc_composer_device_1 *dev,
                           size_t numDisplays,
                           hwc_display_contents_1_t** displays)
 {
+    ATRACE_CALL();
     GET_HWC_RETURN_ERROR_IF_NULL();
     if (!hwc->prepare(numDisplays, displays)) {
         ELOGTRACE("failed to prepare");
@@ -55,6 +60,7 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
                      size_t numDisplays,
                      hwc_display_contents_1_t **displays)
 {
+    ATRACE_CALL();
     GET_HWC_RETURN_ERROR_IF_NULL();
     if (!hwc->commit(numDisplays, displays)) {
         ELOGTRACE("failed to commit");
@@ -99,6 +105,7 @@ static int hwc_eventControl(struct hwc_composer_device_1 *dev,
                                 int enabled)
 {
     bool ret;
+    ATRACE_CALL();
     GET_HWC_RETURN_ERROR_IF_NULL();
 
     switch (event) {
@@ -119,6 +126,7 @@ static int hwc_eventControl(struct hwc_composer_device_1 *dev,
 
 static int hwc_blank(hwc_composer_device_1_t *dev, int disp, int blank)
 {
+    ATRACE_CALL();
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->blank(disp, blank);
     if (ret == false) {
@@ -134,6 +142,7 @@ static int hwc_getDisplayConfigs(hwc_composer_device_1_t *dev,
                                      uint32_t *configs,
                                      size_t *numConfigs)
 {
+    ATRACE_CALL();
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->getDisplayConfigs(disp, configs, numConfigs);
     if (ret == false) {
@@ -150,6 +159,7 @@ static int hwc_getDisplayAttributes(hwc_composer_device_1_t *dev,
                                         const uint32_t *attributes,
                                         int32_t *values)
 {
+    ATRACE_CALL();
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->getDisplayAttributes(disp, config, attributes, values);
     if (ret == false) {
@@ -162,6 +172,7 @@ static int hwc_getDisplayAttributes(hwc_composer_device_1_t *dev,
 
 static int hwc_compositionComplete(hwc_composer_device_1_t *dev, int disp)
 {
+    ATRACE_CALL();
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->compositionComplete(disp);
     if (ret == false) {
@@ -174,6 +185,7 @@ static int hwc_compositionComplete(hwc_composer_device_1_t *dev, int disp)
 
 static int hwc_setPowerMode(hwc_composer_device_1_t *dev, int disp, int mode)
 {
+    ATRACE_CALL();
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->setPowerMode(disp, mode);
     if (ret == false) {
@@ -186,6 +198,7 @@ static int hwc_setPowerMode(hwc_composer_device_1_t *dev, int disp, int mode)
 
 static int hwc_getActiveConfig(hwc_composer_device_1_t *dev, int disp)
 {
+    ATRACE_CALL();
     GET_HWC_RETURN_ERROR_IF_NULL();
     int ret = hwc->getActiveConfig(disp);
     if (ret == -1) {
@@ -198,6 +211,7 @@ static int hwc_getActiveConfig(hwc_composer_device_1_t *dev, int disp)
 
 static int hwc_setActiveConfig(hwc_composer_device_1_t *dev, int disp, int index)
 {
+    ATRACE_CALL();
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->setActiveConfig(disp, index);
     if (ret == false) {
@@ -210,6 +224,7 @@ static int hwc_setActiveConfig(hwc_composer_device_1_t *dev, int disp, int index
 
 static int hwc_setCursorPositionAsync(hwc_composer_device_1_t *dev, int disp, int x, int y)
 {
+    ATRACE_CALL();
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->setCursorPositionAsync(disp, x, y);
     if (ret == false) {
