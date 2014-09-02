@@ -58,22 +58,22 @@ PhysicalDevice::~PhysicalDevice()
 void PhysicalDevice::onGeometryChanged(hwc_display_contents_1_t *list)
 {
     if (!list) {
-        ETRACE("list is NULL");
+        ELOGTRACE("list is NULL");
         return;
     }
 
-    ATRACE("disp = %d, layer number = %d", mType, list->numHwLayers);
+    ALOGTRACE("disp = %d, layer number = %d", mType, list->numHwLayers);
 
     // NOTE: should NOT be here
     if (mLayerList) {
-        WTRACE("mLayerList exists");
+        WLOGTRACE("mLayerList exists");
         DEINIT_AND_DELETE_OBJ(mLayerList);
     }
 
     // create a new layer list
     mLayerList = new HwcLayerList(list, mType);
     if (!mLayerList) {
-        WTRACE("failed to create layer list");
+        WLOGTRACE("failed to create layer list");
     }
 }
 
@@ -108,7 +108,7 @@ bool PhysicalDevice::prepare(hwc_display_contents_1_t *display)
         onGeometryChanged(display);
     }
     if (!mLayerList) {
-        WTRACE("null HWC layer list");
+        WLOGTRACE("null HWC layer list");
         return true;
     }
 
@@ -131,7 +131,7 @@ bool PhysicalDevice::vsyncControl(bool enabled)
 {
     RETURN_FALSE_IF_NOT_INIT();
 
-    ATRACE("disp = %d, enabled = %d", mType, enabled);
+    ALOGTRACE("disp = %d, enabled = %d", mType, enabled);
     return mVsyncObserver->control(enabled);
 }
 
@@ -142,7 +142,7 @@ bool PhysicalDevice::blank(bool blank)
     mBlank = blank;
     bool ret = mBlankControl->blank(mType, blank);
     if (ret == false) {
-        ETRACE("failed to blank device");
+        ELOGTRACE("failed to blank device");
         return false;
     }
 
@@ -154,7 +154,7 @@ bool PhysicalDevice::getDisplaySize(int *width, int *height)
     RETURN_FALSE_IF_NOT_INIT();
     Mutex::Autolock _l(mLock);
     if (!width || !height) {
-        ETRACE("invalid parameters");
+        ELOGTRACE("invalid parameters");
         return false;
     }
 
@@ -185,12 +185,12 @@ bool PhysicalDevice::getDisplayConfigs(uint32_t *configs,
     Mutex::Autolock _l(mLock);
 
     if (!mConnected) {
-        ITRACE("device is not connected");
+        ILOGTRACE("device is not connected");
         return false;
     }
 
     if (!configs || !numConfigs || *numConfigs < 1) {
-        ETRACE("invalid parameters");
+        ELOGTRACE("invalid parameters");
         return false;
     }
 
@@ -212,18 +212,18 @@ bool PhysicalDevice::getDisplayAttributes(uint32_t config,
     Mutex::Autolock _l(mLock);
 
     if (!mConnected) {
-        ITRACE("device is not connected");
+        ILOGTRACE("device is not connected");
         return false;
     }
 
     if (!attributes || !values) {
-        ETRACE("invalid parameters");
+        ELOGTRACE("invalid parameters");
         return false;
     }
 
     DisplayConfig *configChosen = mDisplayConfigs.itemAt(config);
     if  (!configChosen) {
-        WTRACE("failed to get display config");
+        WLOGTRACE("failed to get display config");
         return false;
     }
 
@@ -234,7 +234,7 @@ bool PhysicalDevice::getDisplayAttributes(uint32_t config,
             if (configChosen->getRefreshRate()) {
                 values[i] = 1e9 / configChosen->getRefreshRate();
             } else {
-                ETRACE("refresh rate is 0!!!");
+                ELOGTRACE("refresh rate is 0!!!");
                 values[i] = 0;
             }
             break;
@@ -251,7 +251,7 @@ bool PhysicalDevice::getDisplayAttributes(uint32_t config,
             values[i] = configChosen->getDpiY() * 1000.0f;
             break;
         default:
-            ETRACE("unknown attribute %d", attributes[i]);
+            ELOGTRACE("unknown attribute %d", attributes[i]);
             break;
         }
         i++;
@@ -284,7 +284,7 @@ bool PhysicalDevice::detectDisplayConfigs()
 
     Drm *drm = Hwcomposer::getInstance().getDrm();
     if (!drm->detect(mType)) {
-        ETRACE("drm detection on device %d failed ", mType);
+        ELOGTRACE("drm detection on device %d failed ", mType);
         return false;
     }
     return updateDisplayConfigs();
@@ -310,7 +310,7 @@ bool PhysicalDevice::updateDisplayConfigs()
     drmModeModeInfo mode;
     ret = drm->getModeInfo(mType, mode);
     if (!ret) {
-        ETRACE("failed to get mode info");
+        ELOGTRACE("failed to get mode info");
         mConnected = false;
         return false;
     }
@@ -318,7 +318,7 @@ bool PhysicalDevice::updateDisplayConfigs()
     uint32_t mmWidth, mmHeight;
     ret = drm->getPhysicalSize(mType, mmWidth, mmHeight);
     if (!ret) {
-        ETRACE("failed to get physical size");
+        ELOGTRACE("failed to get physical size");
         mConnected = false;
         return false;
     }
@@ -333,7 +333,7 @@ bool PhysicalDevice::updateDisplayConfigs()
         dpiX = mode.hdisplay / physWidthInch;
         dpiY = mode.vdisplay / physHeightInch;
     } else {
-        ETRACE("invalid physical size, EDID read error?");
+        ELOGTRACE("invalid physical size, EDID read error?");
         // don't bail out as it is not a fatal error
     }
     // use active fb dimension as config width/height
@@ -379,7 +379,7 @@ bool PhysicalDevice::initialize()
     CTRACE();
 
     if (mType != DEVICE_PRIMARY && mType != DEVICE_EXTERNAL) {
-        ETRACE("invalid device type");
+        ELOGTRACE("invalid device type");
         return false;
     }
 
@@ -445,7 +445,7 @@ int PhysicalDevice::getType() const
 void PhysicalDevice::onVsync(int64_t timestamp)
 {
     RETURN_VOID_IF_NOT_INIT();
-    ATRACE("timestamp = %lld", timestamp);
+    ALOGTRACE("timestamp = %lld", timestamp);
 
     if (!mConnected)
         return;

@@ -45,7 +45,7 @@ bool PlaneCapabilities::isFormatSupported(int planeType, HwcLayer *hwcLayer)
         case HAL_PIXEL_FORMAT_RGB_565:
             return trans ? false : true;
         default:
-            VTRACE("unsupported format %#x", format);
+            VLOGTRACE("unsupported format %#x", format);
             return false;
         }
     } else if (planeType == DisplayPlane::PLANE_OVERLAY) {
@@ -55,7 +55,7 @@ bool PlaneCapabilities::isFormatSupported(int planeType, HwcLayer *hwcLayer)
         case HAL_PIXEL_FORMAT_UYVY:
             // TODO: overlay supports 180 degree rotation
             if (trans == HAL_TRANSFORM_ROT_180) {
-                WTRACE("180 degree rotation is not supported yet");
+                WLOGTRACE("180 degree rotation is not supported yet");
             }
             return trans ? false : true;
         case HAL_PIXEL_FORMAT_YV12:
@@ -65,11 +65,11 @@ bool PlaneCapabilities::isFormatSupported(int planeType, HwcLayer *hwcLayer)
         case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled:
             return true;
         default:
-            VTRACE("unsupported format %#x", format);
+            VLOGTRACE("unsupported format %#x", format);
             return false;
         }
     } else {
-        ETRACE("invalid plane type %d", planeType);
+        ELOGTRACE("invalid plane type %d", planeType);
         return false;
     }
 }
@@ -91,14 +91,14 @@ bool PlaneCapabilities::isSizeSupported(int planeType, HwcLayer *hwcLayer)
         case HAL_PIXEL_FORMAT_RGBA_8888:
         case HAL_PIXEL_FORMAT_RGBX_8888:
         case HAL_PIXEL_FORMAT_RGB_565:
-            VTRACE("stride %d", stride.rgb.stride);
+            VLOGTRACE("stride %d", stride.rgb.stride);
             if (stride.rgb.stride > SPRITE_PLANE_MAX_STRIDE_LINEAR) {
-                VTRACE("too large stride %d", stride.rgb.stride);
+                VLOGTRACE("too large stride %d", stride.rgb.stride);
                 return false;
             }
             return true;
         default:
-            VTRACE("unsupported format %#x", format);
+            VLOGTRACE("unsupported format %#x", format);
             return false;
         }
     } else if (planeType == DisplayPlane::PLANE_OVERLAY) {
@@ -115,7 +115,7 @@ bool PlaneCapabilities::isSizeSupported(int planeType, HwcLayer *hwcLayer)
             isYUVPacked = true;
             break;
         default:
-            VTRACE("unsupported format %#x", format);
+            VLOGTRACE("unsupported format %#x", format);
             return false;
         }
         // don't use overlay plane if stride is too big
@@ -125,12 +125,12 @@ bool PlaneCapabilities::isSizeSupported(int planeType, HwcLayer *hwcLayer)
         }
 
         if (stride.yuv.yStride > maxStride) {
-            VTRACE("stride %d is too large", stride.yuv.yStride);
+            VLOGTRACE("stride %d is too large", stride.yuv.yStride);
             return false;
         }
         return true;
     } else {
-        ETRACE("invalid plane type %d", planeType);
+        ELOGTRACE("invalid plane type %d", planeType);
         return false;
     }
 }
@@ -149,14 +149,14 @@ bool PlaneCapabilities::isBlendingSupported(int planeType, HwcLayer *hwcLayer)
         case HWC_BLENDING_COVERAGE:
             return true;
         default:
-            VTRACE("unsupported blending %#x", blending);
+            VLOGTRACE("unsupported blending %#x", blending);
             return false;
         }
     } else if (planeType == DisplayPlane::PLANE_OVERLAY) {
         // overlay doesn't support blending
         return (blending == HWC_BLENDING_NONE) ? true : false;
     } else {
-        ETRACE("invalid plane type %d", planeType);
+        ELOGTRACE("invalid plane type %d", planeType);
         return false;
     }
 }
@@ -187,7 +187,7 @@ bool PlaneCapabilities::isScalingSupported(int planeType, HwcLayer *hwcLayer)
 
         if (dstW <= 1 || dstH <= 1 || srcW <= 1 || srcH <= 1) {
             // Workaround: Overlay flip when height is 1 causes MIPI stall on TNG
-            DTRACE("invalid destination size: %dx%d, fall back to GLES", dstW, dstH);
+            DLOGTRACE("invalid destination size: %dx%d, fall back to GLES", dstW, dstH);
             return false;
         }
 
@@ -199,20 +199,20 @@ bool PlaneCapabilities::isScalingSupported(int planeType, HwcLayer *hwcLayer)
 
         if (!hwcLayer->isProtected()) {
             if ((int)src.left & 63) {
-                DTRACE("offset %d is not 64 bytes aligned, fall back to GLES", (int)src.left);
+                DLOGTRACE("offset %d is not 64 bytes aligned, fall back to GLES", (int)src.left);
                 return false;
             }
 #if 0
             int scaleX = srcW / dstW;
             int scaleY = srcH / dstH;
             if (trans && (scaleX >= 3 || scaleY >= 3)) {
-                DTRACE("overlay rotation with scaling >= 3, fall back to GLES");
+                DLOGTRACE("overlay rotation with scaling >= 3, fall back to GLES");
                 return false;
             }
             if (trans == HAL_TRANSFORM_ROT_90 && (float)srcW / srcH != (float)dstW / dstH) {
                 // FIXME: work aournd for pipe crashing issue, when rotate screen
                 // from 90 to 0 degree (with Sharp 25x16 panel).
-                DTRACE("overlay rotation with uneven scaling, fall back to GLES");
+                DLOGTRACE("overlay rotation with uneven scaling, fall back to GLES");
                 return false;
             }
 #endif
@@ -220,7 +220,7 @@ bool PlaneCapabilities::isScalingSupported(int planeType, HwcLayer *hwcLayer)
 
         return true;
     } else {
-        ETRACE("invalid plane type %d", planeType);
+        ELOGTRACE("invalid plane type %d", planeType);
         return false;
     }
 }

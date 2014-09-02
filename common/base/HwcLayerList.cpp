@@ -52,59 +52,59 @@ bool HwcLayerList::checkSupported(int planeType, HwcLayer *hwcLayer)
 
     // if layer was forced to use FB
     if (hwcLayer->getType() == HwcLayer::LAYER_FORCE_FB) {
-        VTRACE("layer was forced to use HWC_FRAMEBUFFER");
+        VLOGTRACE("layer was forced to use HWC_FRAMEBUFFER");
         return false;
     }
 
     // check layer flags
     if (layer.flags & HWC_SKIP_LAYER) {
-        VTRACE("plane type %d: (skip layer flag was set)", planeType);
+        VLOGTRACE("plane type %d: (skip layer flag was set)", planeType);
         return false;
     }
 
     if (layer.handle == 0) {
-        WTRACE("invalid buffer handle");
+        WLOGTRACE("invalid buffer handle");
         return false;
     }
 
     // check usage
     if (!hwcLayer->getUsage() & GRALLOC_USAGE_HW_COMPOSER) {
-        WTRACE("not a composer layer");
+        WLOGTRACE("not a composer layer");
         return false;
     }
 
     // check layer transform
     valid = PlaneCapabilities::isTransformSupported(planeType, hwcLayer);
     if (!valid) {
-        VTRACE("plane type %d: (bad transform)", planeType);
+        VLOGTRACE("plane type %d: (bad transform)", planeType);
         return false;
     }
 
     // check buffer format
     valid = PlaneCapabilities::isFormatSupported(planeType, hwcLayer);
     if (!valid) {
-        VTRACE("plane type %d: (bad buffer format)", planeType);
+        VLOGTRACE("plane type %d: (bad buffer format)", planeType);
         return false;
     }
 
     // check buffer size
     valid = PlaneCapabilities::isSizeSupported(planeType, hwcLayer);
     if (!valid) {
-        VTRACE("plane type %d: (bad buffer size)", planeType);
+        VLOGTRACE("plane type %d: (bad buffer size)", planeType);
         return false;
     }
 
     // check layer blending
     valid = PlaneCapabilities::isBlendingSupported(planeType, hwcLayer);
     if (!valid) {
-        VTRACE("plane type %d: (bad blending)", planeType);
+        VLOGTRACE("plane type %d: (bad blending)", planeType);
         return false;
     }
 
     // check layer scaling
     valid = PlaneCapabilities::isScalingSupported(planeType, hwcLayer);
     if (!valid) {
-        VTRACE("plane type %d: (bad scaling)", planeType);
+        VLOGTRACE("plane type %d: (bad scaling)", planeType);
         return false;
     }
 
@@ -119,24 +119,24 @@ bool HwcLayerList::checkRgbOverlaySupported(HwcLayer *hwcLayer)
 
     // if layer was forced to use FB
     if (hwcLayer->getType() == HwcLayer::LAYER_FORCE_FB) {
-        VTRACE("layer was forced to use HWC_FRAMEBUFFER");
+        VLOGTRACE("layer was forced to use HWC_FRAMEBUFFER");
         return false;
     }
 
     // check layer flags
     if (layer.flags & HWC_SKIP_LAYER) {
-        VTRACE("skip layer flag was set");
+        VLOGTRACE("skip layer flag was set");
         return false;
     }
 
     if (layer.handle == 0) {
-        WTRACE("invalid buffer handle");
+        WLOGTRACE("invalid buffer handle");
         return false;
     }
 
     // check usage
     if (!hwcLayer->getUsage() & GRALLOC_USAGE_HW_COMPOSER) {
-        WTRACE("not a composer layer");
+        WLOGTRACE("not a composer layer");
         return false;
     }
 
@@ -178,7 +178,7 @@ bool HwcLayerList::checkRgbOverlaySupported(HwcLayer *hwcLayer)
 bool HwcLayerList::initialize()
 {
     if (!mList || mList->numHwLayers == 0) {
-        ETRACE("invalid hwc list");
+        ELOGTRACE("invalid hwc list");
         return false;
     }
 
@@ -238,7 +238,7 @@ bool HwcLayerList::initialize()
     }
 
     if (mFrameBufferTarget == NULL) {
-        ETRACE("no frame buffer target?");
+        ELOGTRACE("no frame buffer target?");
         return false;
     }
 
@@ -248,7 +248,7 @@ bool HwcLayerList::initialize()
     // will have the buffer queue blocked. (The buffer hold by driver cannot be
     // released if new buffers' flip is skipped).
     if ((mFBLayers.size() == 0) && (mLayers.size() > 1)) {
-        VTRACE("no FB layers, skip plane allocation");
+        VLOGTRACE("no FB layers, skip plane allocation");
         return true;
     }
 
@@ -312,7 +312,7 @@ bool HwcLayerList::assignOverlayPlanes()
     DisplayPlaneManager *planeManager = Hwcomposer::getInstance().getPlaneManager();
     int planeNumber = planeManager->getFreePlanes(mDisplayIndex, DisplayPlane::PLANE_OVERLAY);
     if (planeNumber == 0) {
-        DTRACE("no overlay plane available. candidates %d", overlayCandidates);
+        DLOGTRACE("no overlay plane available. candidates %d", overlayCandidates);
         return assignSpritePlanes();
     }
 
@@ -328,7 +328,7 @@ bool HwcLayerList::assignOverlayPlanes()
             return true;
         }
         if (mZOrderConfig.size() != 0) {
-            ETRACE("ZOrder config is not cleaned up!");
+            ELOGTRACE("ZOrder config is not cleaned up!");
         }
     }
     return false;
@@ -364,7 +364,7 @@ bool HwcLayerList::assignSpritePlanes()
     DisplayPlaneManager *planeManager = Hwcomposer::getInstance().getPlaneManager();
     int planeNumber = planeManager->getFreePlanes(mDisplayIndex, DisplayPlane::PLANE_SPRITE);
     if (planeNumber == 0) {
-        VTRACE("no sprite plane available, candidates %d", spriteCandidates);
+        VLOGTRACE("no sprite plane available, candidates %d", spriteCandidates);
         return assignPrimaryPlane();
     }
 
@@ -381,7 +381,7 @@ bool HwcLayerList::assignSpritePlanes()
         }
 
         if (mOverlayCandidates.size() == 0 && mZOrderConfig.size() != 0) {
-            ETRACE("ZOrder config is not cleaned up!");
+            ELOGTRACE("ZOrder config is not cleaned up!");
         }
     }
     return false;
@@ -424,19 +424,19 @@ bool HwcLayerList::assignPrimaryPlane()
         // primary plane is configured as sprite, all sprite candidates are offloaded to display planes
         ok = assignPrimaryPlaneHelper(spriteLayer);
         if (!ok) {
-            VTRACE("failed to use primary as sprite plane");
+            VLOGTRACE("failed to use primary as sprite plane");
         }
     } else if (candidates == 0) {
         // none assigned, use primary plane for frame buffer target and set zorder to 0
         ok = assignPrimaryPlaneHelper(mFrameBufferTarget, 0);
         if (!ok) {
-            ETRACE("failed to compose all layers to primary plane, should never happen");
+            ELOGTRACE("failed to compose all layers to primary plane, should never happen");
         }
     } else if (candidates == layers) {
         // all assigned, primary plane may be used during ZOrder config.
         ok = attachPlanes();
         if (!ok) {
-            VTRACE("failed to assign layers without primary");
+            VLOGTRACE("failed to assign layers without primary");
         }
     } else {
         // check if the remaining planes can be composed to frame buffer target (FBT)
@@ -448,13 +448,13 @@ bool HwcLayerList::assignPrimaryPlane()
             if (useAsFrameBufferTarget(mFBLayers[i])) {
                 ok = assignPrimaryPlaneHelper(mFrameBufferTarget, mFBLayers[i]->getZOrder());
                 if (!ok) {
-                    VTRACE("failed to use zorder %d for frame buffer target",
+                    VLOGTRACE("failed to use zorder %d for frame buffer target",
                         mFBLayers[i]->getZOrder());
                 }
             }
         }
         if (!ok) {
-            VTRACE("no possible zorder for frame buffer target");
+            VLOGTRACE("no possible zorder for frame buffer target");
         }
 
     }
@@ -475,20 +475,20 @@ bool HwcLayerList::attachPlanes()
 {
     DisplayPlaneManager *planeManager = Hwcomposer::getInstance().getPlaneManager();
     if (!planeManager->isValidZOrder(mDisplayIndex, mZOrderConfig)) {
-        VTRACE("invalid z order, size of config %d", mZOrderConfig.size());
+        VLOGTRACE("invalid z order, size of config %d", mZOrderConfig.size());
         return false;
     }
 
     if (!planeManager->assignPlanes(mDisplayIndex, mZOrderConfig)) {
-        WTRACE("failed to assign planes");
+        WLOGTRACE("failed to assign planes");
         return false;
     }
 
-    VTRACE("============= plane assignment===================");
+    VLOGTRACE("============= plane assignment===================");
     for (int i = 0; i < (int)mZOrderConfig.size(); i++) {
         ZOrderLayer *zlayer = mZOrderConfig.itemAt(i);
         if (zlayer->plane == NULL || zlayer->hwcLayer == NULL) {
-            ETRACE("invalid ZOrderLayer, should never happen!!");
+            ELOGTRACE("invalid ZOrderLayer, should never happen!!");
             return false;
         }
 
@@ -502,7 +502,7 @@ bool HwcLayerList::attachPlanes()
 
         zlayer->hwcLayer->attachPlane(zlayer->plane, mDisplayIndex);
 
-        VTRACE("total %d, layer %d, type %d, index %d, zorder %d",
+        VLOGTRACE("total %d, layer %d, type %d, index %d, zorder %d",
             mLayerCount - 1,
             zlayer->hwcLayer->getIndex(),
             zlayer->plane->getType(),
@@ -591,13 +591,13 @@ ZOrderLayer* HwcLayerList::addZOrderLayer(int type, HwcLayer *hwcLayer, int zord
     layer->plane = NULL;
 
     if (hwcLayer->mPlaneCandidate) {
-        ETRACE("plane is candidate!, order = %d", zorder);
+        ELOGTRACE("plane is candidate!, order = %d", zorder);
     }
 
     hwcLayer->mPlaneCandidate = true;
 
     if ((int)mZOrderConfig.indexOf(layer) >= 0) {
-        ETRACE("layer exists!");
+        ELOGTRACE("layer exists!");
     }
 
     mZOrderConfig.add(layer);
@@ -607,13 +607,13 @@ ZOrderLayer* HwcLayerList::addZOrderLayer(int type, HwcLayer *hwcLayer, int zord
 void HwcLayerList::removeZOrderLayer(ZOrderLayer *layer)
 {
     if ((int)mZOrderConfig.indexOf(layer) < 0) {
-        ETRACE("layer does not exist!");
+        ELOGTRACE("layer does not exist!");
     }
 
     mZOrderConfig.remove(layer);
 
     if (layer->hwcLayer->mPlaneCandidate == false) {
-        ETRACE("plane is not candidate!, order %d", layer->zorder);
+        ELOGTRACE("plane is not candidate!, order %d", layer->zorder);
     }
     layer->hwcLayer->mPlaneCandidate = false;
     delete layer;
@@ -632,7 +632,7 @@ void HwcLayerList::setupSmartComposition()
         }
     }
 
-    VTRACE("smart composition enabled %s",
+    VLOGTRACE("smart composition enabled %s",
            (compositionType == HWC_OVERLAY) ? "TRUE" : "FALSE");
     for (size_t i = 0; i < mFBLayers.size(); i++) {
         hwcLayer = mFBLayers.itemAt(i);
@@ -642,7 +642,7 @@ void HwcLayerList::setupSmartComposition()
             hwcLayer->setCompositionType(compositionType);
             break;
         default:
-            ETRACE("Invalid layer type %d", hwcLayer->getType());
+            ELOGTRACE("Invalid layer type %d", hwcLayer->getType());
             break;
         }
     }
@@ -656,12 +656,12 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
 
     // basic check to make sure the consistance
     if (!list) {
-        ETRACE("null layer list");
+        ELOGTRACE("null layer list");
         return false;
     }
 
     if ((int)list->numHwLayers != mLayerCount) {
-        ETRACE("layer count doesn't match (%d, %d)", list->numHwLayers, mLayerCount);
+        ELOGTRACE("layer count doesn't match (%d, %d)", list->numHwLayers, mLayerCount);
         return false;
     }
 
@@ -673,7 +673,7 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
     for (int i = 0; i < mLayerCount; i++) {
         HwcLayer *hwcLayer = mLayers.itemAt(i);
         if (!hwcLayer) {
-            ETRACE("no HWC layer for layer %d", i);
+            ELOGTRACE("no HWC layer for layer %d", i);
             continue;
         }
 
@@ -684,7 +684,7 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
     }
 
     if (!ok) {
-        ITRACE("overlay fallback to GLES. flags: %#x", list->flags);
+        ILOGTRACE("overlay fallback to GLES. flags: %#x", list->flags);
         for (int i = 0; i < mLayerCount - 1; i++) {
             HwcLayer *hwcLayer = mLayers.itemAt(i);
             if (hwcLayer->getPlane() &&
@@ -701,12 +701,12 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
         for (int i = 0; i < mLayerCount; i++) {
             HwcLayer *hwcLayer = mLayers.itemAt(i);
             if (!hwcLayer) {
-                ETRACE("no HWC layer for layer %d", i);
+                ELOGTRACE("no HWC layer for layer %d", i);
                 continue;
             }
 
             if (!hwcLayer->update(&list->hwLayers[i])) {
-                DTRACE("fallback to GLES update failed on layer[%d]!\n", i);
+                DLOGTRACE("fallback to GLES update failed on layer[%d]!\n", i);
             }
         }
     }
@@ -723,12 +723,12 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
 
     // basic check to make sure the consistance
     if (!list) {
-        ETRACE("null layer list");
+        ELOGTRACE("null layer list");
         return false;
     }
 
     if ((int)list->numHwLayers != mLayerCount) {
-        ETRACE("layer count doesn't match (%d, %d)", list->numHwLayers, mLayerCount);
+        ELOGTRACE("layer count doesn't match (%d, %d)", list->numHwLayers, mLayerCount);
         return false;
     }
 
@@ -739,7 +739,7 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
     for (int i = 0; i < mLayerCount; i++) {
         HwcLayer *hwcLayer = mLayers.itemAt(i);
         if (!hwcLayer) {
-            ETRACE("no HWC layer for layer %d", i);
+            ELOGTRACE("no HWC layer for layer %d", i);
             continue;
         }
 
@@ -757,7 +757,7 @@ DisplayPlane* HwcLayerList::getPlane(uint32_t index) const
     HwcLayer *hwcLayer;
 
     if (index >= mLayers.size()) {
-        ETRACE("invalid layer index %d", index);
+        ELOGTRACE("invalid layer index %d", index);
         return 0;
     }
 
@@ -769,7 +769,7 @@ DisplayPlane* HwcLayerList::getPlane(uint32_t index) const
     }
 
     if (hwcLayer->getHandle() == 0) {
-        DTRACE("plane is attached with invalid handle");
+        DLOGTRACE("plane is attached with invalid handle");
         return 0;
     }
 
@@ -861,10 +861,10 @@ void HwcLayerList::dump()
         "PRIMARY",
         "UNKNOWN"};
 
-    DTRACE(" numHwLayers = %u, flags = %08x", mList->numHwLayers, mList->flags);
+    DLOGTRACE(" numHwLayers = %u, flags = %08x", mList->numHwLayers, mList->flags);
 
-    DTRACE(" type |  handle  | hints | flags | tr | blend | alpha |  format  |           source crop             |            frame          | index | zorder |  plane  ");
-    DTRACE("------+----------+-------+-------+----+-------+-------+----------+-----------------------------------+---------------------------+-------+--------+---------");
+    DLOGTRACE(" type |  handle  | hints | flags | tr | blend | alpha |  format  |           source crop             |            frame          | index | zorder |  plane  ");
+    DLOGTRACE("------+----------+-------+-------+----+-------+-------+----------+-----------------------------------+---------------------------+-------+--------+---------");
 
 
     for (int i = 0 ; i < mLayerCount ; i++) {
@@ -879,7 +879,7 @@ void HwcLayerList::dump()
             planeType = planeTypeName[plane->getType()];
         }
 
-        DTRACE(
+        DLOGTRACE(
             " %4s | %8x | %5x | %5x | %2x | %5x | %5x | %8x | [%7.1f,%7.1f,%7.1f,%7.1f] | [%5d,%5d,%5d,%5d] | %5d | %6d | %7s ",
             compositionTypeName[l.compositionType],
             mLayers[i]->getHandle(), l.hints, l.flags, l.transform, l.blending, l.planeAlpha, mLayers[i]->getFormat(),

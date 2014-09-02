@@ -45,14 +45,14 @@ bool TngDisplayContext::initialize()
     hw_module_t const* module;
     int err = hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module);
     if (err) {
-        ETRACE("failed to load gralloc module, error = %d", err);
+        ELOGTRACE("failed to load gralloc module, error = %d", err);
         return false;
     }
 
     // init IMG display device
     mIMGDisplayDevice = (((IMG_gralloc_module_public_t *)module)->getDisplayDevice((IMG_gralloc_module_public_t *)module));
     if (!mIMGDisplayDevice) {
-        ETRACE("failed to get display device");
+        ELOGTRACE("failed to get display device");
         return false;
     }
 
@@ -76,7 +76,7 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
     RETURN_FALSE_IF_NOT_INIT();
 
     if (!display || !layerList) {
-        ETRACE("invalid parameters");
+        ELOGTRACE("invalid parameters");
         return false;
     }
 
@@ -84,7 +84,7 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
 
     for (size_t i = 0; i < display->numHwLayers; i++) {
         if (mCount >= MAXIMUM_LAYER_NUMBER) {
-            ETRACE("layer count exceeds the limit");
+            ELOGTRACE("layer count exceeds the limit");
             return false;
         }
 
@@ -100,7 +100,7 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
 
         ret = plane->flip(NULL);
         if (ret == false) {
-            VTRACE("failed to flip plane %d", i);
+            VLOGTRACE("failed to flip plane %d", i);
             continue;
         }
 
@@ -120,7 +120,7 @@ bool TngDisplayContext::commitContents(hwc_display_contents_1_t *display, HwcLay
             memset(&ctx->zorder, 0, sizeof(ctx->zorder));
         }
 
-        VTRACE("count %d, handle %#x, trans %#x, blending %#x"
+        VLOGTRACE("count %d, handle %#x, trans %#x, blending %#x"
               " sourceCrop %f,%f - %fx%f, dst %d,%d - %dx%d, custom %#x",
               mCount,
               (uint32_t)imgLayer->psLayer->handle,
@@ -145,7 +145,7 @@ bool TngDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t *
 {
     int releaseFenceFd = -1;
 
-    VTRACE("count = %d", mCount);
+    VLOGTRACE("count = %d", mCount);
 
     if (mIMGDisplayDevice && mCount) {
         int err = mIMGDisplayDevice->post(mIMGDisplayDevice,
@@ -153,7 +153,7 @@ bool TngDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t *
                                           mCount,
                                           &releaseFenceFd);
         if (err) {
-            ETRACE("post failed, err = %d", err);
+            ELOGTRACE("post failed, err = %d", err);
             return false;
         }
     }
@@ -213,7 +213,7 @@ bool TngDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t *
 
         // log for layer fence status
         for (size_t j = 0; j < displays[i]->numHwLayers; j++) {
-            VTRACE("handle %#x, acquiredFD %d, releaseFD %d",
+            VLOGTRACE("handle %#x, acquiredFD %d, releaseFD %d",
                  (uint32_t)displays[i]->hwLayers[j].handle,
                  displays[i]->hwLayers[j].acquireFenceFd,
                  displays[i]->hwLayers[j].releaseFenceFd);

@@ -25,7 +25,7 @@ namespace intel {
 GrallocBufferBase::GrallocBufferBase(uint32_t handle)
     : GraphicBuffer(handle)
 {
-    ATRACE("handle = %#x", handle);
+    ALOGTRACE("handle = %#x", handle);
     initBuffer(handle);
 }
 

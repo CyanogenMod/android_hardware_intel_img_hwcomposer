@@ -27,7 +27,7 @@ BufferCache::BufferCache(int size)
 BufferCache::~BufferCache()
 {
     if (mBufferPool.size() != 0) {
-        ETRACE("buffer cache is not empty");
+        ELOGTRACE("buffer cache is not empty");
     }
     mBufferPool.clear();
 }
@@ -36,14 +36,14 @@ bool BufferCache::addMapper(uint64_t handle, BufferMapper* mapper)
 {
     ssize_t index = mBufferPool.indexOfKey(handle);
     if (index >= 0) {
-        ETRACE("buffer %#llx exists", handle);
+        ELOGTRACE("buffer %#llx exists", handle);
         return false;
     }
 
     // add mapper
     index = mBufferPool.add(handle, mapper);
     if (index < 0) {
-        ETRACE("failed to add mapper. err = %d", index);
+        ELOGTRACE("failed to add mapper. err = %d", index);
         return false;
     }
 
@@ -55,13 +55,13 @@ bool BufferCache::removeMapper(BufferMapper* mapper)
     ssize_t index;
 
     if (!mapper) {
-        ETRACE("invalid mapper");
+        ELOGTRACE("invalid mapper");
         return false;
     }
 
     index = mBufferPool.removeItem(mapper->getKey());
     if (index < 0) {
-        WTRACE("failed to remove mapper. err = %d", index);
+        WLOGTRACE("failed to remove mapper. err = %d", index);
         return false;
     }
 
@@ -72,7 +72,7 @@ BufferMapper* BufferCache::getMapper(uint64_t handle)
 {
     ssize_t index = mBufferPool.indexOfKey(handle);
     if (index < 0) {
-        // don't add ETRACE here as this condition will happen frequently
+        // don't add ELOGTRACE here as this condition will happen frequently
         return 0;
     }
     return mBufferPool.valueAt(index);
@@ -86,7 +86,7 @@ size_t BufferCache::getCacheSize() const
 BufferMapper* BufferCache::getMapper(size_t index)
 {
     if (index >= mBufferPool.size()) {
-        ETRACE("invalid index");
+        ELOGTRACE("invalid index");
         return 0;
     }
     BufferMapper* mapper = mBufferPool.valueAt(index);

@@ -26,7 +26,7 @@
     Hwcomposer *hwc = static_cast<Hwcomposer*>(dev); \
     do {\
         if (!hwc) { \
-            ETRACE("invalid HWC device."); \
+            ELOGTRACE("invalid HWC device."); \
             return X; \
         } \
     } while (0)
@@ -45,7 +45,7 @@ static int hwc_prepare(struct hwc_composer_device_1 *dev,
 {
     GET_HWC_RETURN_ERROR_IF_NULL();
     if (!hwc->prepare(numDisplays, displays)) {
-        ETRACE("failed to prepare");
+        ELOGTRACE("failed to prepare");
         return -EINVAL;
     }
     return 0;
@@ -57,7 +57,7 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
 {
     GET_HWC_RETURN_ERROR_IF_NULL();
     if (!hwc->commit(numDisplays, displays)) {
-        ETRACE("failed to commit");
+        ELOGTRACE("failed to commit");
         return -EINVAL;
     }
     return 0;
@@ -89,7 +89,7 @@ static int hwc_query(struct hwc_composer_device_1 * /* dev */,
         int what, int* /* value */)
 {
     (void) what;
-    ATRACE("what = %d", what);
+    ALOGTRACE("what = %d", what);
     return -EINVAL;
 }
 
@@ -105,12 +105,12 @@ static int hwc_eventControl(struct hwc_composer_device_1 *dev,
     case HWC_EVENT_VSYNC:
         ret = hwc->vsyncControl(disp, enabled);
         if (ret == false) {
-            ETRACE("failed to control vsync");
+            ELOGTRACE("failed to control vsync");
             return -EINVAL;
         }
         break;
     default:
-        WTRACE("unsupported event %d", event);
+        WLOGTRACE("unsupported event %d", event);
         break;
     }
 
@@ -122,7 +122,7 @@ static int hwc_blank(hwc_composer_device_1_t *dev, int disp, int blank)
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->blank(disp, blank);
     if (ret == false) {
-        ETRACE("failed to blank disp %d, blank %d", disp, blank);
+        ELOGTRACE("failed to blank disp %d, blank %d", disp, blank);
         return -EINVAL;
     }
 
@@ -137,7 +137,7 @@ static int hwc_getDisplayConfigs(hwc_composer_device_1_t *dev,
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->getDisplayConfigs(disp, configs, numConfigs);
     if (ret == false) {
-        WTRACE("failed to get configs of disp %d", disp);
+        WLOGTRACE("failed to get configs of disp %d", disp);
         return -EINVAL;
     }
 
@@ -153,7 +153,7 @@ static int hwc_getDisplayAttributes(hwc_composer_device_1_t *dev,
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->getDisplayAttributes(disp, config, attributes, values);
     if (ret == false) {
-        WTRACE("failed to get attributes of disp %d", disp);
+        WLOGTRACE("failed to get attributes of disp %d", disp);
         return -EINVAL;
     }
 
@@ -165,7 +165,7 @@ static int hwc_compositionComplete(hwc_composer_device_1_t *dev, int disp)
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->compositionComplete(disp);
     if (ret == false) {
-        ETRACE("failed for disp %d", disp);
+        ELOGTRACE("failed for disp %d", disp);
         return -EINVAL;
     }
 
@@ -177,7 +177,7 @@ static int hwc_setPowerMode(hwc_composer_device_1_t *dev, int disp, int mode)
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->setPowerMode(disp, mode);
     if (ret == false) {
-        WTRACE("failed to set power mode of disp %d", disp);
+        WLOGTRACE("failed to set power mode of disp %d", disp);
         return -EINVAL;
     }
 
@@ -189,7 +189,7 @@ static int hwc_getActiveConfig(hwc_composer_device_1_t *dev, int disp)
     GET_HWC_RETURN_ERROR_IF_NULL();
     int ret = hwc->getActiveConfig(disp);
     if (ret == -1) {
-        WTRACE("failed to get active config of disp %d", disp);
+        WLOGTRACE("failed to get active config of disp %d", disp);
         return -EINVAL;
     }
 
@@ -201,7 +201,7 @@ static int hwc_setActiveConfig(hwc_composer_device_1_t *dev, int disp, int index
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->setActiveConfig(disp, index);
     if (ret == false) {
-        WTRACE("failed to set active config of disp %d", disp);
+        WLOGTRACE("failed to set active config of disp %d", disp);
         return -EINVAL;
     }
 
@@ -213,7 +213,7 @@ static int hwc_setCursorPositionAsync(hwc_composer_device_1_t *dev, int disp, in
     GET_HWC_RETURN_ERROR_IF_NULL();
     bool ret = hwc->setCursorPositionAsync(disp, x, y);
     if (ret == false) {
-        WTRACE("failed to set cursor position of disp %d", disp);
+        WLOGTRACE("failed to set cursor position of disp %d", disp);
         return -EINVAL;
     }
 
@@ -227,21 +227,21 @@ static int hwc_device_open(const struct hw_module_t* module,
                               struct hw_device_t** device)
 {
     if (!name) {
-        ETRACE("invalid name.");
+        ELOGTRACE("invalid name.");
         return -EINVAL;
     }
 
-    ATRACE("open device %s", name);
+    ALOGTRACE("open device %s", name);
 
     if (strcmp(name, HWC_HARDWARE_COMPOSER) != 0) {
-        ETRACE("try to open unknown HWComposer %s", name);
+        ELOGTRACE("try to open unknown HWComposer %s", name);
         return -EINVAL;
     }
 
     Hwcomposer& hwc = Hwcomposer::getInstance();
     // initialize our state here
     if (hwc.initialize() == false) {
-        ETRACE("failed to intialize HWComposer");
+        ELOGTRACE("failed to intialize HWComposer");
         Hwcomposer::releaseInstance();
         return -EINVAL;
     }

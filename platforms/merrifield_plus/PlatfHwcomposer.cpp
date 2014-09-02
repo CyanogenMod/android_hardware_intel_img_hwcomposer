@@ -75,7 +75,7 @@ IDisplayDevice* PlatfHwcomposer::createDisplayDevice(int disp,
             return new DummyDevice(*this);
 
         default:
-            ETRACE("invalid display device %d", disp);
+            ELOGTRACE("invalid display device %d", disp);
             return NULL;
     }
 }

@@ -99,7 +99,7 @@ bool DummyDevice::getDisplaySize(int *width, int *height)
 {
     RETURN_FALSE_IF_NOT_INIT();
     if (!width || !height) {
-        ETRACE("invalid parameters");
+        ELOGTRACE("invalid parameters");
         return false;
     }
 
@@ -114,12 +114,12 @@ bool DummyDevice::getDisplayConfigs(uint32_t *configs,
 {
     RETURN_FALSE_IF_NOT_INIT();
     if (!configs || !numConfigs) {
-        ETRACE("invalid parameters");
+        ELOGTRACE("invalid parameters");
         return false;
     }
 
     if (!mConnected) {
-        ITRACE("dummy device is not connected");
+        ILOGTRACE("dummy device is not connected");
         return false;
     }
 
@@ -136,12 +136,12 @@ bool DummyDevice::getDisplayAttributes(uint32_t configs,
     RETURN_FALSE_IF_NOT_INIT();
 
     if ((configs > 0) || !attributes || !values) {
-        ETRACE("invalid parameters");
+        ELOGTRACE("invalid parameters");
         return false;
     }
 
     if (!mConnected) {
-        ITRACE("dummy device is not connected");
+        ILOGTRACE("dummy device is not connected");
         return false;
     }
 
@@ -164,7 +164,7 @@ bool DummyDevice::getDisplayAttributes(uint32_t configs,
             values[i] = 0;
             break;
         default:
-            ETRACE("unknown attribute %d", attributes[i]);
+            ELOGTRACE("unknown attribute %d", attributes[i]);
             break;
         }
         i++;

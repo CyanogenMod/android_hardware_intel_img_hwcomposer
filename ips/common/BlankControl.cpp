@@ -35,7 +35,7 @@ bool BlankControl::blank(int disp, bool blank)
 {
     // current do nothing but return true
     // use PM to trigger screen blank/unblank
-    VTRACE("blank is not supported yet, disp %d, blank %d", disp, blank);
+    VLOGTRACE("blank is not supported yet, disp %d, blank %d", disp, blank);
     return true;
 }
 

@@ -22,13 +22,13 @@ namespace intel {
 
 #define CHECK_VA_STATUS_RETURN(FUNC) \
 if (vaStatus != VA_STATUS_SUCCESS) {\
-    ETRACE(FUNC" failed. vaStatus = %#x", vaStatus);\
+    ELOGTRACE(FUNC" failed. vaStatus = %#x", vaStatus);\
     return false;\
 }
 
 #define CHECK_VA_STATUS_BREAK(FUNC) \
 if (vaStatus != VA_STATUS_SUCCESS) {\
-    ETRACE(FUNC" failed. vaStatus = %#x", vaStatus);\
+    ELOGTRACE(FUNC" failed. vaStatus = %#x", vaStatus);\
     break;\
 }
 
@@ -100,7 +100,7 @@ void RotationBufferProvider::invalidateCaches()
     for (size_t i = 0; i < mTTMWrappers.size(); i++) {
         buf = mTTMWrappers.valueAt(i);
         if (!mWsbm->destroyTTMBuffer(buf))
-            WTRACE("failed to free TTMBuffer");
+            WLOGTRACE("failed to free TTMBuffer");
     }
     mTTMWrappers.clear();
 }
@@ -143,7 +143,7 @@ uint32_t RotationBufferProvider::createWsbmBuffer(int width, int height, void **
     bool ret = mWsbm->allocateTTMBuffer(size, allignment, buf);
 
     if (ret == false) {
-        ETRACE("failed to allocate TTM buffer");
+        ELOGTRACE("failed to allocate TTM buffer");
         return 0;
     }
 
@@ -180,7 +180,7 @@ bool RotationBufferProvider::createVaSurface(VideoPayloadBuffer *payload, int tr
     }
 
     if (!stride) {
-        ETRACE("invalid stride value");
+        ELOGTRACE("invalid stride value");
         return false;
     }
 
@@ -209,7 +209,7 @@ bool RotationBufferProvider::createVaSurface(VideoPayloadBuffer *payload, int tr
     if (isTarget) {
         int khandle = createWsbmBuffer(stride, bufferHeight, &mDrmBuf[mTargetIndex]);
         if (khandle == 0) {
-            ETRACE("failed to create buffer by wsbm");
+            ELOGTRACE("failed to create buffer by wsbm");
             return false;
         }
 
@@ -225,7 +225,7 @@ bool RotationBufferProvider::createVaSurface(VideoPayloadBuffer *payload, int tr
             width = payload->crop_width;
             height = (payload->crop_height >> mBobDeinterlace);
         } else {
-            VTRACE("Invalid cropping width or height");
+            VLOGTRACE("Invalid cropping width or height");
             payload->crop_width = width;
             payload->crop_height = height;
         }
@@ -239,8 +239,8 @@ bool RotationBufferProvider::createVaSurface(VideoPayloadBuffer *payload, int tr
                                              surface,
                                              vaSurfaceAttrib);
     if (vaStatus != VA_STATUS_SUCCESS) {
-        ETRACE("vaCreateSurfacesWithAttribute returns %d", vaStatus);
-        ETRACE("Attributes: target: %d, width: %d, height %d, bufferHeight %d, tiling %d",
+        ELOGTRACE("vaCreateSurfacesWithAttribute returns %d", vaStatus);
+        ELOGTRACE("Attributes: target: %d, width: %d, height %d, bufferHeight %d, tiling %d",
                 isTarget, width, height, bufferHeight, payload->tiling);
         *surface = 0;
         return false;
@@ -262,7 +262,7 @@ bool RotationBufferProvider::startVA(VideoPayloadBuffer *payload, int transform)
     // VA will hold a copy of the param pointer, so local varialbe doesn't work
     mVaDpy = vaGetDisplay(&mDisplay);
     if (NULL == mVaDpy) {
-        ETRACE("failed to get VADisplay");
+        ELOGTRACE("failed to get VADisplay");
         return false;
     }
 
@@ -272,13 +272,13 @@ bool RotationBufferProvider::startVA(VideoPayloadBuffer *payload, int transform)
     numEntryPoints = vaMaxNumEntrypoints(mVaDpy);
 
     if (numEntryPoints <= 0) {
-        ETRACE("numEntryPoints value is invalid");
+        ELOGTRACE("numEntryPoints value is invalid");
         return false;
     }
 
     entryPoint = (VAEntrypoint*)malloc(sizeof(VAEntrypoint) * numEntryPoints);
     if (NULL == entryPoint) {
-        ETRACE("failed to malloc memory for entryPoint");
+        ELOGTRACE("failed to malloc memory for entryPoint");
         return false;
     }
 
@@ -296,7 +296,7 @@ bool RotationBufferProvider::startVA(VideoPayloadBuffer *payload, int transform)
     entryPoint = NULL;
 
     if (!supportVideoProcessing) {
-        ETRACE("VAEntrypointVideoProc is not supported");
+        ELOGTRACE("VAEntrypointVideoProc is not supported");
         return false;
     }
 
@@ -311,7 +311,7 @@ bool RotationBufferProvider::startVA(VideoPayloadBuffer *payload, int transform)
     // create first target surface
     ret = createVaSurface(payload, transform, true);
     if (ret == false) {
-        ETRACE("failed to create target surface with attribute");
+        ELOGTRACE("failed to create target surface with attribute");
         return false;
     }
 
@@ -336,7 +336,7 @@ bool RotationBufferProvider::startVA(VideoPayloadBuffer *payload, int transform)
             supportVideoProcFilter = true;
 
     if (!supportVideoProcFilter) {
-        ETRACE("VAProcFilterNone is not supported");
+        ELOGTRACE("VAProcFilterNone is not supported");
         return false;
     }
 
@@ -363,7 +363,7 @@ bool RotationBufferProvider::startVA(VideoPayloadBuffer *payload, int transform)
     CHECK_VA_STATUS_RETURN("vaQueryVideoProcPipelineCaps");
 
     if (!(pipelineCaps.rotation_flags & (1 << transFromHalToVa(transform)))) {
-        ETRACE("VA_ROTATION_xxx: 0x%08x is not supported by the filter",
+        ELOGTRACE("VA_ROTATION_xxx: 0x%08x is not supported by the filter",
              transFromHalToVa(transform));
         return false;
     }
@@ -384,7 +384,7 @@ bool RotationBufferProvider::setupRotationBuffer(VideoPayloadBuffer *payload, in
     bool ret = false;
 
     if (payload->format != VA_FOURCC_NV12 || payload->width == 0 || payload->height == 0) {
-        WTRACE("payload data is not correct: format %#x, width %d, height %d",
+        WLOGTRACE("payload data is not correct: format %#x, width %d, height %d",
             payload->format, payload->width, payload->height);
         return ret;
     }
@@ -395,7 +395,7 @@ bool RotationBufferProvider::setupRotationBuffer(VideoPayloadBuffer *payload, in
 
     do {
         if (isContextChanged(payload->width, payload->height, transform)) {
-            DTRACE("VA is restarted as rotation context changes");
+            DLOGTRACE("VA is restarted as rotation context changes");
 
             if (mVaInitialized) {
                 stopVA(); // need to re-initialize VA for new rotation config
@@ -417,7 +417,7 @@ bool RotationBufferProvider::setupRotationBuffer(VideoPayloadBuffer *payload, in
         if (!mRotatedSurfaces[mTargetIndex]) {
             ret = createVaSurface(payload, transform, true);
             if (ret == false) {
-                ETRACE("failed to create target surface with attribute");
+                ELOGTRACE("failed to create target surface with attribute");
                 vaStatus = VA_STATUS_ERROR_OPERATION_FAILED;
                 break;
             }
@@ -426,7 +426,7 @@ bool RotationBufferProvider::setupRotationBuffer(VideoPayloadBuffer *payload, in
         // create source surface
         ret = createVaSurface(payload, transform, false);
         if (ret == false) {
-            ETRACE("failed to create source surface with attribute");
+            ELOGTRACE("failed to create source surface with attribute");
             vaStatus = VA_STATUS_ERROR_OPERATION_FAILED;
             break;
         }
@@ -470,7 +470,7 @@ bool RotationBufferProvider::setupRotationBuffer(VideoPayloadBuffer *payload, in
         CHECK_VA_STATUS_BREAK("vaSyncSurface");
 
 #ifdef DEBUG_ROTATION_PERFROMANCE
-        ITRACE("time spent %dms from vaBeginPicture to vaSyncSurface",
+        ILOGTRACE("time spent %dms from vaBeginPicture to vaSyncSurface",
              getMilliseconds() - beginPicture);
 #endif
 
@@ -487,14 +487,14 @@ bool RotationBufferProvider::setupRotationBuffer(VideoPayloadBuffer *payload, in
     } while (0);
 
 #ifdef DEBUG_ROTATION_PERFROMANCE
-    ITRACE("time spent %dms for setupRotationBuffer",
+    ILOGTRACE("time spent %dms for setupRotationBuffer",
          getMilliseconds() - setup_Begin);
 #endif
 
     if (mSourceSurface > 0) {
         vaStatus = vaDestroySurfaces(mVaDpy, &mSourceSurface, 1);
         if (vaStatus != VA_STATUS_SUCCESS)
-            WTRACE("vaDestroySurfaces failed, vaStatus = %d", vaStatus);
+            WLOGTRACE("vaDestroySurfaces failed, vaStatus = %d", vaStatus);
         mSourceSurface = 0;
     }
 
@@ -504,7 +504,7 @@ bool RotationBufferProvider::setupRotationBuffer(VideoPayloadBuffer *payload, in
     }
 
     if (!payload->khandle) {
-        WTRACE("khandle is reset by decoder, surface is invalid!");
+        WLOGTRACE("khandle is reset by decoder, surface is invalid!");
         return false;
     }
 
@@ -531,21 +531,21 @@ bool RotationBufferProvider::prepareBufferInfo(int w, int h, int stride, VideoPa
     ssize_t index;
     index = mTTMWrappers.indexOfKey((uint64_t)user_pt);
     if (index < 0) {
-        VTRACE("wrapped userPt as wsbm buffer");
+        VLOGTRACE("wrapped userPt as wsbm buffer");
         bool ret = mWsbm->allocateTTMBufferUB(size, 0, &buf, user_pt);
         if (ret == false) {
-            ETRACE("failed to allocate TTM buffer");
+            ELOGTRACE("failed to allocate TTM buffer");
             return ret;
         }
 
         if (mTTMWrappers.size() >= TTM_WRAPPER_COUNT) {
-            WTRACE("mTTMWrappers is unexpectedly full. Invalidate caches");
+            WLOGTRACE("mTTMWrappers is unexpectedly full. Invalidate caches");
             invalidateCaches();
         }
 
         index = mTTMWrappers.add((uint64_t)user_pt, buf);
     } else {
-        VTRACE("got wsbmBuffer in saved caches");
+        VLOGTRACE("got wsbmBuffer in saved caches");
         buf = mTTMWrappers.valueAt(index);
     }
 
@@ -562,7 +562,7 @@ void RotationBufferProvider::freeVaSurfaces()
         if (NULL != mDrmBuf[i]) {
             ret = mWsbm->destroyTTMBuffer(mDrmBuf[i]);
             if (!ret)
-                WTRACE("failed to free TTMBuffer");
+                WLOGTRACE("failed to free TTMBuffer");
             mDrmBuf[i] = NULL;
         }
     }
@@ -572,7 +572,7 @@ void RotationBufferProvider::freeVaSurfaces()
         if (0 != mRotatedSurfaces[j]) {
             vaStatus = vaDestroySurfaces(mVaDpy, &mRotatedSurfaces[j], 1);
             if (vaStatus != VA_STATUS_SUCCESS)
-                WTRACE("vaDestroySurfaces failed, vaStatus = %d", vaStatus);
+                WLOGTRACE("vaDestroySurfaces failed, vaStatus = %d", vaStatus);
         }
         mRotatedSurfaces[j] = 0;
     }

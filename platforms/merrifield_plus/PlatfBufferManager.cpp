@@ -67,7 +67,7 @@ bool PlatfBufferManager::convertRGBToNV12(uint32_t rgbHandle, uint32_t yuvHandle
                                 (buffer_handle_t)yuvHandle,
                                 srcCrop.w, srcCrop.h, srcCrop.x,
                                 srcCrop.y, 0, async)) {
-        ETRACE("Blit failed");
+        ELOGTRACE("Blit failed");
         return false;
     }
     return true;

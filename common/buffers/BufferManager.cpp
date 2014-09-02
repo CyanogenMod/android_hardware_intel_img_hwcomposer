@@ -51,7 +51,7 @@ bool BufferManager::initialize()
     // create buffer pool
     mBufferPool = new BufferCache(DEFAULT_BUFFER_POOL_SIZE);
     if (!mBufferPool) {
-        ETRACE("failed to create gralloc buffer cache");
+        ELOGTRACE("failed to create gralloc buffer cache");
         return false;
     }
 
@@ -64,7 +64,7 @@ bool BufferManager::initialize()
 
     gralloc_open(module, &mAllocDev);
     if (!mAllocDev) {
-        WTRACE("failed to open alloc device");
+        WLOGTRACE("failed to open alloc device");
     }
 
     // create a dummy data buffer
@@ -167,22 +167,22 @@ BufferMapper* BufferManager::map(DataBuffer& buffer)
 
     // create a new buffer mapper and add it to pool
     do {
-        VTRACE("new buffer, will add it");
+        VLOGTRACE("new buffer, will add it");
         mapper = createBufferMapper(mGrallocModule, buffer);
         if (!mapper) {
-            ETRACE("failed to allocate mapper");
+            ELOGTRACE("failed to allocate mapper");
             break;
         }
         ret = mapper->map();
         if (!ret) {
-            ETRACE("failed to map");
+            ELOGTRACE("failed to map");
             delete mapper;
             mapper = NULL;
             break;
         }
         ret = mBufferPool->addMapper(buffer.getKey(), mapper);
         if (!ret) {
-            ETRACE("failed to add mapper");
+            ELOGTRACE("failed to add mapper");
             break;
         }
         // increase mapper ref count
@@ -202,14 +202,14 @@ void BufferManager::unmap(BufferMapper *mapper)
 {
     Mutex::Autolock _l(mLock);
     if (!mapper) {
-        ETRACE("invalid mapper");
+        ELOGTRACE("invalid mapper");
         return;
     }
 
     // unmap & remove this mapper from buffer when refCount = 0
     int refCount = mapper->decRef();
     if (refCount < 0) {
-        ETRACE("invalid ref count");
+        ELOGTRACE("invalid ref count");
     } else if (!refCount) {
         // remove mapper from buffer pool
         mBufferPool->removeMapper(mapper);
@@ -223,16 +223,16 @@ uint32_t BufferManager::allocFrameBuffer(int width, int height, int *stride)
     RETURN_NULL_IF_NOT_INIT();
 
     if (!mAllocDev) {
-        WTRACE("Alloc device is not available");
+        WLOGTRACE("Alloc device is not available");
         return 0;
     }
 
     if (!width || !height || !stride) {
-        ETRACE("invalid input parameter");
+        ELOGTRACE("invalid input parameter");
         return 0;
     }
 
-    ITRACE("size of frame buffer to create: %dx%d", width, height);
+    ILOGTRACE("size of frame buffer to create: %dx%d", width, height);
     uint32_t handle = 0;
     status_t err  = mAllocDev->alloc(
             mAllocDev,
@@ -244,7 +244,7 @@ uint32_t BufferManager::allocFrameBuffer(int width, int height, int *stride)
             stride);
 
     if (err != 0) {
-        ETRACE("failed to allocate frame buffer, error = %d", err);
+        ELOGTRACE("failed to allocate frame buffer, error = %d", err);
         return 0;
     }
 
@@ -254,19 +254,19 @@ uint32_t BufferManager::allocFrameBuffer(int width, int height, int *stride)
     do {
         buffer = lockDataBuffer(handle);
         if (!buffer) {
-            ETRACE("failed to get data buffer, handle = %#x", handle);
+            ELOGTRACE("failed to get data buffer, handle = %#x", handle);
             break;
         }
 
         mapper = createBufferMapper(mGrallocModule, *buffer);
         if (!mapper) {
-            ETRACE("failed to create buffer mapper");
+            ELOGTRACE("failed to create buffer mapper");
             break;
         }
 
         uint32_t fbHandle;
          if (!(fbHandle = mapper->getFbHandle(0))) {
-             ETRACE("failed to get Fb handle");
+             ELOGTRACE("failed to get Fb handle");
              break;
          }
 
@@ -291,13 +291,13 @@ void BufferManager::freeFrameBuffer(uint32_t fbHandle)
     RETURN_VOID_IF_NOT_INIT();
 
     if (!mAllocDev) {
-        WTRACE("Alloc device is not available");
+        WLOGTRACE("Alloc device is not available");
         return;
     }
 
     ssize_t index = mFrameBuffers.indexOfKey(fbHandle);
     if (index < 0) {
-        ETRACE("invalid kernel handle");
+        ELOGTRACE("invalid kernel handle");
         return;
     }
 
@@ -314,16 +314,16 @@ uint32_t BufferManager::allocGrallocBuffer(uint32_t width, uint32_t height, uint
     RETURN_NULL_IF_NOT_INIT();
 
     if (!mAllocDev) {
-        WTRACE("Alloc device is not available");
+        WLOGTRACE("Alloc device is not available");
         return 0;
     }
 
     if (!width || !height) {
-        ETRACE("invalid input parameter");
+        ELOGTRACE("invalid input parameter");
         return 0;
     }
 
-    ITRACE("size of graphic buffer to create: %dx%d", width, height);
+    ILOGTRACE("size of graphic buffer to create: %dx%d", width, height);
     uint32_t handle = 0;
     int stride;
     status_t err  = mAllocDev->alloc(
@@ -335,7 +335,7 @@ uint32_t BufferManager::allocGrallocBuffer(uint32_t width, uint32_t height, uint
                 (buffer_handle_t *)&handle,
                 &stride);
     if (err != 0) {
-        ETRACE("failed to allocate gralloc buffer, error = %d", err);
+        ELOGTRACE("failed to allocate gralloc buffer, error = %d", err);
         return 0;
     }
 
@@ -346,7 +346,7 @@ void BufferManager::freeGrallocBuffer(uint32_t handle)
 {
     RETURN_VOID_IF_NOT_INIT();
     if (!mAllocDev) {
-        WTRACE("Alloc device is not available");
+        WLOGTRACE("Alloc device is not available");
         return;
     }
 

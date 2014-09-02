@@ -49,14 +49,14 @@ bool TTMBufferMapper::map()
 
     bool ret = mWsbm.wrapTTMBuffer(handle, &wsbmBufferObject);
     if (ret == false) {
-        ETRACE("failed to map TTM buffer");
+        ELOGTRACE("failed to map TTM buffer");
         return false;
     }
 
     // TODO: review this later
     ret = mWsbm.waitIdleTTMBuffer(wsbmBufferObject);
     if (ret == false) {
-        ETRACE("failed to wait ttm buffer idle");
+        ELOGTRACE("failed to wait ttm buffer idle");
         return false;
     }
 
@@ -64,7 +64,7 @@ bool TTMBufferMapper::map()
     gttOffsetInPage = mWsbm.getGttOffset(wsbmBufferObject);
 
     if (!gttOffsetInPage || !virtAddr) {
-        WTRACE("offset = %#x, addr = %p.", gttOffsetInPage, virtAddr);
+        WLOGTRACE("offset = %#x, addr = %p.", gttOffsetInPage, virtAddr);
         return false;
     }
 

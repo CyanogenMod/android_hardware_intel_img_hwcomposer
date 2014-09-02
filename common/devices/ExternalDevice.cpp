@@ -62,7 +62,7 @@ bool ExternalDevice::initialize()
             hotplugEventListener,
             this);
     } else {
-        ETRACE("Uevent observer is NULL");
+        ELOGTRACE("Uevent observer is NULL");
     }
     return true;
 }
@@ -103,7 +103,7 @@ bool ExternalDevice::blank(bool blank)
 bool ExternalDevice::setDrmMode(drmModeModeInfo& value)
 {
     if (!mConnected) {
-        WTRACE("external device is not connected");
+        WLOGTRACE("external device is not connected");
         return false;
     }
 
@@ -125,7 +125,7 @@ bool ExternalDevice::setDrmMode(drmModeModeInfo& value)
     // setting mode in a working thread
     mThread = new ModeSettingThread(this);
     if (!mThread.get()) {
-        ETRACE("failed to create mode settings thread");
+        ELOGTRACE("failed to create mode settings thread");
         return false;
     }
 
@@ -142,7 +142,7 @@ bool ExternalDevice::threadLoop()
 
 void ExternalDevice::setDrmMode()
 {
-    ITRACE("start mode setting...");
+    ILOGTRACE("start mode setting...");
 
     Drm *drm = Hwcomposer::getInstance().getDrm();
 
@@ -155,7 +155,7 @@ void ExternalDevice::setDrmMode()
         // acknowledges hot unplug event.
         status_t err = mAbortModeSettingCond.waitRelative(mLock, milliseconds(20));
         if (err != -ETIMEDOUT) {
-            ITRACE("Mode settings is interrupted");
+            ILOGTRACE("Mode settings is interrupted");
             mHwc.hotplug(mType, true);
             return;
         }
@@ -164,13 +164,13 @@ void ExternalDevice::setDrmMode()
     // TODO: potential threading issue with onHotplug callback
     mHdcpControl->stopHdcp();
     if (!drm->setDrmMode(mType, mPendingDrmMode)) {
-        ETRACE("failed to set Drm mode");
+        ELOGTRACE("failed to set Drm mode");
         mHwc.hotplug(mType, true);
         return;
     }
 
     if (!PhysicalDevice::updateDisplayConfigs()) {
-        ETRACE("failed to update display configs");
+        ELOGTRACE("failed to update display configs");
         mHwc.hotplug(mType, true);
         return;
     }
@@ -178,7 +178,7 @@ void ExternalDevice::setDrmMode()
     mHotplugEventPending = true;
     // delay sending hotplug event until HDCP is authenticated
     if (mHdcpControl->startHdcpAsync(HdcpLinkStatusListener, this) == false) {
-        ETRACE("startHdcpAsync() failed; HDCP is not enabled");
+        ELOGTRACE("startHdcpAsync() failed; HDCP is not enabled");
         mHotplugEventPending = false;
         mHwc.hotplug(mType, true);
     }
@@ -199,7 +199,7 @@ void ExternalDevice::HdcpLinkStatusListener(bool success, void *userData)
 void ExternalDevice::HdcpLinkStatusListener(bool success)
 {
     if (mHotplugEventPending) {
-        DTRACE("HDCP authentication status %d, sending hotplug event...", success);
+        DLOGTRACE("HDCP authentication status %d, sending hotplug event...", success);
         mHwc.hotplug(mType, mConnected);
         mHotplugEventPending = false;
     }
@@ -228,14 +228,14 @@ void ExternalDevice::hotplugListener()
     // detect display configs
     ret = detectDisplayConfigs();
     if (ret == false) {
-        ETRACE("failed to detect display config");
+        ELOGTRACE("failed to detect display config");
         return;
     }
 
-    ITRACE("hotpug event: %d", mConnected);
+    ILOGTRACE("hotpug event: %d", mConnected);
 
     if (connected == mConnected) {
-        WTRACE("same connection status detected, hotplug event ignored");
+        WLOGTRACE("same connection status detected, hotplug event ignored");
         return;
     }
 
@@ -244,12 +244,12 @@ void ExternalDevice::hotplugListener()
         mHdcpControl->stopHdcp();
         mHwc.hotplug(mType, mConnected);
     } else {
-        DTRACE("start HDCP asynchronously...");
+        DLOGTRACE("start HDCP asynchronously...");
          // delay sending hotplug event till HDCP is authenticated.
         mHotplugEventPending = true;
         ret = mHdcpControl->startHdcpAsync(HdcpLinkStatusListener, this);
         if (ret == false) {
-            ETRACE("failed to start HDCP");
+            ELOGTRACE("failed to start HDCP");
             mHotplugEventPending = false;
             mHwc.hotplug(mType, mConnected);
         }
@@ -261,10 +261,10 @@ void ExternalDevice::setRefreshRate(int hz)
 {
     RETURN_VOID_IF_NOT_INIT();
 
-    ITRACE("setting refresh rate to %d", hz);
+    ILOGTRACE("setting refresh rate to %d", hz);
 
     if (mBlank) {
-        WTRACE("external device is blank");
+        WLOGTRACE("external device is blank");
         return;
     }
 
@@ -281,12 +281,12 @@ void ExternalDevice::setRefreshRate(int hz)
 
     if (mExpectedRefreshRate != 0 &&
             mExpectedRefreshRate == hz && mHotplugEventPending) {
-        ITRACE("Ignore a new refresh setting event because there is a same event is handling");
+        ILOGTRACE("Ignore a new refresh setting event because there is a same event is handling");
         return;
     }
     mExpectedRefreshRate = hz;
 
-    ITRACE("changing refresh rate from %d to %d", mode.vrefresh, hz);
+    ILOGTRACE("changing refresh rate from %d to %d", mode.vrefresh, hz);
 
     mHdcpControl->stopHdcp();
 
@@ -361,7 +361,7 @@ bool ExternalDevice::getDisplayAttributes(uint32_t config,
             values[i] = 1;
             break;
         default:
-            ETRACE("unknown attribute %d", attributes[i]);
+            ELOGTRACE("unknown attribute %d", attributes[i]);
             break;
         }
         i++;

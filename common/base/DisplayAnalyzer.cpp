@@ -124,7 +124,7 @@ void DisplayAnalyzer::setCompositionType(int device, int type, bool reset)
 {
     hwc_display_contents_1_t *content = mCachedDisplays[device];
     if (content == NULL) {
-        ETRACE("Invalid device %d", device);
+        ELOGTRACE("Invalid device %d", device);
         return;
     }
 

@@ -50,7 +50,7 @@ bool UeventObserver::initialize()
 
     mThread = new UeventObserverThread(this);
     if (!mThread.get()) {
-        ETRACE("failed to create uevent observer thread");
+        ELOGTRACE("failed to create uevent observer thread");
         return false;
     }
 
@@ -71,7 +71,7 @@ bool UeventObserver::initialize()
     }
 
     if (setsockopt(mUeventFd, SOL_SOCKET, SO_RCVBUFFORCE, &sz, sizeof(sz))) {
-        WTRACE("setsockopt() failed");
+        WLOGTRACE("setsockopt() failed");
         //return false;
     }
 
@@ -84,7 +84,7 @@ bool UeventObserver::initialize()
 
     int exitFds[2];
     if (pipe(exitFds) < 0) {
-        ETRACE("failed to make pipe");
+        ELOGTRACE("failed to make pipe");
         deinitialize();
         return false;
     }
@@ -128,19 +128,19 @@ void UeventObserver::start()
 void UeventObserver::registerListener(const char *event, UeventListenerFunc func, void *data)
 {
     if (!event || !func) {
-        ETRACE("invalid event string or listener to register");
+        ELOGTRACE("invalid event string or listener to register");
         return;
     }
 
     String8 key(event);
     if (mListeners.indexOfKey(key) >= 0) {
-        ETRACE("listener for uevent %s exists", event);
+        ELOGTRACE("listener for uevent %s exists", event);
         return;
     }
 
     UeventListener *listener = new UeventListener;
     if (!listener) {
-        ETRACE("failed to create Uevent Listener");
+        ELOGTRACE("failed to create Uevent Listener");
         return;
     }
     listener->func = func;
@@ -152,7 +152,7 @@ void UeventObserver::registerListener(const char *event, UeventListenerFunc func
 bool UeventObserver::threadLoop()
 {
     if (mUeventFd == -1) {
-        ETRACE("invalid uEvent file descriptor");
+        ELOGTRACE("invalid uEvent file descriptor");
         return false;
     }
 
@@ -175,7 +175,7 @@ bool UeventObserver::threadLoop()
     } else if (fds[1].revents) {
         close(mExitRDFd);
         mExitRDFd = -1;
-        ITRACE("exiting wait");
+        ILOGTRACE("exiting wait");
         return false;
     }
     // always looping
@@ -196,12 +196,12 @@ void UeventObserver::onUevent()
     while (*msg) {
         key = String8(msg);
         if (mListeners.indexOfKey(key) >= 0) {
-            DTRACE("received Uevent: %s", msg);
+            DLOGTRACE("received Uevent: %s", msg);
             listener = mListeners.valueFor(key);
             if (listener) {
                 listener->func(listener->data);
             } else {
-                ETRACE("no listener for uevent %s", msg);
+                ELOGTRACE("no listener for uevent %s", msg);
             }
         }
         msg += strlen(msg) + 1;

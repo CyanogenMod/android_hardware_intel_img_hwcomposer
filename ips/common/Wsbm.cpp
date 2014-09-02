@@ -31,13 +31,13 @@ Wsbm::~Wsbm()
 bool Wsbm::initialize()
 {
     if (mInitialized) {
-        WTRACE("object is initialized");
+        WLOGTRACE("object is initialized");
         return true;
     }
 
     int ret = psbWsbmInitialize(mDrmFD);
     if (ret) {
-        ETRACE("failed to initialize Wsbm");
+        ELOGTRACE("failed to initialize Wsbm");
         return false;
     }
 
@@ -58,7 +58,7 @@ bool Wsbm::allocateTTMBuffer(uint32_t size, uint32_t align, void ** buf)
 {
     int ret = psbWsbmAllocateTTMBuffer(size, align, buf);
     if (ret) {
-        ETRACE("failed to allocate buffer");
+        ELOGTRACE("failed to allocate buffer");
         return false;
     }
 
@@ -69,7 +69,7 @@ bool Wsbm::allocateTTMBufferUB(uint32_t size, uint32_t align, void ** buf, void 
 {
     int ret = psbWsbmAllocateFromUB(size, align, buf, user_pt);
     if (ret) {
-        ETRACE("failed to allocate UB buffer");
+        ELOGTRACE("failed to allocate UB buffer");
         return false;
     }
 
@@ -80,7 +80,7 @@ bool Wsbm::destroyTTMBuffer(void * buf)
 {
     int ret = psbWsbmDestroyTTMBuffer(buf);
     if (ret) {
-        ETRACE("failed to destroy buffer");
+        ELOGTRACE("failed to destroy buffer");
         return false;
     }
 
@@ -101,7 +101,7 @@ bool Wsbm::wrapTTMBuffer(uint32_t handle, void **buf)
 {
     int ret = psbWsbmWrapTTMBuffer(handle, buf);
     if (ret) {
-        ETRACE("failed to wrap buffer");
+        ELOGTRACE("failed to wrap buffer");
         return false;
     }
 
@@ -112,7 +112,7 @@ bool Wsbm::unreferenceTTMBuffer(void *buf)
 {
     int ret = psbWsbmUnReference(buf);
     if (ret) {
-        ETRACE("failed to unreference buffer");
+        ELOGTRACE("failed to unreference buffer");
         return false;
     }
 
@@ -128,7 +128,7 @@ bool Wsbm::waitIdleTTMBuffer(void *buf)
 {
     int ret = psbWsbmWaitIdle(buf);
     if (ret) {
-        ETRACE("failed to wait ttm buffer for idle");
+        ELOGTRACE("failed to wait ttm buffer for idle");
         return false;
     }
 
