@@ -32,6 +32,13 @@ enum {
     PANEL_ORIENTATION_180
 };
 
+#ifdef INTEL_SUPPORT_HDMI_PRIMARY
+enum {
+    DEFAULT_DRM_FB_WIDTH = 1920,
+    DEFAULT_DRM_FB_HEIGHT = 1080,
+};
+#endif
+
 class Drm {
 public:
     Drm();
