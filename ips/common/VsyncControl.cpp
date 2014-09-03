@@ -45,7 +45,7 @@ void VsyncControl::deinitialize()
 
 bool VsyncControl::control(int disp, bool enabled)
 {
-    ATRACE("disp = %d, enabled = %d", disp, enabled);
+    ALOGTRACE("disp = %d, enabled = %d", disp, enabled);
 
     struct drm_psb_vsync_set_arg arg;
     memset(&arg, 0, sizeof(struct drm_psb_vsync_set_arg));
@@ -64,7 +64,7 @@ bool VsyncControl::control(int disp, bool enabled)
 
 bool VsyncControl::wait(int disp, int64_t& timestamp)
 {
-    ATRACE("disp = %d", disp);
+    ALOGTRACE("disp = %d", disp);
 
     struct drm_psb_vsync_set_arg arg;
     memset(&arg, 0, sizeof(struct drm_psb_vsync_set_arg));

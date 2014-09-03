@@ -143,12 +143,12 @@ DisplayPlane* AnnPlaneManager::allocPlane(int index, int type)
         plane = new AnnOverlayPlane(index, 0/*disp*/);
         break;
     default:
-        ETRACE("unsupported type %d", type);
+        ELOGTRACE("unsupported type %d", type);
         break;
     }
 
     if (plane && !plane->initialize(DisplayPlane::MIN_DATA_BUFFER_COUNT)) {
-        ETRACE("failed to initialize plane.");
+        ELOGTRACE("failed to initialize plane.");
         DEINIT_AND_DELETE_OBJ(plane);
     }
 
@@ -160,7 +160,7 @@ bool AnnPlaneManager::isValidZOrder(int dsp, ZOrderConfig& config)
     int size = (int)config.size();
 
     if (size == 0 || size > 4) {
-        VTRACE("invalid z order config size %d", size);
+        VLOGTRACE("invalid z order config size %d", size);
         return false;
     }
 
@@ -174,7 +174,7 @@ bool AnnPlaneManager::isValidZOrder(int dsp, ZOrderConfig& config)
         }
 #ifdef OVERLAY_HW_WORKAROUND
         if (firstOverlay == 0 && size > 3) {
-            VTRACE("not capable to support 3 sprite layers on top of overlay");
+            VLOGTRACE("not capable to support 3 sprite layers on top of overlay");
             return false;
         }
 #endif
@@ -186,11 +186,11 @@ bool AnnPlaneManager::isValidZOrder(int dsp, ZOrderConfig& config)
             }
         }
         if (sprites > 2) {
-            ETRACE("number of sprite: %d, maximum 1 sprite and 1 primary supported on pipe 1", sprites);
+            ELOGTRACE("number of sprite: %d, maximum 1 sprite and 1 primary supported on pipe 1", sprites);
             return false;
         }
     } else {
-        ETRACE("invalid display device %d", dsp);
+        ELOGTRACE("invalid display device %d", dsp);
         return false;
     }
     return true;
@@ -199,7 +199,7 @@ bool AnnPlaneManager::isValidZOrder(int dsp, ZOrderConfig& config)
 bool AnnPlaneManager::assignPlanes(int dsp, ZOrderConfig& config)
 {
     if (dsp < 0 || dsp > IDisplayDevice::DEVICE_EXTERNAL) {
-        ETRACE("invalid display device %d", dsp);
+        ELOGTRACE("invalid display device %d", dsp);
         return false;
     }
 
@@ -230,7 +230,7 @@ bool AnnPlaneManager::assignPlanes(int dsp, ZOrderConfig& config)
             continue;
 
         if (assignPlanes(dsp, config, zorderDesc->zorder)) {
-            VTRACE("zorder assigned %s", zorderDesc->zorder);
+            VLOGTRACE("zorder assigned %s", zorderDesc->zorder);
             return true;
         }
     }
@@ -242,7 +242,7 @@ bool AnnPlaneManager::assignPlanes(int /* dsp */, ZOrderConfig& config, const ch
     int size = (int)config.size();
 
     if (zorder == NULL || size > (int)strlen(zorder)) {
-        //DTRACE("invalid zorder or ZOrder config.");
+        //DLOGTRACE("invalid zorder or ZOrder config.");
         return false;
     }
 
@@ -251,7 +251,7 @@ bool AnnPlaneManager::assignPlanes(int /* dsp */, ZOrderConfig& config, const ch
         char id = *(zorder + i);
         PlaneDescription& desc = PLANE_DESC[id - 'A'];
         if (!isFreePlane(desc.type, desc.index)) {
-            DTRACE("plane type %d index %d is not available", desc.type, desc.index);
+            DLOGTRACE("plane type %d index %d is not available", desc.type, desc.index);
             return false;
         }
 
@@ -259,19 +259,19 @@ bool AnnPlaneManager::assignPlanes(int /* dsp */, ZOrderConfig& config, const ch
         // plane type check
         if (config[i]->planeType == DisplayPlane::PLANE_OVERLAY &&
             desc.type != DisplayPlane::PLANE_OVERLAY) {
-            ETRACE("invalid plane type %d, expected %d", desc.type, config[i]->planeType);
+            ELOGTRACE("invalid plane type %d, expected %d", desc.type, config[i]->planeType);
             return false;
         }
 
         if (config[i]->planeType != DisplayPlane::PLANE_OVERLAY) {
             if (config[i]->planeType != DisplayPlane::PLANE_PRIMARY &&
                 config[i]->planeType != DisplayPlane::PLANE_SPRITE) {
-                ETRACE("invalid plane type %d,", config[i]->planeType);
+                ELOGTRACE("invalid plane type %d,", config[i]->planeType);
                 return false;
             }
             if (desc.type != DisplayPlane::PLANE_PRIMARY &&
                 desc.type != DisplayPlane::PLANE_SPRITE) {
-                ETRACE("invalid plane type %d, expected %d", desc.type, config[i]->planeType);
+                ELOGTRACE("invalid plane type %d, expected %d", desc.type, config[i]->planeType);
                 return false;
             }
         }
@@ -279,7 +279,7 @@ bool AnnPlaneManager::assignPlanes(int /* dsp */, ZOrderConfig& config, const ch
 
         if  (desc.type == DisplayPlane::PLANE_OVERLAY && desc.index == 1 &&
              config[i]->hwcLayer->getTransform() != 0) {
-            DTRACE("overlay C does not support transform");
+            DLOGTRACE("overlay C does not support transform");
             return false;
         }
     }
@@ -292,7 +292,7 @@ bool AnnPlaneManager::assignPlanes(int /* dsp */, ZOrderConfig& config, const ch
         ZOrderLayer *zLayer = config.itemAt(i);
         zLayer->plane = getPlane(desc.type, desc.index);
         if (zLayer->plane == NULL) {
-            ETRACE("failed to get plane, should never happen!");
+            ELOGTRACE("failed to get plane, should never happen!");
         }
         // override type
         zLayer->planeType = desc.type;
@@ -317,10 +317,10 @@ bool AnnPlaneManager::assignPlanes(int /* dsp */, ZOrderConfig& config, const ch
     }
 
 #if 0
-    DTRACE("config size %d, zorder %s", size, zorder);
+    DLOGTRACE("config size %d, zorder %s", size, zorder);
     for (int i = 0; i < size; i++) {
         const ZOrderLayer *l = config.itemAt(i);
-        ITRACE("%d: plane type %d, index %d, zorder %d",
+        ILOGTRACE("%d: plane type %d, index %d, zorder %d",
             i, l->planeType, l->plane->getIndex(), l->zorder);
     }
 #endif
@@ -342,7 +342,7 @@ int AnnPlaneManager::getFreePlanes(int dsp, int type)
     }
 
     if (dsp < 0 || dsp > IDisplayDevice::DEVICE_EXTERNAL) {
-        ETRACE("invalid display device %d", dsp);
+        ELOGTRACE("invalid display device %d", dsp);
         return 0;
     }
 

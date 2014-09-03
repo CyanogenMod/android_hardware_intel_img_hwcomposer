@@ -41,7 +41,7 @@ VsyncEventObserver::~VsyncEventObserver()
 bool VsyncEventObserver::initialize()
 {
     if (mInitialized) {
-        WTRACE("object has been initialized");
+        WLOGTRACE("object has been initialized");
         return true;
     }
 
@@ -67,7 +67,7 @@ bool VsyncEventObserver::initialize()
 void VsyncEventObserver::deinitialize()
 {
     if (mEnabled) {
-        WTRACE("vsync is still enabled");
+        WLOGTRACE("vsync is still enabled");
         control(false);
     }
     mInitialized = false;
@@ -85,16 +85,16 @@ void VsyncEventObserver::deinitialize()
 
 bool VsyncEventObserver::control(bool enabled)
 {
-    ATRACE("enabled = %d on device %d", enabled, mDevice);
+    ALOGTRACE("enabled = %d on device %d", enabled, mDevice);
     if (enabled == mEnabled) {
-        WTRACE("vsync state %d is not changed", enabled);
+        WLOGTRACE("vsync state %d is not changed", enabled);
         return true;
     }
 
     Mutex::Autolock _l(mLock);
     bool ret = mVsyncControl->control(mDevice, enabled);
     if (!ret) {
-        ETRACE("failed to control (%d) vsync on display %d", enabled, mDevice);
+        ELOGTRACE("failed to control (%d) vsync on display %d", enabled, mDevice);
         return false;
     }
 
@@ -111,7 +111,7 @@ bool VsyncEventObserver::threadLoop()
         while (!mEnabled) {
             mCondition.wait(mLock);
             if (mExitThread) {
-                ITRACE("exiting thread loop");
+                ILOGTRACE("exiting thread loop");
                 return false;
             }
         }
@@ -121,7 +121,7 @@ bool VsyncEventObserver::threadLoop()
         int64_t timestamp;
         bool ret = mVsyncControl->wait(mDevice, timestamp);
         if (ret == false) {
-            WTRACE("failed to wait for vsync on display %d, vsync enabled %d", mDevice, mEnabled);
+            WLOGTRACE("failed to wait for vsync on display %d, vsync enabled %d", mDevice, mEnabled);
             usleep(16000);
             return true;
         }

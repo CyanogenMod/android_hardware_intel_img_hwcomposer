@@ -43,7 +43,7 @@ static struct _ValidateNode * pvrAlloc(struct _WsbmVNodeFuncs * func,
     if(typeId == 0) {
         struct PsbWsbmValidateNode * vNode = malloc(sizeof(*vNode));
         if(!vNode) {
-            ETRACE("failed to allocate memory");
+            ELOGTRACE("failed to allocate memory");
             return NULL;
         }
 
@@ -53,7 +53,7 @@ static struct _ValidateNode * pvrAlloc(struct _WsbmVNodeFuncs * func,
     } else {
         struct _ValidateNode * node = malloc(sizeof(*node));
         if(!node) {
-            ETRACE("failed to allocate node");
+            ELOGTRACE("failed to allocate node");
             return NULL;
         }
 
@@ -112,38 +112,38 @@ int psbWsbmInitialize(int drmFD)
     CTRACE();
 
     if (drmFD <= 0) {
-        ETRACE("invalid drm fd %d", drmFD);
+        ELOGTRACE("invalid drm fd %d", drmFD);
         return drmFD;
     }
 
     /*init wsbm*/
     ret = wsbmInit(wsbmNullThreadFuncs(), &vNodeFuncs);
     if (ret) {
-        ETRACE("failed to initialize Wsbm, error code %d", ret);
+        ELOGTRACE("failed to initialize Wsbm, error code %d", ret);
         return ret;
     }
 
-    VTRACE("DRM_PSB_EXTENSION %d", DRM_PSB_EXTENSION);
+    VLOGTRACE("DRM_PSB_EXTENSION %d", DRM_PSB_EXTENSION);
 
     /*get devOffset via drm IOCTL*/
     strncpy(arg.extension, drmExt, sizeof(drmExt));
 
     ret = drmCommandWriteRead(drmFD, 6/*DRM_PSB_EXTENSION*/, &arg, sizeof(arg));
     if(ret || !arg.rep.exists) {
-        ETRACE("failed to get device offset, error code %d", ret);
+        ELOGTRACE("failed to get device offset, error code %d", ret);
         goto out;
     }
 
-    VTRACE("ioctl offset %#x", arg.rep.driver_ioctl_offset);
+    VLOGTRACE("ioctl offset %#x", arg.rep.driver_ioctl_offset);
 
     mainPool = wsbmTTMPoolInit(drmFD, arg.rep.driver_ioctl_offset);
     if(!mainPool) {
-        ETRACE("failed to initialize TTM Pool");
+        ELOGTRACE("failed to initialize TTM Pool");
         ret = -EINVAL;
         goto out;
     }
 
-    VTRACE("Wsbm initialization succeeded. mainPool %p", mainPool);
+    VLOGTRACE("Wsbm initialization succeeded. mainPool %p", mainPool);
 
     return 0;
 
@@ -158,20 +158,20 @@ int psbWsbmAllocateFromUB(uint32_t size, uint32_t align, void ** buf, void *user
     int ret = 0;
     int offset = 0;
 
-    ATRACE("size %d", align_to(size, 4096));
+    ALOGTRACE("size %d", align_to(size, 4096));
 
     if(!buf || !user_pt) {
-        ETRACE("invalid parameter");
+        ELOGTRACE("invalid parameter");
         return -EINVAL;
     }
 
-    VTRACE("mainPool %p", mainPool);
+    VLOGTRACE("mainPool %p", mainPool);
 
     ret = wsbmGenBuffers(mainPool, 1, &wsbmBuf, align,
                         DRM_PSB_FLAG_MEM_MMU | WSBM_PL_FLAG_CACHED |
                         WSBM_PL_FLAG_NO_EVICT | WSBM_PL_FLAG_SHARED);
     if(ret) {
-        ETRACE("wsbmGenBuffers failed with error code %d", ret);
+        ELOGTRACE("wsbmGenBuffers failed with error code %d", ret);
         return ret;
     }
 
@@ -180,14 +180,14 @@ int psbWsbmAllocateFromUB(uint32_t size, uint32_t align, void ** buf, void *user
                        user_pt);
 
     if(ret) {
-        ETRACE("wsbmBOData failed with error code %d", ret);
+        ELOGTRACE("wsbmBOData failed with error code %d", ret);
         /*FIXME: should I unreference this buffer here?*/
         return ret;
     }
 
     *buf = wsbmBuf;
 
-    VTRACE("ttm UB buffer allocated. %p", *buf);
+    VLOGTRACE("ttm UB buffer allocated. %p", *buf);
     return 0;
 }
 
@@ -197,26 +197,26 @@ int psbWsbmAllocateTTMBuffer(uint32_t size, uint32_t align, void ** buf)
     int ret = 0;
     int offset = 0;
 
-    ATRACE("size %d", align_to(size, 4096));
+    ALOGTRACE("size %d", align_to(size, 4096));
 
     if(!buf) {
-        ETRACE("invalid parameter");
+        ELOGTRACE("invalid parameter");
         return -EINVAL;
     }
 
-    VTRACE("mainPool %p", mainPool);
+    VLOGTRACE("mainPool %p", mainPool);
 
     ret = wsbmGenBuffers(mainPool, 1, &wsbmBuf, align,
                         (WSBM_PL_FLAG_VRAM | WSBM_PL_FLAG_TT |
                          WSBM_PL_FLAG_SHARED | WSBM_PL_FLAG_NO_EVICT));
     if(ret) {
-        ETRACE("wsbmGenBuffers failed with error code %d", ret);
+        ELOGTRACE("wsbmGenBuffers failed with error code %d", ret);
         return ret;
     }
 
     ret = wsbmBOData(wsbmBuf, align_to(size, 4096), NULL, NULL, 0);
     if(ret) {
-        ETRACE("wsbmBOData failed with error code %d", ret);
+        ELOGTRACE("wsbmBOData failed with error code %d", ret);
         /*FIXME: should I unreference this buffer here?*/
         return ret;
     }
@@ -225,7 +225,7 @@ int psbWsbmAllocateTTMBuffer(uint32_t size, uint32_t align, void ** buf)
 
     *buf = wsbmBuf;
 
-    VTRACE("ttm buffer allocated. %p", *buf);
+    VLOGTRACE("ttm buffer allocated. %p", *buf);
     return 0;
 }
 
@@ -235,7 +235,7 @@ int psbWsbmWrapTTMBuffer(uint32_t handle, void **buf)
     struct _WsbmBufferObject *wsbmBuf;
 
     if (!buf) {
-        ETRACE("invalid parameter");
+        ELOGTRACE("invalid parameter");
         return -EINVAL;
     }
 
@@ -244,19 +244,19 @@ int psbWsbmWrapTTMBuffer(uint32_t handle, void **buf)
                         /*WSBM_PL_FLAG_NO_EVICT |*/ WSBM_PL_FLAG_SHARED));
 
     if (ret) {
-        ETRACE("wsbmGenBuffers failed with error code %d", ret);
+        ELOGTRACE("wsbmGenBuffers failed with error code %d", ret);
         return ret;
     }
 
     ret = wsbmBOSetReferenced(wsbmBuf, handle);
     if (ret) {
-        ETRACE("wsbmBOSetReferenced failed with error code %d", ret);
+        ELOGTRACE("wsbmBOSetReferenced failed with error code %d", ret);
         return ret;
     }
 
     *buf = (void *)wsbmBuf;
 
-    VTRACE("wrap buffer %p for handle %#x", wsbmBuf, handle);
+    VLOGTRACE("wrap buffer %p for handle %#x", wsbmBuf, handle);
     return 0;
 }
 
@@ -266,7 +266,7 @@ int psbWsbmWrapTTMBuffer2(uint32_t handle, void **buf)
     struct _WsbmBufferObject *wsbmBuf;
 
     if (!buf) {
-        ETRACE("invalid parameter");
+        ELOGTRACE("invalid parameter");
         return -EINVAL;
     }
 
@@ -274,13 +274,13 @@ int psbWsbmWrapTTMBuffer2(uint32_t handle, void **buf)
             (WSBM_PL_FLAG_SHARED | DRM_PSB_FLAG_MEM_MMU | WSBM_PL_FLAG_UNCACHED));
 
     if (ret) {
-        ETRACE("wsbmGenBuffers failed with error code %d", ret);
+        ELOGTRACE("wsbmGenBuffers failed with error code %d", ret);
         return ret;
     }
 
     *buf = (void *)wsbmBuf;
 
-    VTRACE("wrap buffer %p for handle %#x", wsbmBuf, handle);
+    VLOGTRACE("wrap buffer %p for handle %#x", wsbmBuf, handle);
     return 0;
 }
 
@@ -291,14 +291,14 @@ int psbWsbmCreateFromUB(void *buf, uint32_t size, void *vaddr)
     struct _WsbmBufferObject *wsbmBuf;
 
     if (!buf || !vaddr) {
-        ETRACE("invalid parameter");
+        ELOGTRACE("invalid parameter");
         return -EINVAL;
     }
 
     wsbmBuf = (struct _WsbmBufferObject *)buf;
     ret = wsbmBODataUB(wsbmBuf, size, NULL, NULL, 0, vaddr);
     if (ret) {
-        ETRACE("wsbmBODataUB failed with error code %d", ret);
+        ELOGTRACE("wsbmBODataUB failed with error code %d", ret);
         return ret;
     }
 
@@ -310,7 +310,7 @@ int psbWsbmUnReference(void *buf)
     struct _WsbmBufferObject *wsbmBuf;
 
     if (!buf) {
-        ETRACE("invalid parameter");
+        ELOGTRACE("invalid parameter");
         return -EINVAL;
     }
 
@@ -326,7 +326,7 @@ int psbWsbmDestroyTTMBuffer(void * buf)
     CTRACE();
 
     if(!buf) {
-        ETRACE("invalid ttm buffer");
+        ELOGTRACE("invalid ttm buffer");
         return -EINVAL;
     }
 
@@ -335,7 +335,7 @@ int psbWsbmDestroyTTMBuffer(void * buf)
 
     wsbmBOUnreference((struct _WsbmBufferObject **)&buf);
 
-    XTRACE();
+    XLOGTRACE();
 
     return 0;
 }
@@ -343,20 +343,20 @@ int psbWsbmDestroyTTMBuffer(void * buf)
 void * psbWsbmGetCPUAddress(void * buf)
 {
     if(!buf) {
-        ETRACE("invalid ttm buffer");
+        ELOGTRACE("invalid ttm buffer");
         return NULL;
     }
 
-    VTRACE("buffer object %p", buf);
+    VLOGTRACE("buffer object %p", buf);
 
     void * address = wsbmBOMap((struct _WsbmBufferObject *)buf,
                                 WSBM_ACCESS_READ | WSBM_ACCESS_WRITE);
     if(!address) {
-        ETRACE("failed to map buffer object");
+        ELOGTRACE("failed to map buffer object");
         return NULL;
     }
 
-    VTRACE("mapped successfully. %p, size %ld",
+    VLOGTRACE("mapped successfully. %p, size %ld",
         address, wsbmBOSize((struct _WsbmBufferObject *)buf));
 
     return address;
@@ -365,16 +365,16 @@ void * psbWsbmGetCPUAddress(void * buf)
 uint32_t psbWsbmGetGttOffset(void * buf)
 {
     if(!buf) {
-        ETRACE("invalid ttm buffer");
+        ELOGTRACE("invalid ttm buffer");
         return 0;
     }
 
-    VTRACE("buffer object %p", buf);
+    VLOGTRACE("buffer object %p", buf);
 
     uint32_t offset =
         wsbmBOOffsetHint((struct _WsbmBufferObject *)buf) - 0x10000000;
 
-    VTRACE("offset %#x", offset >> 12);
+    VLOGTRACE("offset %#x", offset >> 12);
 
     return offset >> 12;
 }
@@ -382,7 +382,7 @@ uint32_t psbWsbmGetGttOffset(void * buf)
 uint32_t psbWsbmGetKBufHandle(void *buf)
 {
     if (!buf) {
-        ETRACE("invalid ttm buffer");
+        ELOGTRACE("invalid ttm buffer");
         return 0;
     }
 
@@ -392,7 +392,7 @@ uint32_t psbWsbmGetKBufHandle(void *buf)
 uint32_t psbWsbmWaitIdle(void *buf)
 {
     if (!buf) {
-        ETRACE("invalid ttm buffer");
+        ELOGTRACE("invalid ttm buffer");
         return -EINVAL;
     }
 

@@ -47,7 +47,7 @@ SoftVsyncObserver::~SoftVsyncObserver()
 bool SoftVsyncObserver::initialize()
 {
     if (mInitialized) {
-        WTRACE("object has been initialized");
+        WLOGTRACE("object has been initialized");
         return true;
     }
 
@@ -67,7 +67,7 @@ bool SoftVsyncObserver::initialize()
 void SoftVsyncObserver::deinitialize()
 {
     if (mEnabled) {
-        WTRACE("soft vsync is still enabled");
+        WLOGTRACE("soft vsync is still enabled");
         control(false);
     }
 
@@ -84,9 +84,9 @@ void SoftVsyncObserver::deinitialize()
 void SoftVsyncObserver::setRefreshRate(int rate)
 {
     if (mEnabled) {
-        WTRACE("too late to set refresh rate");
+        WLOGTRACE("too late to set refresh rate");
     } else if (rate < 1 || rate > 120) {
-        WTRACE("invalid refresh rate %d", rate);
+        WLOGTRACE("invalid refresh rate %d", rate);
     } else {
         mRefreshRate = rate;
     }
@@ -95,7 +95,7 @@ void SoftVsyncObserver::setRefreshRate(int rate)
 bool SoftVsyncObserver::control(bool enabled)
 {
     if (enabled == mEnabled) {
-        WTRACE("vsync state %d is not changed", enabled);
+        WLOGTRACE("vsync state %d is not changed", enabled);
         return true;
     }
 
@@ -115,7 +115,7 @@ bool SoftVsyncObserver::threadLoop()
         while (!mEnabled) {
             mCondition.wait(mLock);
             if (mExitThread) {
-                ITRACE("exiting thread loop");
+                ILOGTRACE("exiting thread loop");
                 return false;
             }
         }

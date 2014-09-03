@@ -52,13 +52,13 @@ bool HdcpControl::startHdcp()
     char prop[PROPERTY_VALUE_MAX];
     if (property_get("debug.hwc.hdcp.enable", prop, "1") > 0) {
         if (atoi(prop) == 0) {
-            WTRACE("HDCP is disabled");
+            WLOGTRACE("HDCP is disabled");
             return false;
         }
     }
 
     if (!mStopped) {
-        WTRACE("HDCP has been started");
+        WLOGTRACE("HDCP has been started");
         return true;
     }
 
@@ -68,12 +68,12 @@ bool HdcpControl::startHdcp()
 
     mThread = new HdcpControlThread(this);
     if (!mThread.get()) {
-        ETRACE("failed to create hdcp control thread");
+        ELOGTRACE("failed to create hdcp control thread");
         return false;
     }
 
     if (!runHdcp()) {
-        ETRACE("failed to run HDCP");
+        ELOGTRACE("failed to run HDCP");
         mStopped = true;
         mThread = NULL;
         return false;
@@ -95,7 +95,7 @@ bool HdcpControl::startHdcp()
     }
     status_t err = mCompletedCondition.waitRelative(mMutex, milliseconds(HDCP_AUTHENTICATION_TIMEOUT_MS));
     if (err == -ETIMEDOUT) {
-        WTRACE("timeout waiting for completion");
+        WLOGTRACE("timeout waiting for completion");
     }
     mWaitForCompletion = false;
     return mAuthenticated;
@@ -106,26 +106,26 @@ bool HdcpControl::startHdcpAsync(HdcpStatusCallback cb, void *userData)
     char prop[PROPERTY_VALUE_MAX];
     if (property_get("debug.hwc.hdcp.enable", prop, "1") > 0) {
         if (atoi(prop) == 0) {
-            WTRACE("HDCP is disabled");
+            WLOGTRACE("HDCP is disabled");
             return false;
         }
     }
 
     if (cb == NULL || userData == NULL) {
-        ETRACE("invalid callback or user data");
+        ELOGTRACE("invalid callback or user data");
         return false;
     }
 
     Mutex::Autolock lock(mMutex);
 
     if (!mStopped) {
-        WTRACE("HDCP has been started");
+        WLOGTRACE("HDCP has been started");
         return true;
     }
 
     mThread = new HdcpControlThread(this);
     if (!mThread.get()) {
-        ETRACE("failed to create hdcp control thread");
+        ELOGTRACE("failed to create hdcp control thread");
         return false;
     }
 
@@ -173,7 +173,7 @@ bool HdcpControl::enableAuthentication()
     int fd = Hwcomposer::getInstance().getDrm()->getDrmFd();
     int ret = drmCommandNone(fd, DRM_PSB_ENABLE_HDCP);
     if (ret != 0) {
-        ETRACE("failed to enable HDCP authentication");
+        ELOGTRACE("failed to enable HDCP authentication");
         return false;
     }
     return true;
@@ -184,7 +184,7 @@ bool HdcpControl::disableAuthentication()
     int fd = Hwcomposer::getInstance().getDrm()->getDrmFd();
     int ret = drmCommandNone(fd, DRM_PSB_DISABLE_HDCP);
     if (ret != 0) {
-        ETRACE("failed to stop disable authentication");
+        ELOGTRACE("failed to stop disable authentication");
         return false;
     }
     return true;
@@ -205,7 +205,7 @@ bool HdcpControl::enableDisplayIED()
     int fd = Hwcomposer::getInstance().getDrm()->getDrmFd();
     int ret = drmCommandNone(fd, DRM_PSB_HDCP_DISPLAY_IED_ON);
     if (ret != 0) {
-        ETRACE("failed to enable overlay IED");
+        ELOGTRACE("failed to enable overlay IED");
         return false;
     }
     return true;
@@ -216,7 +216,7 @@ bool HdcpControl::disableDisplayIED()
     int fd = Hwcomposer::getInstance().getDrm()->getDrmFd();
     int ret = drmCommandNone(fd, DRM_PSB_HDCP_DISPLAY_IED_OFF);
     if (ret != 0) {
-        ETRACE("failed to disable overlay IED");
+        ELOGTRACE("failed to disable overlay IED");
         return false;
     }
     return true;
@@ -228,14 +228,14 @@ bool HdcpControl::isHdcpSupported()
     unsigned int caps = 0;
     int ret = drmCommandRead(fd, DRM_PSB_QUERY_HDCP, &caps, sizeof(caps));
     if (ret != 0) {
-        ETRACE("failed to query HDCP capability");
+        ELOGTRACE("failed to query HDCP capability");
         return false;
     }
     if (caps == 0) {
-        WTRACE("HDCP is not supported");
+        WLOGTRACE("HDCP is not supported");
         return false;
     } else {
-        ITRACE("HDCP is supported");
+        ILOGTRACE("HDCP is supported");
         return true;
     }
 }
@@ -246,14 +246,14 @@ bool HdcpControl::checkAuthenticated()
     unsigned int match = 0;
     int ret = drmCommandRead(fd, DRM_PSB_GET_HDCP_LINK_STATUS, &match, sizeof(match));
     if (ret != 0) {
-        ETRACE("failed to get hdcp link status");
+        ELOGTRACE("failed to get hdcp link status");
         return false;
     }
     if (match) {
-        VTRACE("HDCP is authenticated");
+        VLOGTRACE("HDCP is authenticated");
         mAuthenticated = true;
     } else {
-        ETRACE("HDCP is not authenticated");
+        ELOGTRACE("HDCP is not authenticated");
         mAuthenticated = false;
     }
     return mAuthenticated;
@@ -267,26 +267,26 @@ bool HdcpControl::runHdcp()
     preRunHdcp();
 
     for (int i = 0; i < HDCP_INLOOP_RETRY_NUMBER; i++) {
-        VTRACE("enable and verify HDCP, iteration# %d", i);
+        VLOGTRACE("enable and verify HDCP, iteration# %d", i);
         if (mStopped) {
-            WTRACE("HDCP authentication has been stopped");
+            WLOGTRACE("HDCP authentication has been stopped");
             ret = false;
             break;
         }
 
         if (!enableAuthentication()) {
-            ETRACE("HDCP authentication failed. Retry");
+            ELOGTRACE("HDCP authentication failed. Retry");
             mAuthenticated = false;
             ret = true;
         } else {
-            ITRACE("HDCP is authenticated");
+            ILOGTRACE("HDCP is authenticated");
             mAuthenticated = true;
             ret = true;
             break;
         }
 
         if (mStopped) {
-            WTRACE("HDCP authentication has been stopped");
+            WLOGTRACE("HDCP authentication has been stopped");
             ret = false;
             break;
         }
@@ -319,7 +319,7 @@ bool HdcpControl::postRunHdcp()
 void HdcpControl::signalCompletion()
 {
     if (mWaitForCompletion) {
-        ITRACE("signal HDCP authentication completed, status = %d", mAuthenticated);
+        ILOGTRACE("signal HDCP authentication completed, status = %d", mAuthenticated);
         mCompletedCondition.signal();
         mWaitForCompletion = false;
     }
@@ -330,7 +330,7 @@ bool HdcpControl::threadLoop()
     Mutex::Autolock lock(mMutex);
     status_t err = mStoppedCondition.waitRelative(mMutex, milliseconds(mActionDelay));
     if (err != -ETIMEDOUT) {
-        ITRACE("Hdcp is stopped.");
+        ILOGTRACE("Hdcp is stopped.");
         signalCompletion();
         return false;
     }

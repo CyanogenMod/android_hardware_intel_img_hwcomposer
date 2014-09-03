@@ -45,7 +45,7 @@ int DrmControl::getVideoExtCommand()
     int ret = drmCommandWriteRead(fd, DRM_PSB_EXTENSION,
             &video_getparam_arg, sizeof(video_getparam_arg));
     if (ret != 0) {
-        VTRACE("failed to get video extension command");
+        VLOGTRACE("failed to get video extension command");
         return 0;
     }
 

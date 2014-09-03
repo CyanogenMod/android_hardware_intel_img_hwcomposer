@@ -80,7 +80,7 @@ HwcLayer::HwcLayer(int index, hwc_layer_1_t *layer)
 HwcLayer::~HwcLayer()
 {
     if (mPlane) {
-        WTRACE("HwcLayer is not cleaned up");
+        WLOGTRACE("HwcLayer is not cleaned up");
     }
 
     mLayer = NULL;
@@ -90,12 +90,12 @@ HwcLayer::~HwcLayer()
 bool HwcLayer::attachPlane(DisplayPlane* plane, int device)
 {
     if (mPlane) {
-        ETRACE("failed to attach plane, plane exists");
+        ELOGTRACE("failed to attach plane, plane exists");
         return false;
     }
 
     if (!plane) {
-        ETRACE("Invalid plane");
+        ELOGTRACE("Invalid plane");
         return false;
     }
 
@@ -255,7 +255,7 @@ bool HwcLayer::update(hwc_layer_1_t *layer)
         if (ret == true) {
             return true;
         }
-        DTRACE("failed to set data buffer, reset handle to 0!!");
+        DLOGTRACE("failed to set data buffer, reset handle to 0!!");
         mHandle = 0;
         if (!mIsProtected) {
             // typical case: rotated buffer is not ready or handle is null
@@ -264,7 +264,7 @@ bool HwcLayer::update(hwc_layer_1_t *layer)
             // protected video has to be rendered using overlay.
             // if buffer is not ready overlay will still be attached to this layer
             // but rendering needs to be skipped.
-            WTRACE("ignoring result of data buffer setting for protected video");
+            WLOGTRACE("ignoring result of data buffer setting for protected video");
             return true;
         }
     }
@@ -310,7 +310,7 @@ void HwcLayer::setupAttributes()
     }
 
     if (mLayer->handle == NULL) {
-        VTRACE("invalid handle");
+        VLOGTRACE("invalid handle");
         return;
     }
 
@@ -322,7 +322,7 @@ void HwcLayer::setupAttributes()
 
     DataBuffer *buffer = bm->lockDataBuffer((uint32_t)mLayer->handle);
      if (!buffer) {
-         ETRACE("failed to get buffer");
+         ELOGTRACE("failed to get buffer");
      } else {
         mFormat = buffer->getFormat();
         mWidth = buffer->getWidth();

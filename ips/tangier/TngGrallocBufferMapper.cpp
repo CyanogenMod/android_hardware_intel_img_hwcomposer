@@ -44,10 +44,10 @@ bool TngGrallocBufferMapper::gttMap(void *vaddr,
     struct psb_gtt_mapping_arg arg;
     bool ret;
 
-    ATRACE("vaddr = %p, size = %d", vaddr, size);
+    ALOGTRACE("vaddr = %p, size = %d", vaddr, size);
 
     if (!vaddr || !size || !offset) {
-        VTRACE("invalid parameters");
+        VLOGTRACE("invalid parameters");
         return false;
     }
 
@@ -59,11 +59,11 @@ bool TngGrallocBufferMapper::gttMap(void *vaddr,
     Drm *drm = Hwcomposer::getInstance().getDrm();
     ret = drm->writeReadIoctl(DRM_PSB_GTT_MAP, &arg, sizeof(arg));
     if (ret == false) {
-        ETRACE("gtt mapping failed");
+        ELOGTRACE("gtt mapping failed");
         return false;
     }
 
-    VTRACE("offset = %#x", arg.offset_pages);
+    VLOGTRACE("offset = %#x", arg.offset_pages);
     *offset =  arg.offset_pages;
     return true;
 }
@@ -73,10 +73,10 @@ bool TngGrallocBufferMapper::gttUnmap(void *vaddr)
     struct psb_gtt_mapping_arg arg;
     bool ret;
 
-    ATRACE("vaddr = %p", vaddr);
+    ALOGTRACE("vaddr = %p", vaddr);
 
     if (!vaddr) {
-        ETRACE("invalid parameter");
+        ELOGTRACE("invalid parameter");
         return false;
     }
 
@@ -86,7 +86,7 @@ bool TngGrallocBufferMapper::gttUnmap(void *vaddr)
     Drm *drm = Hwcomposer::getInstance().getDrm();
     ret = drm->writeIoctl(DRM_PSB_GTT_UNMAP, &arg, sizeof(arg));
     if (ret == false) {
-        ETRACE("gtt unmapping failed");
+        ELOGTRACE("gtt unmapping failed");
         return false;
     }
 
@@ -109,7 +109,7 @@ bool TngGrallocBufferMapper::map()
                                           vaddr,
                                           size);
     if (err) {
-        ETRACE("failed to map. err = %d", err);
+        ELOGTRACE("failed to map. err = %d", err);
         return false;
     }
 
@@ -121,7 +121,7 @@ bool TngGrallocBufferMapper::map()
         // map to gtt
         ret = gttMap(vaddr[i], size[i], 0, &gttOffsetInPage);
         if (!ret) {
-            VTRACE("failed to map %d into gtt", i);
+            VLOGTRACE("failed to map %d into gtt", i);
             break;
         }
 
@@ -167,7 +167,7 @@ bool TngGrallocBufferMapper::unmap()
     err = mIMGGrallocModule.putCpuAddress(&mIMGGrallocModule,
                                     (buffer_handle_t)getHandle());
     if (err) {
-        ETRACE("failed to unmap. err = %d", err);
+        ELOGTRACE("failed to unmap. err = %d", err);
     }
     return err;
 }
@@ -190,13 +190,13 @@ bool TngGrallocBufferMapper::mapKhandle()
     void *wsbmBufferObject = 0;
     int ret = psbWsbmWrapTTMBuffer2(mHandle, &wsbmBufferObject);
     if (ret != 0) {
-        ETRACE("Wrap ttm buffer failed!");
+        ELOGTRACE("Wrap ttm buffer failed!");
         return false;
     }
 
     ret = psbWsbmCreateFromUB(wsbmBufferObject, mWidth * mHeight, mCpuAddress[0]);
     if (ret != 0) {
-        ETRACE("Create from UB failed!");
+        ELOGTRACE("Create from UB failed!");
         return false;
     }
 
@@ -223,7 +223,7 @@ uint32_t TngGrallocBufferMapper::getFbHandle(int subIndex)
                                           vaddr,
                                           size);
     if (err) {
-        ETRACE("failed to map. err = %d", err);
+        ELOGTRACE("failed to map. err = %d", err);
         return 0;
     }
 
@@ -235,7 +235,7 @@ void TngGrallocBufferMapper::putFbHandle()
     int err = mIMGGrallocModule.putCpuAddress(&mIMGGrallocModule,
                                     (buffer_handle_t)getHandle());
     if (err) {
-        ETRACE("failed to unmap. err = %d", err);
+        ELOGTRACE("failed to unmap. err = %d", err);
     }
     return;
 

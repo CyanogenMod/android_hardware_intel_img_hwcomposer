@@ -67,7 +67,7 @@ bool AnnRGBPlane::setDataBuffer(uint32_t handle)
     uint32_t usage;
     bool ret;
 
-    ATRACE("handle = %#x", handle);
+    ALOGTRACE("handle = %#x", handle);
 
     usage = tmpBuf.getUsage();
     if (GRALLOC_USAGE_HW_FB & usage) {
@@ -78,7 +78,7 @@ bool AnnRGBPlane::setDataBuffer(uint32_t handle)
     // use primary as a sprite
     ret = DisplayPlane::setDataBuffer(handle);
     if (ret == false) {
-        ETRACE("failed to set data buffer");
+        ELOGTRACE("failed to set data buffer");
         return ret;
     }
 
@@ -108,7 +108,7 @@ bool AnnRGBPlane::setDataBuffer(BufferMapper& mapper)
 
     // setup plane format
     if (!PixelFormat::convertFormat(mapper.getFormat(), spriteFormat, bpp)) {
-        ETRACE("unsupported format %#x", mapper.getFormat());
+        ELOGTRACE("unsupported format %#x", mapper.getFormat());
         return false;
     }
 
@@ -126,7 +126,7 @@ bool AnnRGBPlane::setDataBuffer(BufferMapper& mapper)
 
     // unlikely happen, but still we need make sure linoff is valid
     if (linoff > (stride * mapper.getHeight())) {
-        ETRACE("invalid source crop");
+        ELOGTRACE("invalid source crop");
         return false;
     }
 
@@ -181,7 +181,7 @@ bool AnnRGBPlane::setDataBuffer(BufferMapper& mapper)
     mContext.ctx.sp_ctx.contalpa = planeAlpha;
     mContext.ctx.sp_ctx.update_mask = SPRITE_UPDATE_ALL;
 
-    VTRACE("type = %d, index = %d, cntr = %#x, linoff = %#x, stride = %#x,"
+    VLOGTRACE("type = %d, index = %d, cntr = %#x, linoff = %#x, stride = %#x,"
           "surf = %#x, pos = %#x, size = %#x, contalpa = %#x", mType, mIndex,
           mContext.ctx.sp_ctx.cntr,
           mContext.ctx.sp_ctx.linoff,
@@ -217,7 +217,7 @@ bool AnnRGBPlane::enablePlane(bool enabled)
     Drm *drm = Hwcomposer::getInstance().getDrm();
     bool ret = drm->writeReadIoctl(DRM_PSB_REGISTER_RW, &arg, sizeof(arg));
     if (ret == false) {
-        WTRACE("plane enabling (%d) failed with error code %d", enabled, ret);
+        WLOGTRACE("plane enabling (%d) failed with error code %d", enabled, ret);
         return false;
     }
 
@@ -244,7 +244,7 @@ bool AnnRGBPlane::isDisabled()
     Drm *drm = Hwcomposer::getInstance().getDrm();
     bool ret = drm->writeReadIoctl(DRM_PSB_REGISTER_RW, &arg, sizeof(arg));
     if (ret == false) {
-        WTRACE("plane state query failed with error code %d", ret);
+        WLOGTRACE("plane state query failed with error code %d", ret);
         return false;
     }
 
@@ -317,7 +317,7 @@ void AnnRGBPlane::setFramebufferTarget(uint32_t handle)
     if (mPanelOrientation == PANEL_ORIENTATION_180)
         mContext.ctx.prim_ctx.cntr |= (0x1 << 15);
 
-    VTRACE("type = %d, index = %d, cntr = %#x, linoff = %#x, stride = %#x,"
+    VLOGTRACE("type = %d, index = %d, cntr = %#x, linoff = %#x, stride = %#x,"
           "surf = %#x, pos = %#x, size = %#x, contalpa = %#x", mType, mIndex,
           mContext.ctx.prim_ctx.cntr,
           mContext.ctx.prim_ctx.linoff,

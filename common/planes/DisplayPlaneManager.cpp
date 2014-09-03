@@ -65,7 +65,7 @@ bool DisplayPlaneManager::initialize()
     int i, j;
 
     if (mInitialized) {
-        WTRACE("object has been initialized");
+        WLOGTRACE("object has been initialized");
         return true;
     }
 
@@ -77,7 +77,7 @@ bool DisplayPlaneManager::initialize()
 
     mTotalPlaneCount = mSpritePlaneCount+ mOverlayPlaneCount+ mPrimaryPlaneCount;
     if (mTotalPlaneCount == 0) {
-        ETRACE("plane count is not initialized");
+        ELOGTRACE("plane count is not initialized");
         return false;
     }
 
@@ -93,7 +93,7 @@ bool DisplayPlaneManager::initialize()
             for (j = 0; j < mPlaneCount[i]; j++) {
                 DisplayPlane* plane = allocPlane(j, i);
                 if (!plane) {
-                    ETRACE("failed to allocate plane %d, type %d", j, i);
+                    ELOGTRACE("failed to allocate plane %d, type %d", j, i);
                     DEINIT_AND_RETURN_FALSE();
                 }
                 mPlanes[i].push_back(plane);
@@ -129,7 +129,7 @@ void DisplayPlaneManager::putPlane(int index, uint32_t& mask)
     int bit = (1 << index);
 
     if (bit & mask) {
-        WTRACE("bit %d was set", index);
+        WLOGTRACE("bit %d was set", index);
         return;
     }
 
@@ -155,7 +155,7 @@ DisplayPlane* DisplayPlaneManager::getPlane(int type, int index)
     RETURN_NULL_IF_NOT_INIT();
 
     if (type < 0 || type >= DisplayPlane::PLANE_MAX) {
-        ETRACE("Invalid plane type %d", type);
+        ELOGTRACE("Invalid plane type %d", type);
         return 0;
     }
 
@@ -175,7 +175,7 @@ DisplayPlane* DisplayPlaneManager::getAnyPlane(int type)
     RETURN_NULL_IF_NOT_INIT();
 
     if (type < 0 || type >= DisplayPlane::PLANE_MAX) {
-        ETRACE("Invalid plane type %d", type);
+        ELOGTRACE("Invalid plane type %d", type);
         return 0;
     }
 
@@ -201,7 +201,7 @@ void DisplayPlaneManager::putPlane(int /* dsp */, DisplayPlane& plane)
     type = plane.getType();
 
     if (type < 0 || type >= DisplayPlane::PLANE_MAX) {
-        ETRACE("Invalid plane type %d", type);
+        ELOGTRACE("Invalid plane type %d", type);
         return;
     }
 
@@ -211,7 +211,7 @@ void DisplayPlaneManager::putPlane(int /* dsp */, DisplayPlane& plane)
 bool DisplayPlaneManager::isFreePlane(int type, int index)
 {
     if (type < 0 || type >= DisplayPlane::PLANE_MAX) {
-        ETRACE("Invalid plane type %d", type);
+        ELOGTRACE("Invalid plane type %d", type);
         return false;
     }
 
@@ -227,12 +227,12 @@ int DisplayPlaneManager::getFreePlanes(int dsp, int type)
     RETURN_NULL_IF_NOT_INIT();
 
     if (dsp < 0 || dsp > IDisplayDevice::DEVICE_EXTERNAL) {
-        ETRACE("Invalid display device %d", dsp);
+        ELOGTRACE("Invalid display device %d", dsp);
         return 0;
     }
 
     if (type < 0 || type >= DisplayPlane::PLANE_MAX) {
-        ETRACE("Invalid plane type %d", type);
+        ELOGTRACE("Invalid plane type %d", type);
         return 0;
     }
 
@@ -259,10 +259,10 @@ void DisplayPlaneManager::reclaimPlane(int /* dsp */, DisplayPlane& plane)
     int index = plane.getIndex();
     int type = plane.getType();
 
-    ATRACE("reclaimPlane = %d, type = %d", index, plane.getType());
+    ALOGTRACE("reclaimPlane = %d, type = %d", index, plane.getType());
 
     if (type < 0 || type >= DisplayPlane::PLANE_MAX) {
-        ETRACE("Invalid plane type %d", type);
+        ELOGTRACE("Invalid plane type %d", type);
         return;
     }
 

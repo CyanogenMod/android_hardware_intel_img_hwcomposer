@@ -52,7 +52,7 @@ bool DisplayPlane::initialize(uint32_t bufferCount)
     CTRACE();
 
     if (bufferCount < MIN_DATA_BUFFER_COUNT) {
-        WTRACE("buffer count %d is too small", bufferCount);
+        WLOGTRACE("buffer count %d is too small", bufferCount);
         bufferCount = MIN_DATA_BUFFER_COUNT;
     }
 
@@ -103,7 +103,7 @@ void DisplayPlane::checkPosition(int& x, int& y, int& w, int& h)
 
 void DisplayPlane::setPosition(int x, int y, int w, int h)
 {
-    ATRACE("Position = %d, %d - %dx%d", x, y, w, h);
+    ALOGTRACE("Position = %d, %d - %dx%d", x, y, w, h);
 
     if (mPosition.x != x || mPosition.y != y ||
         mPosition.w != w || mPosition.h != h) {
@@ -117,7 +117,7 @@ void DisplayPlane::setPosition(int x, int y, int w, int h)
 
 void DisplayPlane::setSourceCrop(int x, int y, int w, int h)
 {
-    ATRACE("Source crop = %d, %d - %dx%d", x, y, w, h);
+    ALOGTRACE("Source crop = %d, %d - %dx%d", x, y, w, h);
 
     if (mSrcCrop.x != x || mSrcCrop.y != y ||
         mSrcCrop.w != w || mSrcCrop.h != h) {
@@ -131,7 +131,7 @@ void DisplayPlane::setSourceCrop(int x, int y, int w, int h)
 
 void DisplayPlane::setTransform(int trans)
 {
-    ATRACE("transform = %d", trans);
+    ALOGTRACE("transform = %d", trans);
 
     if (mTransform == trans) {
         return;
@@ -144,7 +144,7 @@ void DisplayPlane::setTransform(int trans)
 
 void DisplayPlane::setPlaneAlpha(uint8_t alpha, uint32_t blending)
 {
-    ATRACE("plane alpha = 0x%x", alpha);
+    ALOGTRACE("plane alpha = 0x%x", alpha);
 
     if (mPlaneAlpha != alpha) {
         mPlaneAlpha = alpha;
@@ -167,10 +167,10 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
     BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
 
     RETURN_FALSE_IF_NOT_INIT();
-    ATRACE("handle = %#x", handle);
+    ALOGTRACE("handle = %#x", handle);
 
     if (!handle) {
-        WTRACE("invalid buffer handle");
+        WLOGTRACE("invalid buffer handle");
         return false;
     }
 
@@ -184,7 +184,7 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
 
     buffer = bm->lockDataBuffer(handle);
     if (!buffer) {
-        ETRACE("failed to get buffer");
+        ELOGTRACE("failed to get buffer");
         return false;
     }
 
@@ -194,15 +194,15 @@ bool DisplayPlane::setDataBuffer(uint32_t handle)
     // map buffer if it's not in cache
     index = mDataBuffers.indexOfKey(buffer->getKey());
     if (index < 0) {
-        VTRACE("unmapped buffer, mapping...");
+        VLOGTRACE("unmapped buffer, mapping...");
         mapper = mapBuffer(buffer);
         if (!mapper) {
-            ETRACE("failed to map buffer %#x", handle);
+            ELOGTRACE("failed to map buffer %#x", handle);
             bm->unlockDataBuffer(buffer);
             return false;
         }
     } else {
-        VTRACE("got mapper in saved data buffers and update source Crop");
+        VLOGTRACE("got mapper in saved data buffers and update source Crop");
         mapper = mDataBuffers.valueAt(index);
     }
 
@@ -235,14 +235,14 @@ BufferMapper* DisplayPlane::mapBuffer(DataBuffer *buffer)
 
     BufferMapper *mapper = bm->map(*buffer);
     if (!mapper) {
-        ETRACE("failed to map buffer");
+        ELOGTRACE("failed to map buffer");
         return NULL;
     }
 
     // add it to data buffers
     ssize_t index = mDataBuffers.add(buffer->getKey(), mapper);
     if (index < 0) {
-        ETRACE("failed to add mapper");
+        ELOGTRACE("failed to add mapper");
         bm->unmap(mapper);
         return NULL;
     }
@@ -288,7 +288,7 @@ void DisplayPlane::invalidateActiveBuffers()
 
     RETURN_VOID_IF_NOT_INIT();
 
-    VTRACE("invalidating active buffers");
+    VLOGTRACE("invalidating active buffers");
 
     for (size_t i = 0; i < mActiveBuffers.size(); i++) {
         mapper = mActiveBuffers.itemAt(i);
@@ -320,13 +320,13 @@ void DisplayPlane::invalidateBufferCache()
 bool DisplayPlane::assignToDevice(int disp)
 {
     RETURN_FALSE_IF_NOT_INIT();
-    ATRACE("disp = %d", disp);
+    ALOGTRACE("disp = %d", disp);
 
     mDevice = disp;
 
     Drm *drm = Hwcomposer::getInstance().getDrm();
     if (!drm->getModeInfo(mDevice, mModeInfo)) {
-        ETRACE("failed to get mode info");
+        ELOGTRACE("failed to get mode info");
     }
 
     mPanelOrientation = drm->getPanelOrientation(mDevice);

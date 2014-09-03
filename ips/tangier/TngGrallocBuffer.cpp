@@ -42,7 +42,7 @@ void TngGrallocBuffer::initBuffer(uint32_t handle)
     CTRACE();
 
     if (!grallocHandle) {
-        ETRACE("gralloc handle is null");
+        ELOGTRACE("gralloc handle is null");
         return;
     }
 

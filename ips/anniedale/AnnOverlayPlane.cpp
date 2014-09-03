@@ -63,7 +63,7 @@ void AnnOverlayPlane::setZOrderConfig(ZOrderConfig& /* zorderConfig */,
         mZOrderConfig = (3 << 8);
         break;
     default:
-        ETRACE("Invalid overlay plane zorder %d", slot);
+        ELOGTRACE("Invalid overlay plane zorder %d", slot);
         return;
     }
 }
@@ -158,7 +158,7 @@ bool AnnOverlayPlane::bufferOffsetSetup(BufferMapper& mapper)
 
     OverlayBackBufferBlk *backBuffer = mBackBuffer[mCurrent]->buf;
     if (!backBuffer) {
-        ETRACE("invalid back buffer");
+        ELOGTRACE("invalid back buffer");
         return false;
     }
 
@@ -289,7 +289,7 @@ bool AnnOverlayPlane::bufferOffsetSetup(BufferMapper& mapper)
         backBuffer->OCMD |= OVERLAY_PACKED_ORDER_UYVY;
         break;
     default:
-        ETRACE("unsupported format %d", format);
+        ELOGTRACE("unsupported format %d", format);
         return false;
     }
 
@@ -303,7 +303,7 @@ bool AnnOverlayPlane::bufferOffsetSetup(BufferMapper& mapper)
     backBuffer->OTILEOFF_0U = uTileOffsetY << 16 | uTileOffsetX;
     backBuffer->OTILEOFF_0V = vTileOffsetY << 16 | vTileOffsetX;
 
-    VTRACE("done. offset (%d, %d, %d)",
+    VLOGTRACE("done. offset (%d, %d, %d)",
           backBuffer->OBUF_0Y,
           backBuffer->OBUF_0U,
           backBuffer->OBUF_0V);
@@ -323,7 +323,7 @@ bool AnnOverlayPlane::coordinateSetup(BufferMapper& mapper)
 
     OverlayBackBufferBlk *backBuffer = mBackBuffer[mCurrent]->buf;
     if (!backBuffer) {
-        ETRACE("invalid back buffer");
+        ELOGTRACE("invalid back buffer");
         return false;
     }
 
@@ -354,7 +354,7 @@ bool AnnOverlayPlane::scalingSetup(BufferMapper& mapper)
 
     OverlayBackBufferBlk *backBuffer = mBackBuffer[mCurrent]->buf;
     if (!backBuffer) {
-        ETRACE("invalid back buffer");
+        ELOGTRACE("invalid back buffer");
         return false;
     }
 
@@ -377,10 +377,10 @@ bool AnnOverlayPlane::scalingSetup(BufferMapper& mapper)
 
     // check position
     checkPosition(x, y, w, h);
-    VTRACE("final position (%d, %d, %d, %d)", x, y, w, h);
+    VLOGTRACE("final position (%d, %d, %d, %d)", x, y, w, h);
 
     if ((w <= 0) || (h <= 0)) {
-         ETRACE("invalid dst width/height");
+         ELOGTRACE("invalid dst width/height");
          return false;
     }
 
@@ -404,7 +404,7 @@ bool AnnOverlayPlane::scalingSetup(BufferMapper& mapper)
     if (mBobDeinterlace && !mTransform)
         deinterlace_factor = 2;
 
-    VTRACE("src (%dx%d), dst (%dx%d), transform %d",
+    VLOGTRACE("src (%dx%d), dst (%dx%d), transform %d",
           srcWidth, srcHeight,
           dstWidth, dstHeight,
           mTransform);
@@ -446,13 +446,13 @@ bool AnnOverlayPlane::scalingSetup(BufferMapper& mapper)
 
     // Check scaling ratio
     if (xscaleInt > INTEL_OVERLAY_MAX_SCALING_RATIO) {
-        ETRACE("xscaleInt > %d", INTEL_OVERLAY_MAX_SCALING_RATIO);
+        ELOGTRACE("xscaleInt > %d", INTEL_OVERLAY_MAX_SCALING_RATIO);
         return false;
     }
 
     // shouldn't get here
     if (xscaleIntUV > INTEL_OVERLAY_MAX_SCALING_RATIO) {
-        ETRACE("xscaleIntUV > %d", INTEL_OVERLAY_MAX_SCALING_RATIO);
+        ELOGTRACE("xscaleIntUV > %d", INTEL_OVERLAY_MAX_SCALING_RATIO);
         return false;
     }
 
@@ -552,7 +552,7 @@ bool AnnOverlayPlane::scalingSetup(BufferMapper& mapper)
         }
     }
 
-    XTRACE();
+    XLOGTRACE();
     return true;
 }
 
@@ -580,7 +580,7 @@ void AnnOverlayPlane::setTransform(int transform)
         mRotationConfig = 0;
         break;
     default:
-        ETRACE("Invalid transform %d", mTransform);
+        ELOGTRACE("Invalid transform %d", mTransform);
         mRotationConfig = 0;
         break;
     }
@@ -593,7 +593,7 @@ bool AnnOverlayPlane::flip(void *ctx)
     RETURN_FALSE_IF_NOT_INIT();
 
     if (!DisplayPlane::flip(ctx)) {
-        ETRACE("failed to flip display plane.");
+        ELOGTRACE("failed to flip display plane.");
         return false;
     }
 
@@ -624,7 +624,7 @@ bool AnnOverlayPlane::flip(void *ctx)
     // move to next back buffer
     mCurrent = (mCurrent + 1) % OVERLAY_BACK_BUFFER_COUNT;
 
-    VTRACE("ovadd = %#x, index = %d, device = %d",
+    VLOGTRACE("ovadd = %#x, index = %d, device = %d",
           mContext.ctx.ov_ctx.ovadd,
           mIndex,
           mDevice);
@@ -658,7 +658,7 @@ bool AnnOverlayPlane::setDataBuffer(BufferMapper& mapper)
 bool AnnOverlayPlane::initialize(uint32_t bufferCount)
 {
     if (!OverlayPlaneBase::initialize(bufferCount)) {
-        ETRACE("failed to initialize OverlayPlaneBase");
+        ELOGTRACE("failed to initialize OverlayPlaneBase");
         return false;
     }
 
@@ -684,26 +684,26 @@ bool AnnOverlayPlane::rotatedBufferReady(BufferMapper& mapper, BufferMapper* &ro
     format = mapper.getFormat();
     if (format != OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar &&
         format != OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled) {
-        ETRACE("invalid video format %#x", format);
+        ELOGTRACE("invalid video format %#x", format);
         return false;
     }
 
     payload = (struct VideoPayloadBuffer *)mapper.getCpuAddress(SUB_BUFFER1);
     // check payload
     if (!payload) {
-        ETRACE("no payload found");
+        ELOGTRACE("no payload found");
         return false;
     }
 
     if (payload->force_output_method == FORCE_OUTPUT_GPU) {
-        ETRACE("Output method is not supported!");
+        ELOGTRACE("Output method is not supported!");
         return false;
     }
 
     if (payload->client_transform != mTransform ||
         mBobDeinterlace) {
         if (!mRotationBufProvider->setupRotationBuffer(payload, mTransform)) {
-            DTRACE("failed to setup rotation buffer");
+            DLOGTRACE("failed to setup rotation buffer");
             return false;
         }
     }
@@ -726,21 +726,21 @@ void AnnOverlayPlane::signalVideoRotation(BufferMapper& mapper)
 
     payload = (struct VideoPayloadBuffer *)mapper.getCpuAddress(SUB_BUFFER1);
     if (!payload) {
-        ETRACE("no payload found");
+        ELOGTRACE("no payload found");
         return;
     }
 
     /* if use overlay rotation, signal decoder to stop rotation */
     if (mUseOverlayRotation) {
         if (payload->client_transform) {
-            WTRACE("signal decoder to stop generate rotation buffer");
+            WLOGTRACE("signal decoder to stop generate rotation buffer");
             payload->hwc_timestamp = systemTime();
             payload->layer_transform = 0;
         }
     } else {
         /* if overlay rotation cannot be used, signal decoder to start rotation */
         if (payload->client_transform != mTransform) {
-            WTRACE("signal decoder to generate rotation buffer with transform %d", mTransform);
+            WLOGTRACE("signal decoder to generate rotation buffer with transform %d", mTransform);
             payload->hwc_timestamp = systemTime();
             payload->layer_transform = mTransform;
         }
@@ -762,19 +762,19 @@ bool AnnOverlayPlane::useOverlayRotation(BufferMapper& /* mapper */)
     }
     if (scaleX >= 3 || scaleY >= 3) {
         if (mUseOverlayRotation) {
-            DTRACE("overlay rotation with scaling >= 3, use VA rotated buffer");
+            DLOGTRACE("overlay rotation with scaling >= 3, use VA rotated buffer");
         }
         fallback = true;
     } else if ((int)mSrcCrop.x & 63) {
         if (mUseOverlayRotation) {
-            DTRACE("offset is not 64 bytes aligned, use VA rotated buffer");
+            DLOGTRACE("offset is not 64 bytes aligned, use VA rotated buffer");
         }
         fallback = true;
     }
 #if 0
     else if (mTransform != HAL_TRANSFORM_ROT_180 && scaleX != scaleY) {
         if (mUseOverlayRotation) {
-            DTRACE("overlay rotation with uneven scaling, use VA rotated buffer");
+            DLOGTRACE("overlay rotation with uneven scaling, use VA rotated buffer");
         }
         fallback = true;
     }
@@ -784,7 +784,7 @@ bool AnnOverlayPlane::useOverlayRotation(BufferMapper& /* mapper */)
     // need 1920 of 64-pixel strip if using hw rotation.
     // fallback to video ration buffer in such case.
     if (mSrcCrop.w == 1080 && mSrcCrop.h == 1920 && mTransform != 0) {
-        DTRACE("1080(H)x1920(V) cannot use hw rotation, use VA rotated buffer");
+        DLOGTRACE("1080(H)x1920(V) cannot use hw rotation, use VA rotated buffer");
         fallback = true;
     }
 
@@ -800,10 +800,10 @@ bool AnnOverlayPlane::useOverlayRotation(BufferMapper& /* mapper */)
 bool AnnOverlayPlane::flush(uint32_t flags)
 {
     RETURN_FALSE_IF_NOT_INIT();
-    ATRACE("flags = %#x, type = %d, index = %d", flags, mType, mIndex);
+    ALOGTRACE("flags = %#x, type = %d, index = %d", flags, mType, mIndex);
 
     if (!(flags & PLANE_ENABLE) && !(flags & PLANE_DISABLE)) {
-        ETRACE("invalid flush flags.");
+        ELOGTRACE("invalid flush flags.");
         return false;
     }
 
@@ -819,14 +819,14 @@ bool AnnOverlayPlane::flush(uint32_t flags)
     arg.plane.index = mIndex;
     arg.plane.ctx = mContext.ctx.ov_ctx.ovadd;
     if (flags & PLANE_DISABLE) {
-        DTRACE("disabling overlay %d on device %d", mIndex, mDevice);
+        DLOGTRACE("disabling overlay %d on device %d", mIndex, mDevice);
     }
 
     // issue ioctl
     Drm *drm = Hwcomposer::getInstance().getDrm();
     bool ret = drm->writeReadIoctl(DRM_PSB_REGISTER_RW, &arg, sizeof(arg));
     if (ret == false) {
-        WTRACE("overlay update failed with error code %d", ret);
+        WLOGTRACE("overlay update failed with error code %d", ret);
         return false;
     }
 

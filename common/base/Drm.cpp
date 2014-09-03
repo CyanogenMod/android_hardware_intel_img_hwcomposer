@@ -40,17 +40,17 @@ Drm::~Drm()
 bool Drm::initialize()
 {
     if (mInitialized) {
-        WTRACE("Drm object has been initialized");
+        WLOGTRACE("Drm object has been initialized");
         return true;
     }
 
     const char *path = DrmConfig::getDrmPath();
     mDrmFd = open(path, O_RDWR, 0);
     if (mDrmFd < 0) {
-        ETRACE("failed to open Drm, error: %s", strerror(errno));
+        ELOGTRACE("failed to open Drm, error: %s", strerror(errno));
         return false;
     }
-    DTRACE("mDrmFd = %d", mDrmFd);
+    DLOGTRACE("mDrmFd = %d", mDrmFd);
 
     memset(&mOutputs, 0, sizeof(mOutputs));
     mInitialized = true;
@@ -85,7 +85,7 @@ bool Drm::detect(int device)
     // get drm resources
     drmModeResPtr resources = drmModeGetResources(mDrmFd);
     if (!resources) {
-        ETRACE("fail to get drm resources, error: %s", strerror(errno));
+        ELOGTRACE("fail to get drm resources, error: %s", strerror(errno));
         return false;
     }
 
@@ -96,13 +96,13 @@ bool Drm::detect(int device)
     // find connector for the given device
     for (int i = 0; i < resources->count_connectors; i++) {
         if (!resources->connectors || !resources->connectors[i]) {
-            ETRACE("fail to get drm resources connectors, error: %s", strerror(errno));
+            ELOGTRACE("fail to get drm resources connectors, error: %s", strerror(errno));
             continue;
         }
 
         connector = drmModeGetConnector(mDrmFd, resources->connectors[i]);
         if (!connector) {
-            ETRACE("drmModeGetConnector failed");
+            ELOGTRACE("drmModeGetConnector failed");
             continue;
         }
 
@@ -112,7 +112,7 @@ bool Drm::detect(int device)
         }
 
         if (connector->connection != DRM_MODE_CONNECTED) {
-            ITRACE("device %d is not connected", device);
+            ILOGTRACE("device %d is not connected", device);
             drmModeFreeConnector(connector);
             ret = true;
             break;
@@ -123,25 +123,25 @@ bool Drm::detect(int device)
 
         // get proper encoder for the given connector
         if (connector->encoder_id) {
-            ITRACE("Drm connector has encoder attached on device %d", device);
+            ILOGTRACE("Drm connector has encoder attached on device %d", device);
             output->encoder = drmModeGetEncoder(mDrmFd, connector->encoder_id);
             if (!output->encoder) {
-                ETRACE("failed to get encoder from a known encoder id");
+                ELOGTRACE("failed to get encoder from a known encoder id");
                 // fall through to get an encoder
             }
         }
         if (!output->encoder) {
-            ITRACE("getting encoder for device %d", device);
+            ILOGTRACE("getting encoder for device %d", device);
             drmModeEncoderPtr encoder;
             for (int j = 0; j < resources->count_encoders; j++) {
                 if (!resources->encoders || !resources->encoders[j]) {
-                    ETRACE("fail to get drm resources encoders, error: %s", strerror(errno));
+                    ELOGTRACE("fail to get drm resources encoders, error: %s", strerror(errno));
                     continue;
                 }
 
                 encoder = drmModeGetEncoder(mDrmFd, resources->encoders[i]);
                 if (!encoder) {
-                    ETRACE("drmModeGetEncoder failed");
+                    ELOGTRACE("drmModeGetEncoder failed");
                     continue;
                 }
                 if (encoder->encoder_type == DrmConfig::getDrmEncoder(device)) {
@@ -153,31 +153,31 @@ bool Drm::detect(int device)
             }
         }
         if (!output->encoder) {
-            ETRACE("failed to get drm encoder");
+            ELOGTRACE("failed to get drm encoder");
             break;
         }
 
         // get an attached crtc or spare crtc
         if (output->encoder->crtc_id) {
-            ITRACE("Drm encoder has crtc attached on device %d", device);
+            ILOGTRACE("Drm encoder has crtc attached on device %d", device);
             output->crtc = drmModeGetCrtc(mDrmFd, output->encoder->crtc_id);
             if (!output->crtc) {
-                ETRACE("failed to get crtc from a known crtc id");
+                ELOGTRACE("failed to get crtc from a known crtc id");
                 // fall through to get a spare crtc
             }
         }
         if (!output->crtc) {
-            ITRACE("getting crtc for device %d", device);
+            ILOGTRACE("getting crtc for device %d", device);
             drmModeCrtcPtr crtc;
             for (int j = 0; j < resources->count_crtcs; j++) {
                 if (!resources->crtcs || !resources->crtcs[j]) {
-                    ETRACE("fail to get drm resources crtcs, error: %s", strerror(errno));
+                    ELOGTRACE("fail to get drm resources crtcs, error: %s", strerror(errno));
                     continue;
                 }
 
                 crtc = drmModeGetCrtc(mDrmFd, resources->crtcs[j]);
                 if (!crtc) {
-                    ETRACE("drmModeGetCrtc failed");
+                    ELOGTRACE("drmModeGetCrtc failed");
                     continue;
                 }
                 // check if legal crtc to the encoder
@@ -191,23 +191,23 @@ bool Drm::detect(int device)
             }
         }
         if (!output->crtc) {
-            ETRACE("failed to get drm crtc");
+            ELOGTRACE("failed to get drm crtc");
             break;
         }
 
         // current mode
         if (output->crtc->mode_valid) {
-            ITRACE("mode is valid, kernel mode settings");
+            ILOGTRACE("mode is valid, kernel mode settings");
             memcpy(&output->mode, &output->crtc->mode, sizeof(drmModeModeInfo));
             ret = true;
         } else {
-            ITRACE("mode is invalid, setting preferred mode");
+            ILOGTRACE("mode is invalid, setting preferred mode");
             ret = initDrmMode(outputIndex);
         }
 
         if (outputIndex == OUTPUT_PRIMARY) {
             if (!readIoctl(DRM_PSB_PANEL_ORIENTATION, &output->panelOrientation, sizeof(int))) {
-                ETRACE("failed to get device %d orientation", device);
+                ELOGTRACE("failed to get device %d orientation", device);
                 output->panelOrientation = PANEL_ORIENTATION_0;
             }
         } else {
@@ -220,12 +220,12 @@ bool Drm::detect(int device)
         if (output->connector == NULL && outputIndex != OUTPUT_PRIMARY) {
             // a fatal failure on primary device
             // non fatal on secondary device
-            WTRACE("device %d is disabled?", device);
+            WLOGTRACE("device %d is disabled?", device);
             ret = true;
         }
          resetOutput(outputIndex);
     } else if (output->connected) {
-        ITRACE("mode is: %dx%d@%dHz", output->mode.hdisplay, output->mode.vdisplay, output->mode.vrefresh);
+        ILOGTRACE("mode is: %dx%d@%dHz", output->mode.hdisplay, output->mode.vdisplay, output->mode.vrefresh);
     }
 
     drmModeFreeResources(resources);
@@ -239,7 +239,7 @@ bool Drm::isSameDrmMode(drmModeModeInfoPtr value,
         base->vdisplay == value->vdisplay &&
         base->vrefresh == value->vrefresh &&
         (base->flags & value->flags) == value->flags) {
-        VTRACE("Drm mode is not changed");
+        VLOGTRACE("Drm mode is not changed");
         return true;
     }
 
@@ -252,24 +252,24 @@ bool Drm::setDrmMode(int device, drmModeModeInfo& value)
     Mutex::Autolock _l(mLock);
 
     if (device != IDisplayDevice::DEVICE_EXTERNAL) {
-        WTRACE("Setting mode on invalid device %d", device);
+        WLOGTRACE("Setting mode on invalid device %d", device);
         return false;
     }
 
     int outputIndex = getOutputIndex(device);
     if (outputIndex < 0 ) {
-        ETRACE("invalid device");
+        ELOGTRACE("invalid device");
         return false;
     }
 
     DrmOutput *output= &mOutputs[outputIndex];
     if (!output->connected) {
-        ETRACE("device is not connected");
+        ELOGTRACE("device is not connected");
         return false;
     }
 
     if (output->connector->count_modes <= 0) {
-        ETRACE("invalid count of modes");
+        ELOGTRACE("invalid count of modes");
         return false;
     }
 
@@ -296,24 +296,24 @@ bool Drm::setRefreshRate(int device, int hz)
     Mutex::Autolock _l(mLock);
 
     if (device != IDisplayDevice::DEVICE_EXTERNAL) {
-        WTRACE("Setting mode on invalid device %d", device);
+        WLOGTRACE("Setting mode on invalid device %d", device);
         return false;
     }
 
     int outputIndex = getOutputIndex(device);
     if (outputIndex < 0 ) {
-        ETRACE("invalid device");
+        ELOGTRACE("invalid device");
         return false;
     }
 
     DrmOutput *output= &mOutputs[outputIndex];
     if (!output->connected) {
-        ETRACE("device is not connected");
+        ELOGTRACE("device is not connected");
         return false;
     }
 
     if (output->connector->count_modes <= 0) {
-        ETRACE("invalid count of modes");
+        ELOGTRACE("invalid count of modes");
         return false;
     }
 
@@ -342,18 +342,18 @@ bool Drm::writeReadIoctl(unsigned long cmd, void *data,
     int err;
 
     if (mDrmFd <= 0) {
-        ETRACE("drm is not initialized");
+        ELOGTRACE("drm is not initialized");
         return false;
     }
 
     if (!data || !size) {
-        ETRACE("invalid parameters");
+        ELOGTRACE("invalid parameters");
         return false;
     }
 
     err = drmCommandWriteRead(mDrmFd, cmd, data, size);
     if (err) {
-        WTRACE("failed to call %ld ioctl with failure %d", cmd, err);
+        WLOGTRACE("failed to call %ld ioctl with failure %d", cmd, err);
         return false;
     }
 
@@ -366,18 +366,18 @@ bool Drm::writeIoctl(unsigned long cmd, void *data,
     int err;
 
     if (mDrmFd <= 0) {
-        ETRACE("drm is not initialized");
+        ELOGTRACE("drm is not initialized");
         return false;
     }
 
     if (!data || !size) {
-        ETRACE("invalid parameters");
+        ELOGTRACE("invalid parameters");
         return false;
     }
 
     err = drmCommandWrite(mDrmFd, cmd, data, size);
     if (err) {
-        WTRACE("failed to call %ld ioctl with failure %d", cmd, err);
+        WLOGTRACE("failed to call %ld ioctl with failure %d", cmd, err);
         return false;
     }
 
@@ -391,18 +391,18 @@ bool Drm::readIoctl(unsigned long cmd, void *data,
     int err;
 
     if (mDrmFd <= 0) {
-        ETRACE("drm is not initialized");
+        ELOGTRACE("drm is not initialized");
         return false;
     }
 
     if (!data || !size) {
-        ETRACE("invalid parameters");
+        ELOGTRACE("invalid parameters");
         return false;
     }
 
     err = drmCommandRead(mDrmFd, cmd, data, size);
     if (err) {
-        WTRACE("failed to call %ld ioctl with failure %d", cmd, err);
+        WLOGTRACE("failed to call %ld ioctl with failure %d", cmd, err);
         return false;
     }
 
@@ -426,12 +426,12 @@ bool Drm::getModeInfo(int device, drmModeModeInfo& mode)
 
     DrmOutput *output= &mOutputs[outputIndex];
     if (output->connected == false) {
-        ETRACE("device is not connected");
+        ELOGTRACE("device is not connected");
         return false;
     }
 
     if (output->mode.hdisplay == 0 || output->mode.vdisplay == 0) {
-        ETRACE("invalid width or height");
+        ELOGTRACE("invalid width or height");
         return false;
     }
 
@@ -450,7 +450,7 @@ bool Drm::getPhysicalSize(int device, uint32_t& width, uint32_t& height)
 
     DrmOutput *output= &mOutputs[outputIndex];
     if (output->connected == false) {
-        ETRACE("device is not connected");
+        ELOGTRACE("device is not connected");
         return false;
     }
 
@@ -483,13 +483,13 @@ bool Drm::setDpmsMode(int device, int mode)
     if (mode != IDisplayDevice::DEVICE_DISPLAY_OFF &&
             mode != IDisplayDevice::DEVICE_DISPLAY_STANDBY &&
             mode != IDisplayDevice::DEVICE_DISPLAY_ON) {
-        ETRACE("invalid mode %d", mode);
+        ELOGTRACE("invalid mode %d", mode);
         return false;
     }
 
     DrmOutput *out = &mOutputs[output];
     if (!out->connected) {
-        ETRACE("device is not connected");
+        ELOGTRACE("device is not connected");
         return false;
     }
 
@@ -510,7 +510,7 @@ bool Drm::setDpmsMode(int device, int mode)
                         DRM_MODE_DPMS_STANDBY : DRM_MODE_DPMS_OFF);
             drmModeFreeProperty(props);
             if (ret != 0) {
-                ETRACE("unable to set DPMS %d", mode);
+                ELOGTRACE("unable to set DPMS %d", mode);
                 return false;
             } else {
                 return true;
@@ -554,7 +554,7 @@ bool Drm::initDrmMode(int outputIndex)
 {
     DrmOutput *output= &mOutputs[outputIndex];
     if (output->connector->count_modes <= 0) {
-        ETRACE("invalid count of modes");
+        ELOGTRACE("invalid count of modes");
         return false;
     }
 
@@ -600,7 +600,7 @@ bool Drm::setDrmMode(int index, drmModeModeInfoPtr mode)
     output->fbHandle = Hwcomposer::getInstance().getBufferManager()->allocFrameBuffer(
         mode->hdisplay, mode->vdisplay, &stride);
     if (output->fbHandle == 0) {
-        ETRACE("failed to allocate frame buffer");
+        ELOGTRACE("failed to allocate frame buffer");
         return false;
     }
 
@@ -615,11 +615,11 @@ bool Drm::setDrmMode(int index, drmModeModeInfoPtr mode)
         output->fbHandle,
         &output->fbId);
     if (ret != 0) {
-        ETRACE("drmModeAddFB failed, error: %d", ret);
+        ELOGTRACE("drmModeAddFB failed, error: %d", ret);
         return false;
     }
 
-    ITRACE("mode set: %dx%d@%dHz", mode->hdisplay, mode->vdisplay, mode->vrefresh);
+    ILOGTRACE("mode set: %dx%d@%dHz", mode->hdisplay, mode->vdisplay, mode->vrefresh);
 
     ret = drmModeSetCrtc(mDrmFd, output->crtc->crtc_id, output->fbId, 0, 0,
                    &output->connector->connector_id, 1, mode);
@@ -627,7 +627,7 @@ bool Drm::setDrmMode(int index, drmModeModeInfoPtr mode)
         //save mode
         memcpy(&output->mode, mode, sizeof(drmModeModeInfo));
     } else {
-        ETRACE("drmModeSetCrtc failed. error: %d", ret);
+        ELOGTRACE("drmModeSetCrtc failed. error: %d", ret);
     }
 
     if (oldFbId) {
@@ -649,7 +649,7 @@ int Drm::getOutputIndex(int device)
     case IDisplayDevice::DEVICE_EXTERNAL:
         return OUTPUT_EXTERNAL;
     default:
-        ETRACE("invalid display device");
+        ELOGTRACE("invalid display device");
         break;
     }
 
@@ -660,13 +660,13 @@ int Drm::getPanelOrientation(int device)
 {
     int outputIndex = getOutputIndex(device);
     if (outputIndex < 0) {
-        ETRACE("invalid device");
+        ELOGTRACE("invalid device");
         return PANEL_ORIENTATION_0;
     }
 
     DrmOutput *output= &mOutputs[outputIndex];
     if (output->connected == false) {
-        ETRACE("device is not connected");
+        ELOGTRACE("device is not connected");
         return PANEL_ORIENTATION_0;
     }
 
@@ -688,18 +688,18 @@ drmModeModeInfoPtr Drm::detectAllConfigs(int device, int *modeCount)
 
     int outputIndex = getOutputIndex(device);
     if (outputIndex < 0) {
-        ETRACE("invalid device");
+        ELOGTRACE("invalid device");
         return NULL;
     }
 
     DrmOutput *output= &mOutputs[outputIndex];
     if (!output->connected) {
-        ETRACE("device is not connected");
+        ELOGTRACE("device is not connected");
         return NULL;
     }
 
     if (output->connector->count_modes <= 0) {
-        ETRACE("invalid count of modes");
+        ELOGTRACE("invalid count of modes");
         return NULL;
     }
 

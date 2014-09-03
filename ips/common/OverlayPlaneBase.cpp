@@ -56,7 +56,7 @@ bool OverlayPlaneBase::initialize(uint32_t bufferCount)
 
     // NOTE: use overlay's data buffer count for the overlay plane
     if (bufferCount < OVERLAY_DATA_BUFFER_COUNT) {
-        ITRACE("override overlay buffer count from %d to %d",
+        ILOGTRACE("override overlay buffer count from %d to %d",
              bufferCount, OVERLAY_DATA_BUFFER_COUNT);
         bufferCount = OVERLAY_DATA_BUFFER_COUNT;
     }
@@ -107,11 +107,11 @@ bool OverlayPlaneBase::isDisabled()
     Drm *drm = Hwcomposer::getInstance().getDrm();
     bool ret = drm->writeReadIoctl(DRM_PSB_REGISTER_RW, &arg, sizeof(arg));
     if (ret == false) {
-        WTRACE("overlay plane query failed with error code %d", ret);
+        WLOGTRACE("overlay plane query failed with error code %d", ret);
         return false;
     }
 
-    DTRACE("overlay %d status %s on device %d, current device %d",
+    DLOGTRACE("overlay %d status %s on device %d, current device %d",
         mIndex, arg.plane.ctx ? "DISABLED" : "ENABLED", mDevice, mDevice);
 
     return arg.plane.ctx == PSB_DC_PLANE_DISABLED;
@@ -151,7 +151,7 @@ bool OverlayPlaneBase::assignToDevice(int disp)
     uint32_t pipeConfig = 0;
 
     RETURN_FALSE_IF_NOT_INIT();
-    VTRACE("overlay %d assigned to disp %d", mIndex, disp);
+    VLOGTRACE("overlay %d assigned to disp %d", mIndex, disp);
 
     switch (disp) {
     case IDisplayDevice::DEVICE_EXTERNAL:
@@ -165,7 +165,7 @@ bool OverlayPlaneBase::assignToDevice(int disp)
 
     // if pipe switching happened, then disable overlay first
     if (mPipeConfig != pipeConfig) {
-        DTRACE("overlay %d switched from %d to %d", mIndex, mDevice, disp);
+        DLOGTRACE("overlay %d switched from %d to %d", mIndex, mDevice, disp);
         disable();
     }
 
@@ -273,7 +273,7 @@ OverlayBackBuffer* OverlayPlaneBase::createBackBuffer()
     // create back buffer
     OverlayBackBuffer *backBuffer = (OverlayBackBuffer *)malloc(sizeof(OverlayBackBuffer));
     if (!backBuffer) {
-        ETRACE("failed to allocate back buffer");
+        ELOGTRACE("failed to allocate back buffer");
         return 0;
     }
 
@@ -283,7 +283,7 @@ OverlayBackBuffer* OverlayPlaneBase::createBackBuffer()
     void *wsbmBufferObject = 0;
     bool ret = mWsbm->allocateTTMBuffer(size, alignment, &wsbmBufferObject);
     if (ret == false) {
-        ETRACE("failed to allocate TTM buffer");
+        ELOGTRACE("failed to allocate TTM buffer");
         return 0;
     }
 
@@ -294,7 +294,7 @@ OverlayBackBuffer* OverlayPlaneBase::createBackBuffer()
     backBuffer->gttOffsetInPage = gttOffsetInPage;
     backBuffer->bufObject = (uint32_t)wsbmBufferObject;
 
-    VTRACE("cpu %p, gtt %d", virtAddr, gttOffsetInPage);
+    VLOGTRACE("cpu %p, gtt %d", virtAddr, gttOffsetInPage);
 
     return backBuffer;
 }
@@ -307,7 +307,7 @@ void OverlayPlaneBase::deleteBackBuffer(int buf)
     void *wsbmBufferObject = (void *)mBackBuffer[buf]->bufObject;
     bool ret = mWsbm->destroyTTMBuffer(wsbmBufferObject);
     if (ret == false) {
-        WTRACE("failed to destroy TTM buffer");
+        WLOGTRACE("failed to destroy TTM buffer");
     }
     // free back buffer
     free(mBackBuffer[buf]);
@@ -353,7 +353,7 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper, struct
     bool ret;
 
     if (!payload) {
-        ETRACE("invalid payload buffer");
+        ELOGTRACE("invalid payload buffer");
         return 0;
     }
 
@@ -366,7 +366,7 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper, struct
     khandle = payload->rotated_buffer_handle;
     index = mTTMBuffers.indexOfKey(khandle);
     if (index < 0) {
-        VTRACE("unmapped TTM buffer, will map it");
+        VLOGTRACE("unmapped TTM buffer, will map it");
 
         w = payload->rotated_width;
         h = payload->rotated_height;
@@ -430,17 +430,17 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper, struct
         do {
             mapper = new TTMBufferMapper(*mWsbm, buf);
             if (!mapper) {
-                ETRACE("failed to allocate mapper");
+                ELOGTRACE("failed to allocate mapper");
                 break;
             }
             // map ttm buffer
             ret = mapper->map();
             if (!ret) {
-                ETRACE("failed to map");
+                ELOGTRACE("failed to map");
                 invalidateTTMBuffers();
                 ret = mapper->map();
                 if (!ret) {
-                    ETRACE("failed to remap");
+                    ELOGTRACE("failed to remap");
                     break;
                 }
             }
@@ -452,7 +452,7 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper, struct
             // add mapper
             index = mTTMBuffers.add(khandle, mapper);
             if (index < 0) {
-                ETRACE("failed to add TTMMapper");
+                ELOGTRACE("failed to add TTMMapper");
                 break;
             }
 
@@ -471,7 +471,7 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper, struct
             return 0;
         }
     } else {
-        VTRACE("got mapper in saved ttm buffers");
+        VLOGTRACE("got mapper in saved ttm buffers");
         mapper = reinterpret_cast<TTMBufferMapper *>(mTTMBuffers.valueAt(index));
         if (mapper->getCrop().x != srcX || mapper->getCrop().y != srcY ||
             mapper->getCrop().w != srcW || mapper->getCrop().h != srcH) {
@@ -480,7 +480,7 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper, struct
         }
     }
 
-    XTRACE();
+    XLOGTRACE();
     return mapper;
 }
 
@@ -569,7 +569,7 @@ bool OverlayPlaneBase::rotatedBufferReady(BufferMapper& mapper, BufferMapper* &r
     payload = (struct VideoPayloadBuffer *)mapper.getCpuAddress(SUB_BUFFER1);
     // check payload
     if (!payload) {
-        ETRACE("no payload found");
+        ELOGTRACE("no payload found");
         return false;
     }
 
@@ -581,7 +581,7 @@ bool OverlayPlaneBase::rotatedBufferReady(BufferMapper& mapper, BufferMapper* &r
             payload->hwc_timestamp = systemTime();
             payload->layer_transform = mTransform;
         }
-        WTRACE("client is not ready");
+        WLOGTRACE("client is not ready");
         return false;
     }
 
@@ -659,7 +659,7 @@ bool OverlayPlaneBase::bufferOffsetSetup(BufferMapper& mapper)
 
     OverlayBackBufferBlk *backBuffer = mBackBuffer[mCurrent]->buf;
     if (!backBuffer) {
-        ETRACE("invalid back buffer");
+        ELOGTRACE("invalid back buffer");
         return false;
     }
 
@@ -751,7 +751,7 @@ bool OverlayPlaneBase::bufferOffsetSetup(BufferMapper& mapper)
         backBuffer->OCMD |= OVERLAY_PACKED_ORDER_UYVY;
         break;
     default:
-        ETRACE("unsupported format %d", format);
+        ELOGTRACE("unsupported format %d", format);
         return false;
     }
 
@@ -762,7 +762,7 @@ bool OverlayPlaneBase::bufferOffsetSetup(BufferMapper& mapper)
     backBuffer->OBUF_1U = backBuffer->OBUF_0U;
     backBuffer->OBUF_1V = backBuffer->OBUF_0V;
 
-    VTRACE("done. offset (%d, %d, %d)",
+    VLOGTRACE("done. offset (%d, %d, %d)",
           backBuffer->OBUF_0Y,
           backBuffer->OBUF_0U,
           backBuffer->OBUF_0V);
@@ -771,7 +771,7 @@ bool OverlayPlaneBase::bufferOffsetSetup(BufferMapper& mapper)
 
 uint32_t OverlayPlaneBase::calculateSWidthSW(uint32_t offset, uint32_t width)
 {
-    ATRACE("offset = %d, width = %d", offset, width);
+    ALOGTRACE("offset = %d, width = %d", offset, width);
 
     uint32_t swidth = ((offset + width + 0x3F) >> 6) - (offset >> 6);
 
@@ -787,7 +787,7 @@ bool OverlayPlaneBase::coordinateSetup(BufferMapper& mapper)
 
     OverlayBackBufferBlk *backBuffer = mBackBuffer[mCurrent]->buf;
     if (!backBuffer) {
-        ETRACE("invalid back buffer");
+        ELOGTRACE("invalid back buffer");
         return false;
     }
 
@@ -813,17 +813,17 @@ bool OverlayPlaneBase::coordinateSetup(BufferMapper& mapper)
         width <<= 1;
         break;
     default:
-        ETRACE("unsupported format %d", format);
+        ELOGTRACE("unsupported format %d", format);
         return false;
     }
 
     if (width <= 0 || height <= 0) {
-        ETRACE("invalid src dim");
+        ELOGTRACE("invalid src dim");
         return false;
     }
 
     if (yStride <=0 && uvStride <= 0) {
-        ETRACE("invalid source stride");
+        ELOGTRACE("invalid source stride");
         return false;
     }
 
@@ -834,7 +834,7 @@ bool OverlayPlaneBase::coordinateSetup(BufferMapper& mapper)
     backBuffer->SHEIGHT = height | ((height / 2) << 16);
     backBuffer->OSTRIDE = (yStride & (~0x3f)) | ((uvStride & (~0x3f)) << 16);
 
-    XTRACE();
+    XLOGTRACE();
 
     return true;
 }
@@ -981,7 +981,7 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
 
     OverlayBackBufferBlk *backBuffer = mBackBuffer[mCurrent]->buf;
     if (!backBuffer) {
-        ETRACE("invalid back buffer");
+        ELOGTRACE("invalid back buffer");
         return false;
     }
 
@@ -992,10 +992,10 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
 
     // check position
     checkPosition(x, y, w, h);
-    VTRACE("final position (%d, %d, %d, %d)", x, y, w, h);
+    VLOGTRACE("final position (%d, %d, %d, %d)", x, y, w, h);
 
     if ((w <= 0) || (h <= 0)) {
-         ETRACE("invalid dst width/height");
+         ELOGTRACE("invalid dst width/height");
          return false;
     }
 
@@ -1008,7 +1008,7 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
     uint32_t dstWidth = w;
     uint32_t dstHeight = h;
 
-    VTRACE("src (%dx%d), dst (%dx%d)",
+    VLOGTRACE("src (%dx%d), dst (%dx%d)",
           srcWidth, srcHeight,
           dstWidth, dstHeight);
 
@@ -1039,13 +1039,13 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
 
     // Check scaling ratio
     if (xscaleInt > INTEL_OVERLAY_MAX_SCALING_RATIO) {
-        ETRACE("xscaleInt > %d", INTEL_OVERLAY_MAX_SCALING_RATIO);
+        ELOGTRACE("xscaleInt > %d", INTEL_OVERLAY_MAX_SCALING_RATIO);
         return false;
     }
 
     // shouldn't get here
     if (xscaleIntUV > INTEL_OVERLAY_MAX_SCALING_RATIO) {
-        ETRACE("xscaleIntUV > %d", INTEL_OVERLAY_MAX_SCALING_RATIO);
+        ELOGTRACE("xscaleIntUV > %d", INTEL_OVERLAY_MAX_SCALING_RATIO);
         return false;
     }
 
@@ -1111,7 +1111,7 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
         }
     }
 
-    XTRACE();
+    XLOGTRACE();
     return true;
 }
 
@@ -1132,7 +1132,7 @@ bool OverlayPlaneBase::setDataBuffer(BufferMapper& grallocMapper)
         struct VideoPayloadBuffer *payload;
         payload = (struct VideoPayloadBuffer *)grallocMapper.getCpuAddress(SUB_BUFFER1);
         if (!payload) {
-            ETRACE("invalid payload buffer");
+            ELOGTRACE("invalid payload buffer");
             return 0;
         }
 
@@ -1141,12 +1141,12 @@ bool OverlayPlaneBase::setDataBuffer(BufferMapper& grallocMapper)
 
     if (mTransform && !useOverlayRotation(grallocMapper)) {
         if (!rotatedBufferReady(grallocMapper, rotatedMapper)) {
-            DTRACE("rotated buffer is not ready");
+            DLOGTRACE("rotated buffer is not ready");
             return false;
         }
 
         if (!rotatedMapper) {
-            ETRACE("failed to get rotated buffer");
+            ELOGTRACE("failed to get rotated buffer");
             return false;
         }
         mapper = rotatedMapper;
@@ -1154,25 +1154,25 @@ bool OverlayPlaneBase::setDataBuffer(BufferMapper& grallocMapper)
 
     OverlayBackBufferBlk *backBuffer = mBackBuffer[mCurrent]->buf;
     if (!backBuffer) {
-        ETRACE("invalid back buffer");
+        ELOGTRACE("invalid back buffer");
         return false;
     }
 
     ret = bufferOffsetSetup(*mapper);
     if (ret == false) {
-        ETRACE("failed to set up buffer offsets");
+        ELOGTRACE("failed to set up buffer offsets");
         return false;
     }
 
     ret = coordinateSetup(*mapper);
     if (ret == false) {
-        ETRACE("failed to set up overlay coordinates");
+        ELOGTRACE("failed to set up overlay coordinates");
         return false;
     }
 
     ret = scalingSetup(*mapper);
     if (ret == false) {
-        ETRACE("failed to set up scaling parameters");
+        ELOGTRACE("failed to set up scaling parameters");
         return false;
     }
 

@@ -56,10 +56,10 @@ bool Hwcomposer::prepare(size_t numDisplays,
     bool ret = true;
 
     RETURN_FALSE_IF_NOT_INIT();
-    ATRACE("display count = %d", numDisplays);
+    ALOGTRACE("display count = %d", numDisplays);
 
     if (!numDisplays || !displays) {
-        ETRACE("invalid parameters");
+        ELOGTRACE("invalid parameters");
         return false;
     }
 
@@ -75,7 +75,7 @@ bool Hwcomposer::prepare(size_t numDisplays,
         }
         IDisplayDevice *device = mDisplayDevices.itemAt(i);
         if (!device) {
-            VTRACE("device %d doesn't exist", i);
+            VLOGTRACE("device %d doesn't exist", i);
             continue;
         }
         device->prePrepare(displays[i]);
@@ -87,12 +87,12 @@ bool Hwcomposer::prepare(size_t numDisplays,
         }
         IDisplayDevice *device = mDisplayDevices.itemAt(i);
         if (!device) {
-            VTRACE("device %d doesn't exist", i);
+            VLOGTRACE("device %d doesn't exist", i);
             continue;
         }
         ret = device->prepare(displays[i]);
         if (ret == false) {
-            ETRACE("failed to do prepare for device %d", i);
+            ELOGTRACE("failed to do prepare for device %d", i);
             continue;
         }
     }
@@ -106,10 +106,10 @@ bool Hwcomposer::commit(size_t numDisplays,
     bool ret = true;
 
     RETURN_FALSE_IF_NOT_INIT();
-    ATRACE("display count = %d", numDisplays);
+    ALOGTRACE("display count = %d", numDisplays);
 
     if (!numDisplays || !displays) {
-        ETRACE("invalid parameters");
+        ELOGTRACE("invalid parameters");
         return false;
     }
 
@@ -121,18 +121,18 @@ bool Hwcomposer::commit(size_t numDisplays,
         }
         IDisplayDevice *device = mDisplayDevices.itemAt(i);
         if (!device) {
-            VTRACE("device %d doesn't exist", i);
+            VLOGTRACE("device %d doesn't exist", i);
             continue;
         }
 
         if (!device->isConnected()) {
-            VTRACE("device %d is disconnected", i);
+            VLOGTRACE("device %d is disconnected", i);
             continue;
         }
 
         ret = device->commit(displays[i], mDisplayContext);
         if (ret == false) {
-            ETRACE("failed to do commit for device %d", i);
+            ELOGTRACE("failed to do commit for device %d", i);
             continue;
         }
     }
@@ -145,10 +145,10 @@ bool Hwcomposer::commit(size_t numDisplays,
 bool Hwcomposer::vsyncControl(int disp, int enabled)
 {
     RETURN_FALSE_IF_NOT_INIT();
-    ATRACE("disp = %d, enabled = %d", disp, enabled);
+    ALOGTRACE("disp = %d, enabled = %d", disp, enabled);
 
     if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
-        ETRACE("invalid disp %d", disp);
+        ELOGTRACE("invalid disp %d", disp);
         return false;
     }
     if (disp >= (int) mDisplayDevices.size()) {
@@ -156,7 +156,7 @@ bool Hwcomposer::vsyncControl(int disp, int enabled)
     }
     IDisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
-        ETRACE("no device found");
+        ELOGTRACE("no device found");
         return false;
     }
 
@@ -166,10 +166,10 @@ bool Hwcomposer::vsyncControl(int disp, int enabled)
 bool Hwcomposer::blank(int disp, int blank)
 {
     RETURN_FALSE_IF_NOT_INIT();
-    ATRACE("disp = %d, blank = %d", disp, blank);
+    ALOGTRACE("disp = %d, blank = %d", disp, blank);
 
     if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
-        ETRACE("invalid disp %d", disp);
+        ELOGTRACE("invalid disp %d", disp);
         return false;
     }
     if (disp >= (int) mDisplayDevices.size()) {
@@ -177,7 +177,7 @@ bool Hwcomposer::blank(int disp, int blank)
     }
     IDisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
-        ETRACE("no device found");
+        ELOGTRACE("no device found");
         return false;
     }
 
@@ -191,7 +191,7 @@ bool Hwcomposer::getDisplayConfigs(int disp,
     RETURN_FALSE_IF_NOT_INIT();
 
     if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
-        ETRACE("invalid disp %d", disp);
+        ELOGTRACE("invalid disp %d", disp);
         return false;
     }
     if (disp >= (int) mDisplayDevices.size()) {
@@ -199,7 +199,7 @@ bool Hwcomposer::getDisplayConfigs(int disp,
     }
     IDisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
-        ETRACE("no device %d found", disp);
+        ELOGTRACE("no device %d found", disp);
         return false;
     }
 
@@ -214,7 +214,7 @@ bool Hwcomposer::getDisplayAttributes(int disp,
     RETURN_FALSE_IF_NOT_INIT();
 
     if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
-        ETRACE("invalid disp %d", disp);
+        ELOGTRACE("invalid disp %d", disp);
         return false;
     }
     if (disp >= (int) mDisplayDevices.size()) {
@@ -222,7 +222,7 @@ bool Hwcomposer::getDisplayAttributes(int disp,
     }
     IDisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
-        ETRACE("no device found");
+        ELOGTRACE("no device found");
         return false;
     }
 
@@ -234,7 +234,7 @@ bool Hwcomposer::compositionComplete(int disp)
     RETURN_FALSE_IF_NOT_INIT();
 
     if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
-        ETRACE("invalid disp %d", disp);
+        ELOGTRACE("invalid disp %d", disp);
         return false;
     }
 
@@ -245,7 +245,7 @@ bool Hwcomposer::compositionComplete(int disp)
 
     IDisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
-        ETRACE("no device found");
+        ELOGTRACE("no device found");
         return false;
     }
 
@@ -257,13 +257,13 @@ bool Hwcomposer::setPowerMode(int disp, int mode)
     RETURN_FALSE_IF_NOT_INIT();
 
     if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
-        ETRACE("invalid disp %d", disp);
+        ELOGTRACE("invalid disp %d", disp);
         return false;
     }
 
     IDisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
-        ETRACE("no device found");
+        ELOGTRACE("no device found");
         return false;
     }
 
@@ -275,13 +275,13 @@ int Hwcomposer::getActiveConfig(int disp)
     RETURN_NULL_IF_NOT_INIT();
 
     if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
-        ETRACE("invalid disp %d", disp);
+        ELOGTRACE("invalid disp %d", disp);
         return -1;
     }
 
     IDisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
-        ETRACE("no device found");
+        ELOGTRACE("no device found");
         return -1;
     }
 
@@ -293,13 +293,13 @@ bool Hwcomposer::setActiveConfig(int disp, int index)
     RETURN_FALSE_IF_NOT_INIT();
 
     if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
-        ETRACE("invalid disp %d", disp);
+        ELOGTRACE("invalid disp %d", disp);
         return false;
     }
 
     IDisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
-        ETRACE("no device found");
+        ELOGTRACE("no device found");
         return false;
     }
 
@@ -311,13 +311,13 @@ bool Hwcomposer::setCursorPositionAsync(int disp, int x, int y)
     RETURN_FALSE_IF_NOT_INIT();
 
     if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
-        ETRACE("invalid disp %d", disp);
+        ELOGTRACE("invalid disp %d", disp);
         return false;
     }
 
     IDisplayDevice *device = mDisplayDevices.itemAt(disp);
     if (!device) {
-        ETRACE("no device found");
+        ELOGTRACE("no device found");
         return false;
     }
 
@@ -329,7 +329,7 @@ void Hwcomposer::vsync(int disp, int64_t timestamp)
     RETURN_VOID_IF_NOT_INIT();
 
     if (mProcs && mProcs->vsync) {
-        VTRACE("report vsync on disp %d, timestamp %llu", disp, timestamp);
+        VLOGTRACE("report vsync on disp %d, timestamp %llu", disp, timestamp);
         // workaround to pretend vsync is from primary display
         // Display will freeze if vsync is from external display.
         mProcs->vsync(const_cast<hwc_procs_t*>(mProcs), IDisplayDevice::DEVICE_PRIMARY, timestamp);
@@ -342,9 +342,9 @@ void Hwcomposer::hotplug(__attribute__((unused))int disp, bool connected)
 
 #ifndef INTEL_SUPPORT_HDMI_PRIMARY
     if (mProcs && mProcs->hotplug) {
-        DTRACE("report hotplug on disp %d, connected %d", disp, connected);
+        DLOGTRACE("report hotplug on disp %d, connected %d", disp, connected);
         mProcs->hotplug(const_cast<hwc_procs_t*>(mProcs), disp, connected);
-        DTRACE("hotplug callback processed and returned!");
+        DLOGTRACE("hotplug callback processed and returned!");
     }
 #endif
 
@@ -356,7 +356,7 @@ void Hwcomposer::invalidate()
     RETURN_VOID_IF_NOT_INIT();
 
     if (mProcs && mProcs->invalidate) {
-        DTRACE("invalidating screen...");
+        DLOGTRACE("invalidating screen...");
         mProcs->invalidate(const_cast<hwc_procs_t*>(mProcs));
     }
 }
@@ -399,7 +399,7 @@ void Hwcomposer::registerProcs(hwc_procs_t const *procs)
     CTRACE();
 
     if (!procs) {
-        WTRACE("procs is NULL");
+        WLOGTRACE("procs is NULL");
     }
     mProcs = procs;
 }
@@ -506,7 +506,7 @@ DisplayAnalyzer* Hwcomposer::getDisplayAnalyzer()
 IDisplayDevice* Hwcomposer::getDisplayDevice(int disp)
 {
     if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
-        ETRACE("invalid disp %d", disp);
+        ELOGTRACE("invalid disp %d", disp);
         return NULL;
     }
     if (disp >= (int) mDisplayDevices.size()) {

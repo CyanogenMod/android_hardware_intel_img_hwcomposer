@@ -26,28 +26,28 @@ extern "C" {
 #endif
 
 // Helper to automatically preappend classname::functionname to the log message
-#define VTRACE(fmt,...)     ALOGV("%s: "fmt, __func__, ##__VA_ARGS__)
-#define DTRACE(fmt,...)     ALOGD("%s: "fmt, __func__, ##__VA_ARGS__)
-#define ITRACE(fmt,...)     ALOGI("%s: "fmt, __func__, ##__VA_ARGS__)
-#define WTRACE(fmt,...)     ALOGW("%s: "fmt, __func__, ##__VA_ARGS__)
-#define ETRACE(fmt,...)     ALOGE("%s: "fmt, __func__, ##__VA_ARGS__)
+#define VLOGTRACE(fmt,...)     ALOGV("%s: "fmt, __func__, ##__VA_ARGS__)
+#define DLOGTRACE(fmt,...)     ALOGD("%s: "fmt, __func__, ##__VA_ARGS__)
+#define ILOGTRACE(fmt,...)     ALOGI("%s: "fmt, __func__, ##__VA_ARGS__)
+#define WLOGTRACE(fmt,...)     ALOGW("%s: "fmt, __func__, ##__VA_ARGS__)
+#define ELOGTRACE(fmt,...)     ALOGE("%s: "fmt, __func__, ##__VA_ARGS__)
 
 
 // Function call tracing
 #if 0
 #define CTRACE()            ALOGV("Calling %s", __func__)
-#define XTRACE()            ALOGV("Leaving %s", __func__)
+#define XLOGTRACE()            ALOGV("Leaving %s", __func__)
 #else
 #define CTRACE()            ((void)0)
-#define XTRACE()            ((void)0)
+#define XLOGTRACE()            ((void)0)
 #endif
 
 
 // Arguments tracing
 #if 0
-#define ATRACE(fmt,...)     ALOGV("%s(args): "fmt, __func__, ##__VA_ARGS__);
+#define ALOGTRACE(fmt,...)     ALOGV("%s(args): "fmt, __func__, ##__VA_ARGS__);
 #else
-#define ATRACE(fmt,...)     ((void)0)
+#define ALOGTRACE(fmt,...)     ((void)0)
 #endif
 
 
@@ -82,7 +82,7 @@ do { \
 // Helper to log error message, call de-initializer and return false.
 #define DEINIT_AND_RETURN_FALSE(...) \
 do { \
-    ETRACE(__VA_ARGS__); \
+    ELOGTRACE(__VA_ARGS__); \
     deinitialize(); \
     return false; \
 } while (0)
