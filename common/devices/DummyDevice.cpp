@@ -240,10 +240,5 @@ bool DummyDevice::setActiveConfig(int /*index*/)
     return false;
 }
 
-bool DummyDevice::setCursorPositionAsync(int /*x*/, int /*y*/)
-{
-    return false;
-}
-
 } // namespace intel
 } // namespace android

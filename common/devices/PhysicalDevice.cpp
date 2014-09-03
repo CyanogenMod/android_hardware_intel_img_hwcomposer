@@ -523,10 +523,5 @@ bool PhysicalDevice::setActiveConfig(int index)
     return false;
 }
 
-bool PhysicalDevice::setCursorPositionAsync(int /*x*/, int /*y*/)
-{
-    return false;
-}
-
 } // namespace intel
 } // namespace android

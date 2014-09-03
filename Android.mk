@@ -76,6 +76,7 @@ LOCAL_SRC_FILES += \
     ips/anniedale/AnnPlaneManager.cpp \
     ips/anniedale/AnnOverlayPlane.cpp \
     ips/anniedale/AnnRGBPlane.cpp \
+    ips/anniedale/AnnCursorPlane.cpp \
     ips/anniedale/PlaneCapabilities.cpp
 
 LOCAL_SRC_FILES += \

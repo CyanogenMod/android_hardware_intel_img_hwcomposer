@@ -34,6 +34,7 @@ public:
     virtual bool commitContents(hwc_display_contents_1_t *display, HwcLayerList *layerList) = 0;
     virtual bool commitEnd(size_t numDisplays, hwc_display_contents_1_t **displays) = 0;
     virtual bool compositionComplete() = 0;
+    virtual bool setCursorPosition(int disp, int x, int y) = 0;
 };
 
 }

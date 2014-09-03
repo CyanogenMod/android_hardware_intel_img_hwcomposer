@@ -48,7 +48,6 @@ public:
     virtual bool setPowerMode(int mode);
     virtual int  getActiveConfig();
     virtual bool setActiveConfig(int index);
-    virtual bool setCursorPositionAsync(int x, int y);
 
     virtual bool initialize();
     virtual void deinitialize();

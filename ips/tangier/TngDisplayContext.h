@@ -33,6 +33,7 @@ public:
     bool commitContents(hwc_display_contents_1_t *display, HwcLayerList* layerList);
     bool commitEnd(size_t numDisplays, hwc_display_contents_1_t **displays);
     bool compositionComplete();
+    bool setCursorPosition(int disp, int x, int y);
 
 private:
     enum {

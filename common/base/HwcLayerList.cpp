@@ -174,6 +174,77 @@ bool HwcLayerList::checkRgbOverlaySupported(HwcLayer *hwcLayer)
     return true;
 }
 
+bool HwcLayerList::checkCursorSupported(HwcLayer *hwcLayer)
+{
+    bool valid = false;
+    hwc_layer_1_t& layer = *(hwcLayer->getLayer());
+
+    // if layer was forced to use FB
+    if (hwcLayer->getType() == HwcLayer::LAYER_FORCE_FB) {
+        VLOGTRACE("layer was forced to use HWC_FRAMEBUFFER");
+        return false;
+    }
+
+    // check layer flags
+    if (layer.flags & HWC_SKIP_LAYER) {
+        VLOGTRACE("skip layer flag was set");
+        return false;
+    }
+
+    if (!(layer.flags & HWC_IS_CURSOR_LAYER)) {
+        VLOGTRACE("not a cursor layer");
+        return false;
+    }
+
+    if (hwcLayer->getIndex() != mLayerCount - 2) {
+        WLOGTRACE("cursor layer is not on top of zorder");
+        return false;
+    }
+
+    if (layer.handle == 0) {
+        WLOGTRACE("invalid buffer handle");
+        return false;
+    }
+
+    // check usage
+    if (!hwcLayer->getUsage() & GRALLOC_USAGE_HW_COMPOSER) {
+        WLOGTRACE("not a composer layer");
+        return false;
+    }
+
+    uint32_t format = hwcLayer->getFormat();
+    if (format != HAL_PIXEL_FORMAT_BGRA_8888 &&
+        format != HAL_PIXEL_FORMAT_RGBA_8888) {
+        WLOGTRACE("unexpected color format %u for cursor", format);
+        return false;
+    }
+
+    uint32_t trans = hwcLayer->getLayer()->transform;
+    if (trans != 0) {
+        WLOGTRACE("unexpected transform %u for cursor", trans);
+        return false;
+    }
+
+    hwc_frect_t& src = hwcLayer->getLayer()->sourceCropf;
+    hwc_rect_t& dest = hwcLayer->getLayer()->displayFrame;
+    int srcW = (int)src.right - (int)src.left;
+    int srcH = (int)src.bottom - (int)src.top;
+    int dstW = dest.right - dest.left;
+    int dstH = dest.bottom - dest.top;
+    if (srcW != dstW || srcH != dstH) {
+        WLOGTRACE("unexpected scaling for cursor: %dx%d => %dx%d",
+        srcW, srcH, dstW, dstH);
+        //return false;
+    }
+
+    if (srcW > 256 || srcH > 256) {
+        WLOGTRACE("unexpected size %dx%d for cursor", srcW, srcH);
+        return false;
+    }
+
+    return true;
+}
+
 
 bool HwcLayerList::initialize()
 {
@@ -187,6 +258,7 @@ bool HwcLayerList::initialize()
     mFBLayers.setCapacity(mLayerCount);
     mSpriteCandidates.setCapacity(mLayerCount);
     mOverlayCandidates.setCapacity(mLayerCount);
+    mCursorCandidates.setCapacity(mLayerCount);
     mZOrderConfig.setCapacity(mLayerCount);
     Hwcomposer& hwc = Hwcomposer::getInstance();
 
@@ -219,7 +291,9 @@ bool HwcLayerList::initialize()
             // by default use GPU composition
             hwcLayer->setType(HwcLayer::LAYER_FB);
             mFBLayers.add(hwcLayer);
-            if (checkRgbOverlaySupported(hwcLayer)) {
+            if (checkCursorSupported(hwcLayer)) {
+                mCursorCandidates.add(hwcLayer);
+            } else if (checkRgbOverlaySupported(hwcLayer)) {
                 rgbOverlayLayers.add(hwcLayer);
             } else if (checkSupported(DisplayPlane::PLANE_SPRITE, hwcLayer)) {
                 mSpriteCandidates.add(hwcLayer);
@@ -291,6 +365,7 @@ void HwcLayerList::deinitialize()
     mFBLayers.clear();
     mOverlayCandidates.clear();
     mSpriteCandidates.clear();
+    mCursorCandidates.clear();
     mZOrderConfig.clear();
     mFrameBufferTarget = NULL;
     mLayerCount = 0;
@@ -299,7 +374,58 @@ void HwcLayerList::deinitialize()
 
 bool HwcLayerList::allocatePlanes()
 {
-    return assignOverlayPlanes();
+    return assignCursorPlanes();
+}
+
+bool HwcLayerList::assignCursorPlanes()
+{
+    int cursorCandidates = (int)mCursorCandidates.size();
+    if (cursorCandidates == 0) {
+        return assignOverlayPlanes();
+    }
+
+    DisplayPlaneManager *planeManager = Hwcomposer::getInstance().getPlaneManager();
+    int planeNumber = planeManager->getFreePlanes(mDisplayIndex, DisplayPlane::PLANE_CURSOR);
+    if (planeNumber == 0) {
+        DLOGTRACE("no cursor plane available. candidates %d", cursorCandidates);
+        return assignOverlayPlanes();
+    }
+
+    if (planeNumber > cursorCandidates) {
+        // assuming all cursor planes have the same capabilities, just
+        // need up to number of candidates for plane assignment
+        planeNumber = cursorCandidates;
+    }
+
+    for (int i = planeNumber; i >= 0; i--) {
+        // assign as many cursor planes as possible
+        if (assignCursorPlanes(0, i)) {
+            return true;
+        }
+        if (mZOrderConfig.size() != 0) {
+            ELOGTRACE("ZOrder config is not cleaned up!");
+        }
+    }
+    return false;
+}
+
+
+bool HwcLayerList::assignCursorPlanes(int index, int planeNumber)
+{
+    // index indicates position in mCursorCandidates to start plane assignment
+    if (planeNumber == 0) {
+        return assignOverlayPlanes();
+    }
+
+    int cursorCandidates = (int)mCursorCandidates.size();
+    for (int i = index; i <= cursorCandidates - planeNumber; i++) {
+        ZOrderLayer *zlayer = addZOrderLayer(DisplayPlane::PLANE_CURSOR, mCursorCandidates[i]);
+        if (assignCursorPlanes(i + 1, planeNumber - 1)) {
+            return true;
+        }
+        removeZOrderLayer(zlayer);
+    }
+    return false;
 }
 
 bool HwcLayerList::assignOverlayPlanes()
@@ -494,7 +620,10 @@ bool HwcLayerList::attachPlanes()
 
         zlayer->plane->setZOrder(i);
 
-        if (zlayer->hwcLayer != mFrameBufferTarget) {
+        if (zlayer->plane->getType() == DisplayPlane::PLANE_CURSOR) {
+            zlayer->hwcLayer->setType(HwcLayer::LAYER_CURSOR_OVERLAY);
+            mFBLayers.remove(zlayer->hwcLayer);
+        } else if (zlayer->hwcLayer != mFrameBufferTarget) {
             zlayer->hwcLayer->setType(HwcLayer::LAYER_OVERLAY);
             // update FB layers for smart composition
             mFBLayers.remove(zlayer->hwcLayer);
@@ -688,7 +817,8 @@ bool HwcLayerList::update(hwc_display_contents_1_t *list)
         for (int i = 0; i < mLayerCount - 1; i++) {
             HwcLayer *hwcLayer = mLayers.itemAt(i);
             if (hwcLayer->getPlane() &&
-                hwcLayer->getCompositionType() == HWC_OVERLAY) {
+                (hwcLayer->getCompositionType() == HWC_OVERLAY ||
+                hwcLayer->getCompositionType() == HWC_CURSOR_OVERLAY)) {
                 hwcLayer->setCompositionType(HWC_FRAMEBUFFER);
             }
         }
@@ -834,6 +964,9 @@ void HwcLayerList::dump(Dump& d)
                 case DisplayPlane::PLANE_PRIMARY:
                     planeType = "PRIMARY";
                     break;
+                case DisplayPlane::PLANE_CURSOR:
+                    planeType = "CURSOR";
+                    break;
                 default:
                     planeType = "Unknown";
                 }
@@ -853,12 +986,15 @@ void HwcLayerList::dump()
         "HWC",
         "BG",
         "FBT",
+        "SB",
+        "CUR",
         "N/A"};
 
     static char const* planeTypeName[] = {
         "SPRITE",
         "OVERLAY",
         "PRIMARY",
+        "CURSOR",
         "UNKNOWN"};
 
     DLOGTRACE(" numHwLayers = %u, flags = %08x", mList->numHwLayers, mList->flags);

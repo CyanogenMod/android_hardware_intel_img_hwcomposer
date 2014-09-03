@@ -51,6 +51,7 @@ public:
         PLANE_SPRITE = 0,
         PLANE_OVERLAY,
         PLANE_PRIMARY,
+        PLANE_CURSOR,
         PLANE_MAX,
     };
 

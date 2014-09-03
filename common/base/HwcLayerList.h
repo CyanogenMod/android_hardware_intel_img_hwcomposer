@@ -49,7 +49,10 @@ public:
 private:
     bool checkSupported(int planeType, HwcLayer *hwcLayer);
     bool checkRgbOverlaySupported(HwcLayer *hwcLayer);
+    bool checkCursorSupported(HwcLayer *hwcLayer);
     bool allocatePlanes();
+    bool assignCursorPlanes();
+    bool assignCursorPlanes(int index, int planeNumber);
     bool assignOverlayPlanes();
     bool assignOverlayPlanes(int index, int planeNumber);
     bool assignSpritePlanes();
@@ -93,6 +96,7 @@ private:
     HwcLayerVector mFBLayers;
     PriorityVector mSpriteCandidates;
     PriorityVector mOverlayCandidates;
+    PriorityVector mCursorCandidates;
     ZOrderConfig mZOrderConfig;
     HwcLayer *mFrameBufferTarget;
     int mDisplayIndex;
