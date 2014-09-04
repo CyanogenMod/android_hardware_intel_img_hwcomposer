@@ -91,6 +91,7 @@ protected:
     int mPrimaryPlaneCount;
     int mSpritePlaneCount;
     int mOverlayPlaneCount;
+    int mCursorPlaneCount;
 
     Vector<DisplayPlane*> mPlanes[DisplayPlane::PLANE_MAX];
 

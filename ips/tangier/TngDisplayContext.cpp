@@ -14,6 +14,7 @@
 // limitations under the License.
 */
 #include <common/utils/HwcTrace.h>
+#include <common/base/Drm.h>
 #include <Hwcomposer.h>
 #include <DisplayPlane.h>
 #include <IDisplayDevice.h>
@@ -241,6 +242,26 @@ bool TngDisplayContext::compositionComplete()
 {
     return true;
 }
+
+bool TngDisplayContext::setCursorPosition(int disp, int x, int y)
+{
+    DLOGTRACE("setCursorPosition");
+    struct intel_dc_cursor_ctx ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.pipe = disp;
+    if (x < 0) {
+        ctx.pos |= 1 << 15;
+        x = -x;
+    }
+    if (y < 0) {
+        ctx.pos |= 1 << 31;
+        y = -y;
+    }
+    ctx.pos |= (y & 0xfff) << 16 | (x & 0xfff);
+    Drm *drm = Hwcomposer::getInstance().getDrm();
+    return drm->writeIoctl(DRM_PSB_UPDATE_CURSOR_POS, &ctx, sizeof(ctx));
+}
+
 
 void TngDisplayContext::deinitialize()
 {

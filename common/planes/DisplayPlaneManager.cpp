@@ -74,8 +74,9 @@ bool DisplayPlaneManager::initialize()
     mPlaneCount[DisplayPlane::PLANE_SPRITE] = mSpritePlaneCount;
     mPlaneCount[DisplayPlane::PLANE_OVERLAY] = mOverlayPlaneCount;
     mPlaneCount[DisplayPlane::PLANE_PRIMARY] = mPrimaryPlaneCount;
+    mPlaneCount[DisplayPlane::PLANE_CURSOR] = mCursorPlaneCount;
 
-    mTotalPlaneCount = mSpritePlaneCount+ mOverlayPlaneCount+ mPrimaryPlaneCount;
+    mTotalPlaneCount = mSpritePlaneCount+ mOverlayPlaneCount+ mPrimaryPlaneCount + mCursorPlaneCount;
     if (mTotalPlaneCount == 0) {
         ELOGTRACE("plane count is not initialized");
         return false;
@@ -238,7 +239,8 @@ int DisplayPlaneManager::getFreePlanes(int dsp, int type)
 
 
     uint32_t freePlanes = mFreePlanes[type] | mReclaimedPlanes[type];
-    if (type == DisplayPlane::PLANE_PRIMARY) {
+    if (type == DisplayPlane::PLANE_PRIMARY ||
+        type == DisplayPlane::PLANE_CURSOR) {
         return ((freePlanes & (1 << dsp)) == 0) ? 0 : 1;
     } else {
         int count = 0;
@@ -336,6 +338,10 @@ void DisplayPlaneManager::dump(Dump& d)
              mPlaneCount[DisplayPlane::PLANE_PRIMARY],
              mFreePlanes[DisplayPlane::PLANE_PRIMARY],
              mReclaimedPlanes[DisplayPlane::PLANE_PRIMARY]);
+    d.append("   CURSOR   |  %2d   | %08x | %08x\n",
+             mPlaneCount[DisplayPlane::PLANE_CURSOR],
+             mFreePlanes[DisplayPlane::PLANE_CURSOR],
+             mReclaimedPlanes[DisplayPlane::PLANE_CURSOR]);
 }
 
 } // namespace intel

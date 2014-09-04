@@ -18,6 +18,7 @@
 #include <ips/anniedale/AnnPlaneManager.h>
 #include <ips/anniedale/AnnRGBPlane.h>
 #include <ips/anniedale/AnnOverlayPlane.h>
+#include <ips/anniedale/AnnCursorPlane.h>
 #include <PlaneCapabilities.h>
 
 namespace android {
@@ -42,7 +43,10 @@ static PlaneDescription PLANE_DESC[] =
     {'E', DisplayPlane::PLANE_SPRITE,  1},
     {'F', DisplayPlane::PLANE_SPRITE,  2},
     {'G', DisplayPlane::PLANE_OVERLAY, 0},  // nickname for Overlay A
-    {'H', DisplayPlane::PLANE_OVERLAY, 1}   // nickname for Overlay C
+    {'H', DisplayPlane::PLANE_OVERLAY, 1},  // nickname for Overlay C
+    {'I', DisplayPlane::PLANE_CURSOR,  0},  // nickname for cursor A
+    {'J', DisplayPlane::PLANE_CURSOR,  1},  // nickname for cursor B
+    {'K', DisplayPlane::PLANE_CURSOR,  2}   // nickname for cursor C
 };
 
 
@@ -58,6 +62,9 @@ struct ZOrderDescription {
 // A, Oc, E, F
 #define OVERLAY_HW_WORKAROUND
 
+
+// Cursor plane can be placed on top of any plane below and is intentionally ignored
+// in the zorder table.
 
 static ZOrderDescription PIPE_A_ZORDER_DESC[] =
 {
@@ -119,6 +126,7 @@ bool AnnPlaneManager::initialize()
     mSpritePlaneCount = 3;  // Sprite D, E, F
     mOverlayPlaneCount = 2; // Overlay A, C
     mPrimaryPlaneCount = 3; // Primary A, B, C
+    mCursorPlaneCount = 3;
 
     return DisplayPlaneManager::initialize();
 }
@@ -142,6 +150,9 @@ DisplayPlane* AnnPlaneManager::allocPlane(int index, int type)
     case DisplayPlane::PLANE_OVERLAY:
         plane = new AnnOverlayPlane(index, 0/*disp*/);
         break;
+    case DisplayPlane::PLANE_CURSOR:
+        plane = new AnnCursorPlane(index, index /*disp */);
+        break;
     default:
         ELOGTRACE("unsupported type %d", type);
         break;
@@ -159,7 +170,7 @@ bool AnnPlaneManager::isValidZOrder(int dsp, ZOrderConfig& config)
 {
     int size = (int)config.size();
 
-    if (size == 0 || size > 4) {
+    if (size == 0 || size > 5) {
         VLOGTRACE("invalid z order config size %d", size);
         return false;
     }
@@ -172,8 +183,22 @@ bool AnnPlaneManager::isValidZOrder(int dsp, ZOrderConfig& config)
                 break;
             }
         }
+
+        int sprites = 0;
+        for (int i = 0; i < size; i++) {
+            if (config[i]->planeType != DisplayPlane::PLANE_OVERLAY &&
+                config[i]->planeType != DisplayPlane::PLANE_CURSOR) {
+                sprites++;
+            }
+        }
+
+        if (firstOverlay < 0 && sprites > 4) {
+            VLOGTRACE("not capable to support more than 4 sprite layers");
+            return false;
+        }
+
 #ifdef OVERLAY_HW_WORKAROUND
-        if (firstOverlay == 0 && size > 3) {
+        if (firstOverlay == 0 && sprites > 2) {
             VLOGTRACE("not capable to support 3 sprite layers on top of overlay");
             return false;
         }
@@ -181,7 +206,8 @@ bool AnnPlaneManager::isValidZOrder(int dsp, ZOrderConfig& config)
     } else if (dsp == IDisplayDevice::DEVICE_EXTERNAL) {
         int sprites = 0;
         for (int i = 0; i < size; i++) {
-            if (config[i]->planeType != DisplayPlane::PLANE_OVERLAY) {
+            if (config[i]->planeType != DisplayPlane::PLANE_OVERLAY &&
+                config[i]->planeType != DisplayPlane::PLANE_CURSOR) {
                 sprites++;
             }
         }
@@ -237,17 +263,37 @@ bool AnnPlaneManager::assignPlanes(int dsp, ZOrderConfig& config)
     return false;
 }
 
-bool AnnPlaneManager::assignPlanes(int /* dsp */, ZOrderConfig& config, const char *zorder)
+bool AnnPlaneManager::assignPlanes(int dsp, ZOrderConfig& config, const char *zorder)
 {
-    int size = (int)config.size();
+    // zorder string does not include cursor plane, therefore cursor layer needs to be handled
+    // in a special way. Cursor layer must be on top of zorder and no more than one cursor layer.
 
-    if (zorder == NULL || size > (int)strlen(zorder)) {
+    int size = (int)config.size();
+    int zorderLen = (int)strlen(zorder);
+
+    if (zorder == NULL || size == 0) {
         //DLOGTRACE("invalid zorder or ZOrder config.");
         return false;
     }
 
     // test if plane is avalable
     for (int i = 0; i < size; i++) {
+        if (config[i]->planeType == DisplayPlane::PLANE_CURSOR) {
+            if (i != size - 1) {
+                ELOGTRACE("invalid zorder of cursor layer");
+                return false;
+            }
+            PlaneDescription& desc = PLANE_DESC['I' - 'A' + dsp];
+            if (!isFreePlane(desc.type, desc.index)) {
+                ELOGTRACE("cursor plane is not available");
+                return false;
+            }
+            continue;
+        }
+        if (i >= zorderLen) {
+            DLOGTRACE("index of ZOrderConfig is out of bound");
+            return false;
+        }
         char id = *(zorder + i);
         PlaneDescription& desc = PLANE_DESC[id - 'A'];
         if (!isFreePlane(desc.type, desc.index)) {
@@ -287,6 +333,15 @@ bool AnnPlaneManager::assignPlanes(int /* dsp */, ZOrderConfig& config, const ch
     bool primaryPlaneActive = false;
     // allocate planes
     for (int i = 0; i < size; i++) {
+        if (config[i]->planeType == DisplayPlane::PLANE_CURSOR) {
+            PlaneDescription& desc = PLANE_DESC['I' - 'A' + dsp];
+            ZOrderLayer *zLayer = config.itemAt(i);
+            zLayer->plane = getPlane(desc.type, desc.index);
+            if (zLayer->plane == NULL) {
+                ELOGTRACE("failed to get cursor plane, should never happen!");
+            }
+            continue;
+        }
         char id = *(zorder + i);
         PlaneDescription& desc = PLANE_DESC[id - 'A'];
         ZOrderLayer *zLayer = config.itemAt(i);

@@ -310,18 +310,12 @@ bool Hwcomposer::setCursorPositionAsync(int disp, int x, int y)
 {
     RETURN_FALSE_IF_NOT_INIT();
 
-    if (disp < 0 || disp >= IDisplayDevice::DEVICE_COUNT) {
+    if (disp != HWC_DISPLAY_PRIMARY && disp != HWC_DISPLAY_EXTERNAL) {
         ELOGTRACE("invalid disp %d", disp);
         return false;
     }
 
-    IDisplayDevice *device = mDisplayDevices.itemAt(disp);
-    if (!device) {
-        ELOGTRACE("no device found");
-        return false;
-    }
-
-    return device->setCursorPositionAsync(x, y);
+    return mDisplayContext->setCursorPosition(disp, x, y);
 }
 
 void Hwcomposer::vsync(int disp, int64_t timestamp)
