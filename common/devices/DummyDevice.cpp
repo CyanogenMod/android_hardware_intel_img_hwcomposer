@@ -21,10 +21,11 @@
 
 namespace android {
 namespace intel {
-DummyDevice::DummyDevice(Hwcomposer& hwc)
+DummyDevice::DummyDevice(uint32_t type, Hwcomposer& hwc)
     : mInitialized(false),
       mConnected(false),
       mBlank(false),
+      mType(type),
       mHwc(hwc),
       mVsyncObserver(NULL),
       mName("Dummy")
@@ -53,7 +54,7 @@ bool DummyDevice::prepare(hwc_display_contents_1_t *display)
 {
     RETURN_FALSE_IF_NOT_INIT();
 
-    if (!display) {
+    if (!display || mType >= DEVICE_VIRTUAL) {
         return true;
     }
 
@@ -204,12 +205,15 @@ const char* DummyDevice::getName() const
 
 int DummyDevice::getType() const
 {
-    return DEVICE_DUMMY;
+    return mType;
 }
 
 void DummyDevice::onVsync(int64_t timestamp)
 {
-    mHwc.vsync(DEVICE_DUMMY, timestamp);
+    if (!mConnected)
+        return;
+
+    mHwc.vsync(mType, timestamp);
 }
 
 void DummyDevice::dump(Dump& d)

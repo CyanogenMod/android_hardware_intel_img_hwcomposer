@@ -66,13 +66,13 @@ IDisplayDevice* PlatfHwcomposer::createDisplayDevice(int disp,
 
         case IDisplayDevice::DEVICE_EXTERNAL:
 #ifdef INTEL_SUPPORT_HDMI_PRIMARY
-            return new DummyDevice(*this);
+            return new DummyDevice((uint32_t)disp, *this);
 #else
             return new PlatfExternalDevice(*this, dpm);
 #endif
 
         case IDisplayDevice::DEVICE_VIRTUAL:
-            return new DummyDevice(*this);
+            return new DummyDevice((uint32_t)disp, *this);
 
         default:
             ELOGTRACE("invalid display device %d", disp);

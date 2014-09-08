@@ -26,7 +26,7 @@ class SoftVsyncObserver;
 
 class DummyDevice : public IDisplayDevice {
 public:
-    DummyDevice(Hwcomposer& hwc);
+    DummyDevice(uint32_t type, Hwcomposer& hwc);
     virtual ~DummyDevice();
 
 public:
@@ -61,6 +61,7 @@ protected:
     bool mInitialized;
     bool mConnected;
     bool mBlank;
+    uint32_t mType;
     Hwcomposer& mHwc;
     SoftVsyncObserver *mVsyncObserver;
 

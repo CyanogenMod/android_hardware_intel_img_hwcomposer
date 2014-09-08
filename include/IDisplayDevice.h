@@ -53,7 +53,6 @@ class IDisplayDevice {
 public:
     // display device type
     enum {
-        DEVICE_DUMMY = HWC_DISPLAY_PRIMARY,
         DEVICE_PRIMARY = HWC_DISPLAY_PRIMARY,
         DEVICE_EXTERNAL = HWC_DISPLAY_EXTERNAL,
         DEVICE_VIRTUAL = HWC_DISPLAY_VIRTUAL,
