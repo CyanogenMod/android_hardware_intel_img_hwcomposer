@@ -47,6 +47,13 @@ bool AnnCursorPlane::disable()
     return enablePlane(false);
 }
 
+bool AnnCursorPlane::reset()
+{
+    // clear mCrop once reset
+    memset(&mCrop, 0, sizeof(mCrop));
+    return true;
+}
+
 void* AnnCursorPlane::getContext() const
 {
     CTRACE();

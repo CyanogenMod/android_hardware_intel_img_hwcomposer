@@ -36,6 +36,7 @@ public:
     // hardware operations
     bool enable();
     bool disable();
+    bool reset();
     bool isDisabled();
     void postFlip();
 
