@@ -25,6 +25,7 @@ public:
     static bool isVideoFormat(uint32_t format);
     static int  getOverlayLumaStrideAlignment(uint32_t format);
     static uint32_t queryNV12Format();
+    static bool forceFbScaling(int device);
 };
 
 } // namespace intel

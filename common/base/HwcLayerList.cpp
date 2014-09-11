@@ -337,7 +337,13 @@ bool HwcLayerList::initialize()
         rgbOverlayLayers.removeItemsAt(0);
     }
 
-    allocatePlanes();
+    if (!DisplayQuery::forceFbScaling(mDisplayIndex)) {
+        allocatePlanes();
+    } else {
+        // force GLES composition on all layers, then use GPU or hardware
+        // overlay to scale buffer to match display resolution
+        assignPrimaryPlane();
+    }
 
     //dump();
     return true;
@@ -589,7 +595,18 @@ bool HwcLayerList::assignPrimaryPlane()
 
 bool HwcLayerList::assignPrimaryPlaneHelper(HwcLayer *hwcLayer, int zorder)
 {
-    ZOrderLayer *zlayer = addZOrderLayer(DisplayPlane::PLANE_PRIMARY, hwcLayer, zorder);
+    int type = DisplayPlane::PLANE_PRIMARY;
+    if (DisplayQuery::forceFbScaling(mDisplayIndex)) {
+        type = DisplayPlane::PLANE_OVERLAY;
+        // use overlay plane as primary plane. Color is converted to NV12 first then overlay
+        // hardware will perform scaling to display resolution.
+
+        // can use primary plane as well, but frame buffer needs to be scaled to match display resolution,
+        // (primary plane does not support RGB scaling). There is issue in DDK blit function (RGB scaling
+        // yields corrupt output)
+    }
+
+    ZOrderLayer *zlayer = addZOrderLayer(type, hwcLayer, zorder);
     bool ok = attachPlanes();
     if (!ok) {
         removeZOrderLayer(zlayer);

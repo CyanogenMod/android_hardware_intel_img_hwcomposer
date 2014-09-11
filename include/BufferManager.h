@@ -59,7 +59,7 @@ public:
 
     uint32_t allocGrallocBuffer(uint32_t width, uint32_t height, uint32_t format, uint32_t usage);
     void freeGrallocBuffer(uint32_t handle);
-    virtual bool convertRGBToNV12(uint32_t rgbHandle, uint32_t yuvHandle,
+    virtual bool blitGrallocBuffer(uint32_t srcHandle, uint32_t dstHandle,
                                   crop_t& srcCrop, uint32_t async) = 0;
 protected:
     virtual DataBuffer* createDataBuffer(gralloc_module_t *module,

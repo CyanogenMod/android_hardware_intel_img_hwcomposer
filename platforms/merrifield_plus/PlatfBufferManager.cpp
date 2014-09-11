@@ -58,13 +58,13 @@ BufferMapper* PlatfBufferManager::createBufferMapper(gralloc_module_t *module,
                                         buffer);
 }
 
-bool PlatfBufferManager::convertRGBToNV12(uint32_t rgbHandle, uint32_t yuvHandle,
+bool PlatfBufferManager::blitGrallocBuffer(uint32_t srcHandle, uint32_t dstHandle,
                                   crop_t& srcCrop, uint32_t async)
 
 {
     IMG_gralloc_module_public_t *imgGrallocModule = (IMG_gralloc_module_public_t *) mGrallocModule;
-    if (imgGrallocModule->Blit(imgGrallocModule, (buffer_handle_t)rgbHandle,
-                                (buffer_handle_t)yuvHandle,
+    if (imgGrallocModule->Blit(imgGrallocModule, (buffer_handle_t)srcHandle,
+                                (buffer_handle_t)dstHandle,
                                 srcCrop.w, srcCrop.h, srcCrop.x,
                                 srcCrop.y, 0, async)) {
         ELOGTRACE("Blit failed");
@@ -72,6 +72,7 @@ bool PlatfBufferManager::convertRGBToNV12(uint32_t rgbHandle, uint32_t yuvHandle
     }
     return true;
 }
+
 
 } // namespace intel
 } // namespace android

@@ -32,6 +32,8 @@ public:
     AnnOverlayPlane(int index, int disp);
     virtual ~AnnOverlayPlane();
 
+    bool setDataBuffer(uint32_t handle);
+
     virtual void setTransform(int transform);
     virtual void setZOrderConfig(ZOrderConfig& config, void *nativeConfig);
 
@@ -67,6 +69,9 @@ protected:
     bool mUseOverlayRotation;
     // hardware context
     struct intel_dc_plane_ctx mContext;
+
+private:
+    KeyedVector<uint32_t, uint32_t> mScalingBufferMap;
 };
 
 } // namespace intel

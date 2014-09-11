@@ -19,6 +19,7 @@
 #include <hal_public.h>
 #include <DisplayQuery.h>
 #include <khronos/openmax/OMX_IntelVideoExt.h>
+#include <Hwcomposer.h>
 
 
 namespace android {
@@ -55,6 +56,31 @@ int DisplayQuery::getOverlayLumaStrideAlignment(uint32_t format)
 uint32_t DisplayQuery::queryNV12Format()
 {
     return HAL_PIXEL_FORMAT_NV12;
+}
+
+bool DisplayQuery::forceFbScaling(int device)
+{
+    // RGB planes don't support scaling. Panel fitter can be used to scale frame buffer to device's resolution
+    // if scaling factor is less than 1.5. Otherwise, GPU scaling is needed on RGB buffer, or hardware overlay
+    // scaling is needed on NV12 buffer
+
+    // this needs to work together with kernel driver. Panel fitter needs to be disabled if scaling factor is greater
+    // than 1.5
+
+    uint32_t width, height;
+    if (!Hwcomposer::getInstance().getDrm()->getDisplayResolution(device, width, height)) {
+        return false;
+    }
+
+    if (DEFAULT_DRM_FB_WIDTH / (float)width > 1.5) {
+        return true;
+    }
+
+    if (DEFAULT_DRM_FB_HEIGHT / (float)height > 1.5) {
+        return true;
+    }
+
+    return false;
 }
 
 } // namespace intel
