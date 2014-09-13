@@ -17,6 +17,7 @@
 #include <Hwcomposer.h>
 #include <DisplayPlane.h>
 #include <GraphicBuffer.h>
+#include <DisplayQuery.h>
 
 namespace android {
 namespace intel {
@@ -35,7 +36,12 @@ DisplayPlane::DisplayPlane(int index, int type, int disp)
       mPlaneAlpha(0),
       mBlending(HWC_BLENDING_NONE),
       mCurrentDataBuffer(0),
-      mUpdateMasks(0)
+      mUpdateMasks(0),
+      mForceScaling(false),
+      mDisplayWidth(0),
+      mDisplayHeight(0),
+      mScalingSource(0),
+      mScalingTarget(0)
 {
     CTRACE();
     memset(&mPosition, 0, sizeof(mPosition));
@@ -104,6 +110,11 @@ void DisplayPlane::checkPosition(int& x, int& y, int& w, int& h)
 void DisplayPlane::setPosition(int x, int y, int w, int h)
 {
     ALOGTRACE("Position = %d, %d - %dx%d", x, y, w, h);
+
+    if (mForceScaling) {
+        // set in assignToDevice
+        return;
+    }
 
     if (mPosition.x != x || mPosition.y != y ||
         mPosition.w != w || mPosition.h != h) {
@@ -330,6 +341,22 @@ bool DisplayPlane::assignToDevice(int disp)
     }
 
     mPanelOrientation = drm->getPanelOrientation(mDevice);
+
+    mForceScaling = DisplayQuery::forceFbScaling(disp);
+    drm->getDisplayResolution(disp, mDisplayWidth, mDisplayHeight);
+
+    if (mForceScaling) {
+        mModeInfo.hdisplay = mDisplayWidth;
+        mModeInfo.vdisplay = mDisplayHeight;
+        mPosition.x = 0;
+        mPosition.y = 0;
+        mPosition.w = mDisplayWidth;
+        mPosition.h = mDisplayHeight;
+    }
+    mDisplayCrop.x = 0;
+    mDisplayCrop.y = 0;
+    mDisplayCrop.w = mDisplayWidth;
+    mDisplayCrop.h = mDisplayHeight;
 
     return true;
 }

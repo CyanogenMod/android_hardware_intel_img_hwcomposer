@@ -467,6 +467,31 @@ bool Drm::getPhysicalSize(int device, uint32_t& width, uint32_t& height)
     return true;
 }
 
+bool Drm::getDisplayResolution(int device, uint32_t& width, uint32_t& height)
+{
+    Mutex::Autolock _l(mLock);
+
+    int outputIndex = getOutputIndex(device);
+    if (outputIndex < 0) {
+        return false;
+    }
+
+    DrmOutput *output= &mOutputs[outputIndex];
+    if (output->connected == false) {
+        ELOGTRACE("device is not connected");
+        return false;
+    }
+
+    width = output->mode.hdisplay;
+    height = output->mode.vdisplay;
+
+    if (!width || !height) {
+        ELOGTRACE("invalid width or height");
+        return false;
+    }
+    return true;
+}
+
 bool Drm::isConnected(int device)
 {
     Mutex::Autolock _l(mLock);

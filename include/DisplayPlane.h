@@ -146,6 +146,15 @@ protected:
     uint32_t mUpdateMasks;
     drmModeModeInfo mModeInfo;
     int mPanelOrientation;
+
+protected:
+    bool mForceScaling;
+    uint32_t mDisplayWidth;
+    uint32_t mDisplayHeight;
+    crop_t mDisplayCrop;
+    uint32_t mScalingSource;
+    uint32_t mScalingTarget;
+
 };
 
 } // namespace intel

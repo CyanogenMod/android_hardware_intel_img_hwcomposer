@@ -45,6 +45,30 @@ bool AnnRGBPlane::disable()
     return enablePlane(false);
 }
 
+bool AnnRGBPlane::reset()
+{
+    while (!mScalingBufferMap.isEmpty()) {
+        uint32_t handle = mScalingBufferMap.valueAt(0);
+        Hwcomposer::getInstance().getBufferManager()->freeGrallocBuffer(handle);
+        mScalingBufferMap.removeItemsAt(0);
+    }
+
+    return DisplayPlane::reset();
+}
+
+bool AnnRGBPlane::flip(void*)
+{
+    if (mForceScaling) {
+        BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
+        if (!bm->blitGrallocBuffer(mScalingSource, mScalingTarget, mDisplayCrop, 0)) {
+            ELOGTRACE("Failed to blit RGB buffer.");
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void* AnnRGBPlane::getContext() const
 {
     CTRACE();
@@ -59,8 +83,34 @@ void AnnRGBPlane::setZOrderConfig(ZOrderConfig& /* config */, void * /* nativeCo
 bool AnnRGBPlane::setDataBuffer(uint32_t handle)
 {
     if (!handle) {
-        setFramebufferTarget(handle);
-        return true;
+        if (!mForceScaling) {
+            setFramebufferTarget(handle);
+            return true;
+        } else {
+            ELOGTRACE("Invalid handle while scaling is required.");
+            return false;
+        }
+    }
+
+    if (mForceScaling) {
+        BufferManager *bm = Hwcomposer::getInstance().getBufferManager();
+        ssize_t index = mScalingBufferMap.indexOfKey(handle);
+        if (index < 0) {
+            mScalingTarget = bm->allocGrallocBuffer(
+                    mDisplayWidth,
+                    mDisplayHeight,
+                    HAL_PIXEL_FORMAT_RGBA_8888,
+                    GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_TEXTURE);
+            if (!mScalingTarget) {
+                ELOGTRACE("Failed to allocate gralloc buffer.");
+                return false;
+            }
+            mScalingBufferMap.add(handle, mScalingTarget);
+        } else {
+            mScalingTarget = mScalingBufferMap.valueAt(index);
+        }
+        mScalingSource = handle;
+        handle = mScalingTarget;
     }
 
     TngGrallocBuffer tmpBuf(handle);

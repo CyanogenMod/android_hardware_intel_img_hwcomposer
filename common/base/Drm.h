@@ -61,6 +61,7 @@ public:
     int getDrmFd() const;
     bool getModeInfo(int device, drmModeModeInfo& mode);
     bool getPhysicalSize(int device, uint32_t& width, uint32_t& height);
+    bool getDisplayResolution(int device, uint32_t& width, uint32_t& height);
     bool isSameDrmMode(drmModeModeInfoPtr mode, drmModeModeInfoPtr base) const;
     int getPanelOrientation(int device);
 

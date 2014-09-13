@@ -34,7 +34,9 @@ public:
     // hardware operations
     bool enable();
     bool disable();
+    bool reset();
     bool isDisabled();
+    bool flip(void *ctx);
     void postFlip();
 
     void* getContext() const;
@@ -48,6 +50,9 @@ private:
     void setFramebufferTarget(uint32_t handle);
 protected:
     struct intel_dc_plane_ctx mContext;
+
+private:
+    KeyedVector<uint32_t, uint32_t> mScalingBufferMap;
 };
 
 } // namespace intel
