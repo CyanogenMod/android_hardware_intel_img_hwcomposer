@@ -807,7 +807,7 @@ bool AnnOverlayPlane::useOverlayRotation(BufferMapper& /* mapper */)
         scaleX = (float)mSrcCrop.w / mPosition.h;
         scaleY = (float)mSrcCrop.h / mPosition.w;
     }
-    if (scaleX >= 3 || scaleY >= 3) {
+    if (scaleX >= 3 || scaleY >= 3 || scaleX < 1.0/3 || scaleY < 1.0/3) {
         if (mUseOverlayRotation) {
             DLOGTRACE("overlay rotation with scaling >= 3, use VA rotated buffer");
         }
