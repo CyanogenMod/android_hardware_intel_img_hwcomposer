@@ -201,8 +201,8 @@ bool Drm::detect(int device)
             memcpy(&output->mode, &output->crtc->mode, sizeof(drmModeModeInfo));
             ret = true;
         } else {
-            ILOGTRACE("mode is invalid, setting preferred mode");
-            ret = initDrmMode(outputIndex);
+            ELOGTRACE("mode is invalid. Kernel mode setting is not completed");
+            ret = false;
         }
 
         if (outputIndex == OUTPUT_PRIMARY) {
