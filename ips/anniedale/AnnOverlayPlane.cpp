@@ -63,6 +63,15 @@ bool AnnOverlayPlane::setDataBuffer(uint32_t handle)
                 ELOGTRACE("Failed to allocate gralloc buffer.");
                 return false;
             }
+
+            if (mScalingBufferMap.size() >= MAX_SCALING_BUF_COUNT) {
+                while (!mScalingBufferMap.isEmpty()) {
+                    uint32_t handle = mScalingBufferMap.valueAt(0);
+                    bm->freeGrallocBuffer(handle);
+                    mScalingBufferMap.removeItemsAt(0);
+                }
+            }
+
             mScalingBufferMap.add(handle, mScalingTarget);
         } else {
             mScalingTarget = mScalingBufferMap.valueAt(index);
