@@ -269,14 +269,15 @@ bool AnnPlaneManager::assignPlanes(int dsp, ZOrderConfig& config, const char *zo
     // in a special way. Cursor layer must be on top of zorder and no more than one cursor layer.
 
     int size = (int)config.size();
-    int zorderLen = (int)strlen(zorder);
 
     if (zorder == NULL || size == 0) {
         //DLOGTRACE("invalid zorder or ZOrder config.");
         return false;
     }
 
-    // test if plane is avalable
+    int zorderLen = (int)strlen(zorder);
+
+    // test if plane is available
     for (int i = 0; i < size; i++) {
         if (config[i]->planeType == DisplayPlane::PLANE_CURSOR) {
             if (i != size - 1) {
