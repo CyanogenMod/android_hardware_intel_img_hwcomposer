@@ -242,18 +242,10 @@ void ExternalDevice::hotplugListener()
     if (mConnected == false) {
         mHotplugEventPending = false;
         mHdcpControl->stopHdcp();
-        mHwc.hotplug(mType, mConnected);
     } else {
-        DLOGTRACE("start HDCP asynchronously...");
-         // delay sending hotplug event till HDCP is authenticated.
-        mHotplugEventPending = true;
-        ret = mHdcpControl->startHdcpAsync(HdcpLinkStatusListener, this);
-        if (ret == false) {
-            ELOGTRACE("failed to start HDCP");
-            mHotplugEventPending = false;
-            mHwc.hotplug(mType, mConnected);
-        }
+        mHdcpControl->startHdcp();
     }
+    mHwc.hotplug(mType, mConnected);
     mActiveDisplayConfig = 0;
 }
 
