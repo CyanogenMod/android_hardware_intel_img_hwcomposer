@@ -202,20 +202,13 @@ bool PlaneCapabilities::isScalingSupported(int planeType, HwcLayer *hwcLayer)
                 DLOGTRACE("offset %d is not 64 bytes aligned, fall back to GLES", (int)src.left);
                 return false;
             }
-#if 0
-            int scaleX = srcW / dstW;
-            int scaleY = srcH / dstH;
-            if (trans && (scaleX >= 3 || scaleY >= 3)) {
-                DLOGTRACE("overlay rotation with scaling >= 3, fall back to GLES");
+
+            float scaleX = (float)srcW / dstW;
+            float scaleY = (float)srcH / dstH;
+            if (scaleX > 4.0 || scaleY > 4.0 || scaleX < 0.25 || scaleY < 0.25) {
+                WLOGTRACE("overlay scaling > 4, fall back to GLES");
                 return false;
             }
-            if (trans == HAL_TRANSFORM_ROT_90 && (float)srcW / srcH != (float)dstW / dstH) {
-                // FIXME: work aournd for pipe crashing issue, when rotate screen
-                // from 90 to 0 degree (with Sharp 25x16 panel).
-                DLOGTRACE("overlay rotation with uneven scaling, fall back to GLES");
-                return false;
-            }
-#endif
         }
 
         return true;
