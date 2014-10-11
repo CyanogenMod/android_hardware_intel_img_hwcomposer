@@ -696,6 +696,33 @@ void* AnnOverlayPlane::getContext() const
 
 bool AnnOverlayPlane::setDataBuffer(BufferMapper& mapper)
 {
+    if (mIsProtectedBuffer) {
+        // workaround overlay scaling limitation
+        float scaleX = (float)mSrcCrop.w/mPosition.w;
+        float scaleY = (float)mSrcCrop.h/mPosition.h;
+        if (scaleX > 4.0) {
+            int crop = (mSrcCrop.w - 4 * mPosition.w)/2 + 1;
+            mSrcCrop.x += crop;
+            mSrcCrop.w -= 2 * crop;
+        } else if (scaleX < 0.25) {
+            WLOGTRACE("scaleX < 0.25!");
+        }
+
+        if (scaleY > 4.0) {
+            int crop = (mSrcCrop.h - 4 * mPosition.h)/2 + 1;
+            mSrcCrop.y += crop;
+            mSrcCrop.h -= 2 * crop;
+        } else if (scaleY < 0.25) {
+            WLOGTRACE("scaleY < 0.25!");
+        }
+
+        if (scaleX > 4.0 || scaleY > 4.0) {
+            mUpdateMasks |= PLANE_SOURCE_CROP_CHANGED;
+            mapper.setCrop(mSrcCrop.x, mSrcCrop.y, mSrcCrop.w, mSrcCrop.h);
+        }
+    }
+
+
     if (OverlayPlaneBase::setDataBuffer(mapper) == false) {
         return false;
     }
