@@ -704,16 +704,12 @@ bool AnnOverlayPlane::setDataBuffer(BufferMapper& mapper)
             int crop = (mSrcCrop.w - 4 * mPosition.w)/2 + 1;
             mSrcCrop.x += crop;
             mSrcCrop.w -= 2 * crop;
-        } else if (scaleX < 0.25) {
-            WLOGTRACE("scaleX < 0.25!");
         }
 
         if (scaleY > 4.0) {
             int crop = (mSrcCrop.h - 4 * mPosition.h)/2 + 1;
             mSrcCrop.y += crop;
             mSrcCrop.h -= 2 * crop;
-        } else if (scaleY < 0.25) {
-            WLOGTRACE("scaleY < 0.25!");
         }
 
         if (scaleX > 4.0 || scaleY > 4.0) {
