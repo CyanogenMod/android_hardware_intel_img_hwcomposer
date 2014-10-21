@@ -16,11 +16,7 @@
 #include <common/utils/HwcTrace.h>
 #include <common/observers/SoftVsyncObserver.h>
 #include <IDisplayDevice.h>
-
-extern "C" int clock_nanosleep(clockid_t clock_id, int flags,
-                           const struct timespec *request,
-                           struct timespec *remain);
-
+#include <time.h>
 
 namespace android {
 namespace intel {
