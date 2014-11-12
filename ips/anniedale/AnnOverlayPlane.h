@@ -70,12 +70,6 @@ protected:
     // hardware context
     struct intel_dc_plane_ctx mContext;
 
-private:
-    // scaling buffer vector max size
-    enum {
-        MAX_SCALING_BUF_COUNT = 3,
-    };
-    KeyedVector<uint32_t, uint32_t> mScalingBufferMap;
 };
 
 } // namespace intel
