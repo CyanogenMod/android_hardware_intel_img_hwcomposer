@@ -26,11 +26,11 @@ extern "C" {
 #endif
 
 // Helper to automatically preappend classname::functionname to the log message
-#define VLOGTRACE(fmt,...)     ALOGV("%s: "fmt, __func__, ##__VA_ARGS__)
-#define DLOGTRACE(fmt,...)     ALOGD("%s: "fmt, __func__, ##__VA_ARGS__)
-#define ILOGTRACE(fmt,...)     ALOGI("%s: "fmt, __func__, ##__VA_ARGS__)
-#define WLOGTRACE(fmt,...)     ALOGW("%s: "fmt, __func__, ##__VA_ARGS__)
-#define ELOGTRACE(fmt,...)     ALOGE("%s: "fmt, __func__, ##__VA_ARGS__)
+#define VLOGTRACE(fmt,...)     ALOGV("%s: " fmt, __func__, ##__VA_ARGS__)
+#define DLOGTRACE(fmt,...)     ALOGD("%s: " fmt, __func__, ##__VA_ARGS__)
+#define ILOGTRACE(fmt,...)     ALOGI("%s: " fmt, __func__, ##__VA_ARGS__)
+#define WLOGTRACE(fmt,...)     ALOGW("%s: " fmt, __func__, ##__VA_ARGS__)
+#define ELOGTRACE(fmt,...)     ALOGE("%s: " fmt, __func__, ##__VA_ARGS__)
 
 
 // Function call tracing
@@ -45,7 +45,7 @@ extern "C" {
 
 // Arguments tracing
 #if 0
-#define ALOGTRACE(fmt,...)     ALOGV("%s(args): "fmt, __func__, ##__VA_ARGS__);
+#define ALOGTRACE(fmt,...)     ALOGV("%s(args): " fmt, __func__, ##__VA_ARGS__);
 #else
 #define ALOGTRACE(fmt,...)     ((void)0)
 #endif
