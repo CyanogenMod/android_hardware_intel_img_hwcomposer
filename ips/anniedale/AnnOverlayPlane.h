@@ -51,6 +51,7 @@ public:
 
 private:
     void signalVideoRotation(BufferMapper& mapper);
+    bool isSettingRotBitAllowed();
 protected:
     virtual bool setDataBuffer(BufferMapper& mapper);
     virtual bool flush(uint32_t flags);

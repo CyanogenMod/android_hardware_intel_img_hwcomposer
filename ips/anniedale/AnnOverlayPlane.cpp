@@ -597,6 +597,20 @@ void AnnOverlayPlane::setTransform(int transform)
     }
 }
 
+// HSD 4645510:
+// This is a SOC limition, that when source buffer width range is
+// in (960, 1024] - one cache line length, and rotation bit is set
+// in portrait mode, video will show distortion.
+bool AnnOverlayPlane::isSettingRotBitAllowed()
+{
+    uint32_t width = mSrcCrop.w;
+
+    if ((width > 960 && width <= 1024) &&
+            (mTransform == 0 || mTransform == HAL_TRANSFORM_ROT_180))
+        return false;
+    return true;
+}
+
 bool AnnOverlayPlane::flip(void *ctx)
 {
     uint32_t ovadd = 0;
@@ -613,7 +627,8 @@ bool AnnOverlayPlane::flip(void *ctx)
 
     // enable rotation mode and setup rotation config
     if (mIndex == 0 && mRotationConfig != 0) {
-        ovadd |= (1 << 12);
+        if (isSettingRotBitAllowed())
+            ovadd |= (1 << 12);
         ovadd |= mRotationConfig;
     }
 
@@ -785,6 +800,12 @@ bool AnnOverlayPlane::useOverlayRotation(BufferMapper& /* mapper */)
 {
     if (mTransform == 0)
         return true;
+
+    if (!isSettingRotBitAllowed()) {
+        mUseOverlayRotation = false;
+        mRotationConfig = 0;
+        return false;
+    }
 
     // workaround limitation of overlay rotation by falling back to use VA rotated buffer
     bool fallback = false;
