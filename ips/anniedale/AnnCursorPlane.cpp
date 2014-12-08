@@ -97,8 +97,6 @@ bool AnnCursorPlane::setDataBuffer(BufferMapper& mapper)
     // setup plane position
     int dstX = mPosition.x;
     int dstY = mPosition.y;
-    int dstW = mPosition.w;
-    int dstH = mPosition.h;
 
     if (h < w) {
         cursorSize = h;
@@ -148,7 +146,6 @@ bool AnnCursorPlane::setDataBuffer(BufferMapper& mapper)
     uint8_t *p = (uint8_t *)(mapper.getCpuAddress(0));
     uint8_t *srcPixel;
     uint32_t stride = mapper.getStride().rgb.stride;
-    uint8_t temp;
     if (!p) {
         return false;
     }
@@ -158,7 +155,6 @@ bool AnnCursorPlane::setDataBuffer(BufferMapper& mapper)
         for (int i = 0; i < cursorSize; i++) {
             for (int j = 0; j < cursorSize; j++) {
                 srcPixel = p + i*stride + j*4;
-                temp = srcPixel[0];
                 if (i >= mCrop.h || j >= mCrop.w) {
                     if (srcPixel[0] == 0 &&
                         srcPixel[3] == 0xff)

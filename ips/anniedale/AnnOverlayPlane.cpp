@@ -227,7 +227,6 @@ bool AnnOverlayPlane::bufferOffsetSetup(BufferMapper& mapper)
 
     uint32_t yStride = mapper.getStride().yuv.yStride;
     uint32_t uvStride = mapper.getStride().yuv.uvStride;
-    uint32_t w = mapper.getWidth();
     uint32_t h = mapper.getHeight();
     uint32_t srcX= mapper.getCrop().x;
     uint32_t srcY= mapper.getCrop().y;
