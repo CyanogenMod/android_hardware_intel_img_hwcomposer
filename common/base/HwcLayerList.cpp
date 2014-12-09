@@ -114,7 +114,6 @@ bool HwcLayerList::checkSupported(int planeType, HwcLayer *hwcLayer)
 
 bool HwcLayerList::checkRgbOverlaySupported(HwcLayer *hwcLayer)
 {
-    bool valid = false;
     hwc_layer_1_t& layer = *(hwcLayer->getLayer());
 
     // if layer was forced to use FB
@@ -146,7 +145,6 @@ bool HwcLayerList::checkRgbOverlaySupported(HwcLayer *hwcLayer)
         return false;
     }
 
-    uint32_t h = hwcLayer->getBufferHeight();
     const stride_t& stride = hwcLayer->getBufferStride();
     if (stride.rgb.stride > 4096) {
         return false;
@@ -176,7 +174,6 @@ bool HwcLayerList::checkRgbOverlaySupported(HwcLayer *hwcLayer)
 
 bool HwcLayerList::checkCursorSupported(HwcLayer *hwcLayer)
 {
-    bool valid = false;
     hwc_layer_1_t& layer = *(hwcLayer->getLayer());
 
     // if layer was forced to use FB
@@ -260,7 +257,6 @@ bool HwcLayerList::initialize()
     mOverlayCandidates.setCapacity(mLayerCount);
     mCursorCandidates.setCapacity(mLayerCount);
     mZOrderConfig.setCapacity(mLayerCount);
-    Hwcomposer& hwc = Hwcomposer::getInstance();
 
     PriorityVector rgbOverlayLayers;
     rgbOverlayLayers.setCapacity(mLayerCount);
@@ -794,8 +790,6 @@ void HwcLayerList::setupSmartComposition()
 
 bool HwcLayerList::update(hwc_display_contents_1_t *list)
 {
-    bool ret;
-
     // basic check to make sure the consistance
     if (!list) {
         ELOGTRACE("null layer list");

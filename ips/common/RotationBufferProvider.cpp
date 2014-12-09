@@ -380,7 +380,6 @@ bool RotationBufferProvider::setupRotationBuffer(VideoPayloadBuffer *payload, in
     uint32_t setup_Begin = getMilliseconds();
 #endif
     VAStatus vaStatus;
-    int stride;
     bool ret = false;
 
     if (payload->format != VA_FOURCC_NV12 || payload->width == 0 || payload->height == 0) {
@@ -513,7 +512,7 @@ bool RotationBufferProvider::setupRotationBuffer(VideoPayloadBuffer *payload, in
 
 bool RotationBufferProvider::prepareBufferInfo(int w, int h, int stride, VideoPayloadBuffer *payload, void *user_pt)
 {
-    int chroma_offset, size;
+    int size;
     void *buf = NULL;
 
     payload->width = payload->crop_width = w;
@@ -525,7 +524,6 @@ bool RotationBufferProvider::prepareBufferInfo(int w, int h, int stride, VideoPa
     payload->chroma_v_stride = stride;
     payload->client_transform = 0;
 
-    chroma_offset = stride * h;
     size = stride * h + stride * h / 2;
 
     ssize_t index;

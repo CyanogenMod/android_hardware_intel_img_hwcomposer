@@ -345,9 +345,7 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper, struct
     uint32_t yStride, uvStride;
     stride_t stride;
     int srcX, srcY, srcW, srcH;
-    int tmp;
 
-    DataBuffer *buf;
     ssize_t index;
     TTMBufferMapper *mapper;
     bool ret;
@@ -667,7 +665,6 @@ bool OverlayPlaneBase::bufferOffsetSetup(BufferMapper& mapper)
     uint32_t gttOffsetInBytes = (mapper.getGttOffsetInPage(0) << 12);
     uint32_t yStride = mapper.getStride().yuv.yStride;
     uint32_t uvStride = mapper.getStride().yuv.uvStride;
-    uint32_t w = mapper.getWidth();
     uint32_t h = mapper.getHeight();
     uint32_t srcX= mapper.getCrop().x;
     uint32_t srcY= mapper.getCrop().y;

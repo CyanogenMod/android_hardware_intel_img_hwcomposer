@@ -156,7 +156,6 @@ int psbWsbmAllocateFromUB(uint32_t size, uint32_t align, void ** buf, void *user
 {
     struct _WsbmBufferObject * wsbmBuf = NULL;
     int ret = 0;
-    int offset = 0;
 
     ALOGTRACE("size %d", align_to(size, 4096));
 
@@ -195,7 +194,6 @@ int psbWsbmAllocateTTMBuffer(uint32_t size, uint32_t align, void ** buf)
 {
     struct _WsbmBufferObject * wsbmBuf = NULL;
     int ret = 0;
-    int offset = 0;
 
     ALOGTRACE("size %d", align_to(size, 4096));
 
