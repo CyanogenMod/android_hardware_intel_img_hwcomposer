@@ -124,19 +124,6 @@ static int hwc_eventControl(struct hwc_composer_device_1 *dev,
     return 0;
 }
 
-static int hwc_blank(hwc_composer_device_1_t *dev, int disp, int blank)
-{
-    ATRACE_CALL();
-    GET_HWC_RETURN_ERROR_IF_NULL();
-    bool ret = hwc->blank(disp, blank);
-    if (ret == false) {
-        ELOGTRACE("failed to blank disp %d, blank %d", disp, blank);
-        return -EINVAL;
-    }
-
-    return 0;
-}
-
 static int hwc_getDisplayConfigs(hwc_composer_device_1_t *dev,
                                      int disp,
                                      uint32_t *configs,
@@ -222,6 +209,8 @@ static int hwc_setActiveConfig(hwc_composer_device_1_t *dev, int disp, int index
     return 0;
 }
 
+// Todo: add hwc_setCursorPositionAsync after supporting patches
+/*
 static int hwc_setCursorPositionAsync(hwc_composer_device_1_t *dev, int disp, int x, int y)
 {
     ATRACE_CALL();
@@ -234,6 +223,7 @@ static int hwc_setCursorPositionAsync(hwc_composer_device_1_t *dev, int disp, in
 
     return 0;
 }
+*/
 
 //------------------------------------------------------------------------------
 

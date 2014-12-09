@@ -77,8 +77,6 @@ bool PlaneCapabilities::isFormatSupported(int planeType, HwcLayer *hwcLayer)
 bool PlaneCapabilities::isSizeSupported(int planeType, HwcLayer *hwcLayer)
 {
     uint32_t format = hwcLayer->getFormat();
-    uint32_t w = hwcLayer->getBufferWidth();
-    uint32_t h = hwcLayer->getBufferHeight();
     const stride_t& stride = hwcLayer->getBufferStride();
 
     bool isYUVPacked;
@@ -138,7 +136,6 @@ bool PlaneCapabilities::isSizeSupported(int planeType, HwcLayer *hwcLayer)
 bool PlaneCapabilities::isBlendingSupported(int planeType, HwcLayer *hwcLayer)
 {
     uint32_t blending = (uint32_t)hwcLayer->getLayer()->blending;
-    uint8_t planeAlpha = hwcLayer->getLayer()->planeAlpha;
 
     if (planeType == DisplayPlane::PLANE_SPRITE || planeType == DisplayPlane::PLANE_PRIMARY) {
         // support premultipled & none blanding
