@@ -443,7 +443,7 @@ bool AnnOverlayPlane::scalingSetup(BufferMapper& mapper)
 
     if (format == HAL_PIXEL_FORMAT_BGRX_8888 ||
         format == HAL_PIXEL_FORMAT_BGRA_8888) {
-        backBuffer->YRGBSCALE = 1 << 15 | 0 << 3 || 0 << 20;
+        backBuffer->YRGBSCALE = 1 << 15 | 0 << 3 | 0 << 20;
         backBuffer->UVSCALEV = (1 << 16);
         return true;
     }
