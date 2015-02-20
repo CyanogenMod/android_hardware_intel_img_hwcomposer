@@ -34,7 +34,7 @@ TngGrallocBufferMapper::TngGrallocBufferMapper(IMG_gralloc_module_public_t& modu
 
     mClonedHandle = native_handle_create(h->numFds, h->numInts);
     if (mClonedHandle == 0) {
-        ALOGE("%s:Failed to create handle, out of memory!");
+        ELOGTRACE("Failed to create handle, out of memory!");
         return;
     }
     for (int i = 0; i < h->numFds; i++)
