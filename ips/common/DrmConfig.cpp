@@ -39,7 +39,7 @@ uint32_t DrmConfig::getDrmConnector(int device)
 uint32_t DrmConfig::getDrmEncoder(int device)
 {
     if (device == IDisplayDevice::DEVICE_PRIMARY)
-        return DRM_MODE_ENCODER_MIPI;
+        return DRM_MODE_ENCODER_DSI;
     else if (device == IDisplayDevice::DEVICE_EXTERNAL)
         return DRM_MODE_ENCODER_TMDS;
     return DRM_MODE_ENCODER_NONE;
