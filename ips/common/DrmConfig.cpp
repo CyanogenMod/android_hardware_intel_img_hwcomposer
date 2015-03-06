@@ -30,8 +30,7 @@ const char* DrmConfig::getDrmPath()
 bool DrmConfig::getDrmConnectorTypeMatchDevice(int device, int connType)
 {
     if (device == IDisplayDevice::DEVICE_PRIMARY)
-        return connType == DRM_MODE_CONNECTOR_MIPI ||
-		connType == DRM_MODE_CONNECTOR_TMP_DSI;
+        return connType == DRM_MODE_CONNECTOR_TMP_DSI;
     else if (device == IDisplayDevice::DEVICE_EXTERNAL)
         return connType == DRM_MODE_CONNECTOR_DVID;
     return false;
@@ -40,7 +39,7 @@ bool DrmConfig::getDrmConnectorTypeMatchDevice(int device, int connType)
 uint32_t DrmConfig::getDrmConnector(int device)
 {
     if (device == IDisplayDevice::DEVICE_PRIMARY)
-        return DRM_MODE_CONNECTOR_MIPI;
+        return DRM_MODE_CONNECTOR_TMP_DSI;
     else if (device == IDisplayDevice::DEVICE_EXTERNAL)
         return DRM_MODE_CONNECTOR_DVID;
     return DRM_MODE_CONNECTOR_Unknown;
