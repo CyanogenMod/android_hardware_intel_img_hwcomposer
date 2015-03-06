@@ -23,6 +23,7 @@ class DrmConfig
 {
 public:
     static const char* getDrmPath();
+    static bool getDrmConnectorTypeMatchDevice(int device, int connType);
     static uint32_t getDrmConnector(int device);
     static uint32_t getDrmEncoder(int device);
     static uint32_t getFrameBufferFormat();
