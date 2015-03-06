@@ -106,8 +106,7 @@ bool Drm::detect(int device)
             continue;
         }
 
-	if (!DrmConfig::getDrmConnectorTypeMatchDevice(device,
-		connector->connector_type)) {
+        if (connector->connector_type != DrmConfig::getDrmConnector(device)) {
             drmModeFreeConnector(connector);
             continue;
         }

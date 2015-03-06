@@ -27,20 +27,10 @@ const char* DrmConfig::getDrmPath()
     return "/dev/card0";
 }
 
-bool DrmConfig::getDrmConnectorTypeMatchDevice(int device, int connType)
-{
-    if (device == IDisplayDevice::DEVICE_PRIMARY)
-        return connType == DRM_MODE_CONNECTOR_DSI ||
-		connType == DRM_MODE_CONNECTOR_TMP_DSI;
-    else if (device == IDisplayDevice::DEVICE_EXTERNAL)
-        return connType == DRM_MODE_CONNECTOR_DVID;
-    return false;
-}
-
 uint32_t DrmConfig::getDrmConnector(int device)
 {
     if (device == IDisplayDevice::DEVICE_PRIMARY)
-        return DRM_MODE_CONNECTOR_TMP_DSI;
+        return DRM_MODE_CONNECTOR_DSI;
     else if (device == IDisplayDevice::DEVICE_EXTERNAL)
         return DRM_MODE_CONNECTOR_DVID;
     return DRM_MODE_CONNECTOR_Unknown;
