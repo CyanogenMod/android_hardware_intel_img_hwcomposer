@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifeq ($(INTEL_HWC_MOOREFIELD),true)
+ifeq ($(INTEL_HWC_MOOREFIELD_HDMI),true)
 
 LOCAL_PATH := $(call my-dir)
 
