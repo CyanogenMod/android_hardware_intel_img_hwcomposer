@@ -1181,6 +1181,10 @@ bool OverlayPlaneBase::setDataBuffer(BufferMapper& grallocMapper)
         backBuffer->OCMD |= FIELD0;
         backBuffer->OCMD &= ~(BUFFER_SELECT);
         backBuffer->OCMD |= BUFFER0;
+    } else {
+        backBuffer->OCMD &= ~BUF_TYPE;
+        backBuffer->OCMD &= ~FIELD_SELECT;
+        backBuffer->OCMD &= ~(BUFFER_SELECT);
     }
 
     // add to active ttm buffers if it's a rotated buffer
