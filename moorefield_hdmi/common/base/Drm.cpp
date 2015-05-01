@@ -199,6 +199,7 @@ bool Drm::detect(int device)
         if (output->crtc->mode_valid) {
             ILOGTRACE("mode is valid, kernel mode settings");
             memcpy(&output->mode, &output->crtc->mode, sizeof(drmModeModeInfo));
+            //output->fbId = output->crtc->buffer_id;
             ret = true;
         } else {
             ELOGTRACE("mode is invalid. Kernel mode setting is not completed");
@@ -608,8 +609,10 @@ bool Drm::setDrmMode(int index, drmModeModeInfoPtr mode)
 {
     DrmOutput *output = &mOutputs[index];
 
-    int oldFbId =0;
+    int oldFbId = 0;
     int oldFbHandle = 0;
+    // reuse current frame buffer if there is no resolution change
+    int fbId = -1;
 
     drmModeModeInfo currentMode;
     memcpy(&currentMode, &output->mode, sizeof(drmModeModeInfo));
@@ -617,55 +620,53 @@ bool Drm::setDrmMode(int index, drmModeModeInfoPtr mode)
     if (isSameDrmMode(mode, &currentMode))
         return true;
 
+    if (currentMode.hdisplay != mode->hdisplay ||
+        currentMode.vdisplay != mode->vdisplay) {
 
-    if (output->fbId) {
-        oldFbId = output->fbId ;
-        output->fbId = 0;
-    }
-
-    if (output->fbHandle) {
+        oldFbId = output->fbId;
         oldFbHandle = output->fbHandle;
-        output->fbHandle = 0;
-    }
 
-    // allocate frame buffer
-    int stride = 0;
+        // allocate frame buffer
+        int stride = 0;
 #ifdef INTEL_SUPPORT_HDMI_PRIMARY
-    output->fbHandle = Hwcomposer::getInstance().getBufferManager()->allocFrameBuffer(
-        DEFAULT_DRM_FB_WIDTH, DEFAULT_DRM_FB_HEIGHT, &stride);
+        output->fbHandle = Hwcomposer::getInstance().getBufferManager()->allocFrameBuffer(
+            DEFAULT_DRM_FB_WIDTH, DEFAULT_DRM_FB_HEIGHT, &stride);
 #else
-    output->fbHandle = Hwcomposer::getInstance().getBufferManager()->allocFrameBuffer(
-        mode->hdisplay, mode->vdisplay, &stride);
+        output->fbHandle = Hwcomposer::getInstance().getBufferManager()->allocFrameBuffer(
+            mode->hdisplay, mode->vdisplay, &stride);
 #endif
-    if (output->fbHandle == 0) {
-        ELOGTRACE("failed to allocate frame buffer");
-        return false;
-    }
+        if (output->fbHandle == 0) {
+            ELOGTRACE("failed to allocate frame buffer");
+            return false;
+        }
 
-    int ret = 0;
-    ret = drmModeAddFB(
-        mDrmFd,
+        int ret = 0;
+        ret = drmModeAddFB(
+            mDrmFd,
 #ifdef INTEL_SUPPORT_HDMI_PRIMARY
-        DEFAULT_DRM_FB_WIDTH,
-        DEFAULT_DRM_FB_HEIGHT,
+            DEFAULT_DRM_FB_WIDTH,
+            DEFAULT_DRM_FB_HEIGHT,
 #else
-        mode->hdisplay,
-        mode->vdisplay,
+            mode->hdisplay,
+            mode->vdisplay,
 #endif
-        DrmConfig::getFrameBufferDepth(),
-        DrmConfig::getFrameBufferBpp(),
-        stride,
-        output->fbHandle,
-        &output->fbId);
-    if (ret != 0) {
-        ELOGTRACE("drmModeAddFB failed, error: %d", ret);
-        return false;
+            DrmConfig::getFrameBufferDepth(),
+            DrmConfig::getFrameBufferBpp(),
+            stride,
+            output->fbHandle,
+            &output->fbId);
+        if (ret != 0) {
+            ELOGTRACE("drmModeAddFB failed, error: %d", ret);
+            return false;
+        }
+        fbId = output->fbId;
     }
 
     ILOGTRACE("mode set: %dx%d@%dHz", mode->hdisplay, mode->vdisplay, mode->vrefresh);
 
-    ret = drmModeSetCrtc(mDrmFd, output->crtc->crtc_id, output->fbId, 0, 0,
+    int ret = drmModeSetCrtc(mDrmFd, output->crtc->crtc_id, fbId, 0, 0,
                    &output->connector->connector_id, 1, mode);
+
     if (ret == 0) {
         //save mode
         memcpy(&output->mode, mode, sizeof(drmModeModeInfo));
