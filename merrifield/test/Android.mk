@@ -15,18 +15,12 @@ LOCAL_SHARED_LIBRARIES := \
 	libbinder \
 	libcutils \
 	libgui \
-	libstlport \
 	libui \
 	libutils \
 
 LOCAL_C_INCLUDES := \
-    bionic \
-    $(call include-path-for, libstdc++) \
     $(call include-path-for, gtest) \
-    $(call include-path-for, stlport)
 
 # Build the binary to $(TARGET_OUT_DATA_NATIVE_TESTS)/$(LOCAL_MODULE)
 # to integrate with auto-test framework.
 include $(BUILD_EXECUTABLE)
-
-
