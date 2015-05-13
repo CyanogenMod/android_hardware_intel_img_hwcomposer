@@ -21,8 +21,9 @@
 namespace android {
 namespace intel {
 
-PhysicalDevice::PhysicalDevice(uint32_t type, Hwcomposer& hwc, DisplayPlaneManager& dpm)
-    : mType(type),
+PhysicalDevice::PhysicalDevice(uint32_t disp, uint32_t type, Hwcomposer& hwc, DisplayPlaneManager& dpm)
+    : mDisp(disp),
+      mType(type),
       mHwc(hwc),
       mDisplayPlaneManager(dpm),
       mActiveDisplayConfig(-1),
@@ -62,7 +63,7 @@ void PhysicalDevice::onGeometryChanged(hwc_display_contents_1_t *list)
         return;
     }
 
-    ALOGTRACE("disp = %d, layer number = %d", mType, list->numHwLayers);
+    ALOGTRACE("disp = %d, layer number = %d", mDisp, list->numHwLayers);
 
     // NOTE: should NOT be here
     if (mLayerList) {
@@ -131,7 +132,7 @@ bool PhysicalDevice::vsyncControl(bool enabled)
 {
     RETURN_FALSE_IF_NOT_INIT();
 
-    ALOGTRACE("disp = %d, enabled = %d", mType, enabled);
+    ALOGTRACE("disp = %d, enabled = %d", mDisp, enabled);
     return mVsyncObserver->control(enabled);
 }
 
@@ -140,7 +141,7 @@ bool PhysicalDevice::blank(bool blank)
     RETURN_FALSE_IF_NOT_INIT();
 
     mBlank = blank;
-    bool ret = mBlankControl->blank(mType, blank);
+    bool ret = mBlankControl->blank(mDisp, blank);
     if (ret == false) {
         ELOGTRACE("failed to blank device");
         return false;

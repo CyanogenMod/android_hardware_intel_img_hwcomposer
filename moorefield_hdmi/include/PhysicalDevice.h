@@ -32,7 +32,7 @@ class Hwcomposer;
 // Base class for primary and external devices
 class PhysicalDevice : public IDisplayDevice {
 public:
-    PhysicalDevice(uint32_t type, Hwcomposer& hwc, DisplayPlaneManager& dpm);
+    PhysicalDevice(uint32_t disp, uint32_t type, Hwcomposer& hwc, DisplayPlaneManager& dpm);
     virtual ~PhysicalDevice();
 public:
     virtual bool prePrepare(hwc_display_contents_1_t *display);
@@ -78,6 +78,7 @@ protected:
     friend class VsyncEventObserver;
 
 protected:
+    uint32_t mDisp;
     uint32_t mType;
     const char *mName;
 

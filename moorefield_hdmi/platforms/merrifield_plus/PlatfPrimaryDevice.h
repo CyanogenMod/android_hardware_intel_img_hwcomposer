@@ -24,7 +24,7 @@ namespace intel {
 
 class PlatfPrimaryDevice : public PrimaryDevice {
 public:
-    PlatfPrimaryDevice(Hwcomposer& hwc,
+    PlatfPrimaryDevice(uint32_t disp, Hwcomposer& hwc,
                         DisplayPlaneManager& dpm);
     virtual ~PlatfPrimaryDevice();
 

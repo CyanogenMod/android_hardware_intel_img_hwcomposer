@@ -22,9 +22,9 @@
 namespace android {
 namespace intel {
 
-PlatfPrimaryDevice::PlatfPrimaryDevice(Hwcomposer& hwc,
+PlatfPrimaryDevice::PlatfPrimaryDevice(uint32_t disp, Hwcomposer& hwc,
                                        DisplayPlaneManager& dpm)
-    : PrimaryDevice(hwc, dpm)
+    : PrimaryDevice(disp, hwc, dpm)
 {
     CTRACE();
 }

@@ -27,7 +27,7 @@ namespace intel {
 class ExternalDevice : public PhysicalDevice {
 
 public:
-    ExternalDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm);
+    ExternalDevice(uint32_t disp, Hwcomposer& hwc, DisplayPlaneManager& dpm);
     virtual ~ExternalDevice();
 public:
     virtual bool initialize();
