@@ -67,6 +67,7 @@ protected:
                                 bool isHoriz, bool isY,
                                 coeffPtr pCoeff);
     virtual bool scalingSetup(BufferMapper& mapper);
+    virtual bool colorSetup(BufferMapper& mapper);
     virtual void checkPosition(int& x, int& y, int& w, int& h);
     virtual void checkCrop(int& x, int& y, int& w, int& h, int coded_width, int coded_height);
 
