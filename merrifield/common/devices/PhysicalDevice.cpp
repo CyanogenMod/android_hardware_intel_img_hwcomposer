@@ -514,8 +514,8 @@ bool PhysicalDevice::setPowerMode(int mode)
     // TODO: set proper blanking modes for HWC 1.4 modes
     switch (mode) {
         case HWC_POWER_MODE_OFF:
-        case HWC_POWER_MODE_DOZE:
             return blank(true);
+        case HWC_POWER_MODE_DOZE:
         case HWC_POWER_MODE_NORMAL:
         case HWC_POWER_MODE_DOZE_SUSPEND:
             return blank(false);
