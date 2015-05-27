@@ -59,16 +59,16 @@ IDisplayDevice* PlatfHwcomposer::createDisplayDevice(int disp,
     switch (disp) {
         case IDisplayDevice::DEVICE_PRIMARY:
 #ifdef INTEL_SUPPORT_HDMI_PRIMARY
-            return new PlatfExternalDevice(*this, dpm);
+            return new PlatfExternalDevice((uint32_t)disp, *this, dpm);
 #else
-            return new PlatfPrimaryDevice(*this, dpm);
+            return new PlatfPrimaryDevice((uint32_t)disp, *this, dpm);
 #endif
 
         case IDisplayDevice::DEVICE_EXTERNAL:
 #ifdef INTEL_SUPPORT_HDMI_PRIMARY
             return new DummyDevice((uint32_t)disp, *this);
 #else
-            return new PlatfExternalDevice(*this, dpm);
+            return new PlatfExternalDevice((uint32_t)disp, *this, dpm);
 #endif
 
         case IDisplayDevice::DEVICE_VIRTUAL:

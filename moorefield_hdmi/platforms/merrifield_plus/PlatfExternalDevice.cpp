@@ -23,9 +23,9 @@
 namespace android {
 namespace intel {
 
-PlatfExternalDevice::PlatfExternalDevice(Hwcomposer& hwc,
+PlatfExternalDevice::PlatfExternalDevice(uint32_t disp, Hwcomposer& hwc,
                                        DisplayPlaneManager& dpm)
-    : ExternalDevice(hwc, dpm)
+    : ExternalDevice(disp, hwc, dpm)
 {
     CTRACE();
 }

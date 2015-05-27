@@ -29,7 +29,7 @@ namespace intel {
 
 class PrimaryDevice : public PhysicalDevice {
 public:
-    PrimaryDevice(Hwcomposer& hwc, DisplayPlaneManager& dpm);
+    PrimaryDevice(uint32_t disp, Hwcomposer& hwc, DisplayPlaneManager& dpm);
     virtual ~PrimaryDevice();
 public:
     virtual bool initialize();

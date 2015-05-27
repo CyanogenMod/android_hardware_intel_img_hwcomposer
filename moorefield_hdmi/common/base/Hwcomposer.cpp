@@ -334,13 +334,11 @@ void Hwcomposer::hotplug(__attribute__((unused))int disp, bool connected)
 {
     RETURN_VOID_IF_NOT_INIT();
 
-#ifndef INTEL_SUPPORT_HDMI_PRIMARY
     if (mProcs && mProcs->hotplug) {
         DLOGTRACE("report hotplug on disp %d, connected %d", disp, connected);
         mProcs->hotplug(const_cast<hwc_procs_t*>(mProcs), disp, connected);
         DLOGTRACE("hotplug callback processed and returned!");
     }
-#endif
 
     mDisplayAnalyzer->postHotplugEvent(connected);
 }

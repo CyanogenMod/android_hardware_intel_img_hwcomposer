@@ -23,7 +23,7 @@ namespace intel {
 
 class PlatfExternalDevice : public ExternalDevice {
 public:
-    PlatfExternalDevice(Hwcomposer& hwc,
+    PlatfExternalDevice(uint32_t disp, Hwcomposer& hwc,
                         DisplayPlaneManager& dpm);
     virtual ~PlatfExternalDevice();
 
