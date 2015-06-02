@@ -17,6 +17,7 @@
 #include <platforms/merrifield_plus/PlatfBufferManager.h>
 #include <ips/tangier/TngGrallocBuffer.h>
 #include <ips/tangier/TngGrallocBufferMapper.h>
+#include <sync/sync.h>
 
 namespace android {
 namespace intel {
@@ -63,13 +64,20 @@ bool PlatfBufferManager::blitGrallocBuffer(uint32_t srcHandle, uint32_t dstHandl
 
 {
     IMG_gralloc_module_public_t *imgGrallocModule = (IMG_gralloc_module_public_t *) mGrallocModule;
+    int fenceFd;
+
     if (imgGrallocModule->Blit(imgGrallocModule, (buffer_handle_t)srcHandle,
                                 (buffer_handle_t)dstHandle,
                                 srcCrop.w, srcCrop.h, srcCrop.x,
-                                srcCrop.y, 0, async)) {
+                                srcCrop.y, 0, -1, &fenceFd)) {
         ELOGTRACE("Blit failed");
         return false;
     }
+
+    if (!async) {
+        sync_wait(fenceFd, -1);
+    }
+    close(fenceFd);
     return true;
 }
 
