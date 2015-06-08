@@ -419,6 +419,14 @@ bool AnnOverlayPlane::scalingSetup(BufferMapper& mapper)
           dstWidth, dstHeight,
           mTransform);
 
+    if (mBobDeinterlace) {
+        float scaleY = (float)(srcHeight >> 1) / dstHeight;
+        if (scaleY > 4 || scaleY < 0.25) {
+            VLOGTRACE("Exceed scale limit for interlace, return false");
+            return false;
+        }
+    }
+
     // switch destination width/height for scale factor calculation
     // for 90/270 transformation
     if (mUseOverlayRotation && ((mTransform == HWC_TRANSFORM_ROT_90) ||
