@@ -1112,6 +1112,56 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
     return true;
 }
 
+bool OverlayPlaneBase::colorSetup(BufferMapper& mapper)
+{
+    CTRACE();
+
+    OverlayBackBufferBlk *backBuffer = mBackBuffer[mCurrent]->buf;
+    if (!backBuffer) {
+        ELOGTRACE("invalid back buffer");
+        return false;
+    }
+
+    uint32_t format = mapper.getFormat();
+    if (format != OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar &&
+        format != OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled) {
+
+        VLOGTRACE("Not video layer, use default color setting");
+        backBuffer->OCLRC0 = (OVERLAY_INIT_CONTRAST << 18) |
+                         (OVERLAY_INIT_BRIGHTNESS & 0xff);
+        backBuffer->OCLRC1 = OVERLAY_INIT_SATURATION;
+        backBuffer->OCONFIG &= ~(1 << 5);
+
+        return true;
+    }
+
+    struct VideoPayloadBuffer *payload;
+    payload = (struct VideoPayloadBuffer *)mapper.getCpuAddress(SUB_BUFFER1);
+    // check payload
+    if (!payload) {
+        ELOGTRACE("no payload found");
+        return false;
+    }
+
+    // BT.601 or BT.709
+    backBuffer->OCONFIG &= ~(1 << 5);
+    backBuffer->OCONFIG |= (payload->csc_mode << 5);
+
+    // no level expansion for video on HDMI
+    if (payload->video_range || mPipeConfig == (0x2 << 6)) {
+        // full range, no need to do level expansion
+        backBuffer->OCLRC0 = 0x1000000;
+        backBuffer->OCLRC1 = 0x80;
+    } else {
+        // level expansion for limited range
+        backBuffer->OCLRC0 = (OVERLAY_INIT_CONTRAST << 18) |
+                         (OVERLAY_INIT_BRIGHTNESS & 0xff);
+        backBuffer->OCLRC1 = OVERLAY_INIT_SATURATION;
+    }
+
+    return true;
+}
+
 bool OverlayPlaneBase::setDataBuffer(BufferMapper& grallocMapper)
 {
     BufferMapper *mapper;
@@ -1185,6 +1235,12 @@ bool OverlayPlaneBase::setDataBuffer(BufferMapper& grallocMapper)
         backBuffer->OCMD &= ~BUF_TYPE;
         backBuffer->OCMD &= ~FIELD_SELECT;
         backBuffer->OCMD &= ~(BUFFER_SELECT);
+    }
+
+    ret = colorSetup(*mapper);
+    if (ret == false) {
+        ELOGTRACE("failed to set up color parameters");
+        return false;
     }
 
     // add to active ttm buffers if it's a rotated buffer
