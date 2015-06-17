@@ -218,19 +218,15 @@ bool TngDisplayContext::commitEnd(size_t numDisplays, hwc_display_contents_1_t *
                  displays[i]->hwLayers[j].releaseFenceFd);
         }
 
-#ifdef INTEL_WIDI_MERRIFIELD
         // retireFence is used for SurfaceFlinger to do DispSync;
         // dup releaseFenceFd for physical displays and ignore virtual
         // display; we don't distinguish between release and retire, and all
         // physical displays are using a single releaseFence; for virtual
         // display, fencing is handled by the VirtualDisplay class
         if (i < IDisplayDevice::DEVICE_VIRTUAL) {
-#endif
             displays[i]->retireFenceFd =
                 (releaseFenceFd != -1) ? dup(releaseFenceFd) : -1;
-#ifdef INTEL_WIDI_MERRIFIELD
         }
-#endif
     }
 
     // close original release fence fd
