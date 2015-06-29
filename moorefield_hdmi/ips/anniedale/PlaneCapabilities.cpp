@@ -224,7 +224,6 @@ bool PlaneCapabilities::isTransformSupported(int planeType, HwcLayer *hwcLayer)
         switch (trans) {
         case 0:
         case HAL_TRANSFORM_ROT_90:
-        case HAL_TRANSFORM_ROT_180:
         case HAL_TRANSFORM_ROT_270:
             return true;
         default:
