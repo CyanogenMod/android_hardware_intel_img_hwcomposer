@@ -35,7 +35,7 @@ protected:
     BufferMapper* createBufferMapper(gralloc_module_t *module,
                                         DataBuffer& buffer);
     bool blit(buffer_handle_t srcHandle, buffer_handle_t destHandle,
-              const crop_t& destRect, bool filter, bool async);
+              const crop_t& destRect, bool async);
 };
 
 }

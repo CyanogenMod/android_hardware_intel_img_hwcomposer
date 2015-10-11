@@ -41,7 +41,7 @@ private:
     bool mapKhandle();
 
 private:
-    IMG_gralloc_module_public_t& mIMGGrallocModule;
+    IMG_gralloc_module_t& mIMGGrallocModule;
     void* mBufferObject;
 	native_handle_t* mClonedHandle;
 };

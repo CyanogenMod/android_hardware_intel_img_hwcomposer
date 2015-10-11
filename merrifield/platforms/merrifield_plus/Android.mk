@@ -132,7 +132,9 @@ ifeq ($(TARGET_HAS_MULTIPLE_DISPLAY),true)
    LOCAL_CFLAGS += -DTARGET_HAS_MULTIPLE_DISPLAY
 endif
 
-LOCAL_COPY_HEADERS := ../../include/pvr/hal/hal_public.h
+LOCAL_COPY_HEADERS := \
+ ../../include/pvr/hal/hal_public.h \
+ ../../include/pvr/hal/img_gralloc_public.h
 LOCAL_COPY_HEADERS_TO := pvr/hal
 
 ifneq ($(TARGET_BUILD_VARIANT),user)
