@@ -177,7 +177,7 @@ int psbWsbmAllocateFromUB(uint32_t size, uint32_t align, void ** buf, void *user
 
     ret = wsbmBODataUB(wsbmBuf,
                        align_to(size, 4096), NULL, NULL, 0,
-                       user_pt);
+                       user_pt, -1);
 
     if(ret) {
         ETRACE("wsbmBOData failed with error code %d", ret);
@@ -296,7 +296,7 @@ int psbWsbmCreateFromUB(void *buf, uint32_t size, void *vaddr)
     }
 
     wsbmBuf = (struct _WsbmBufferObject *)buf;
-    ret = wsbmBODataUB(wsbmBuf, size, NULL, NULL, 0, vaddr);
+    ret = wsbmBODataUB(wsbmBuf, size, NULL, NULL, 0, vaddr, -1);
     if (ret) {
         ETRACE("wsbmBODataUB failed with error code %d", ret);
         return ret;
