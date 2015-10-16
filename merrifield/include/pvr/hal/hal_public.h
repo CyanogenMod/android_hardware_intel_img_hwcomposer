@@ -30,6 +30,42 @@
 
 #undef HAL_PIXEL_FORMAT_NV12
 
+#ifdef LP_BLOBS
+
+typedef struct IMG_gralloc_module_t
+{
+        gralloc_module_t base;
+        void *unused_psDisplayDevice;
+        const void *(*unused_GetBufferFormats)(void);
+        int (*unused_Blit)(struct IMG_gralloc_module_t const *module,
+                                 buffer_handle_t src, buffer_handle_t dest,
+                                 int w, int h, int x, int y,
+                                 int transform,
+                                 int async);
+
+        int (*unused_Blit3)(struct IMG_gralloc_module_t const *module,
+                                 unsigned long long ui64SrcStamp, int iSrcWidth,
+                                 int iSrcHeight, int iSrcFormat, int eSrcRotation,
+                                 buffer_handle_t dest, int eDestRotation);
+
+#if defined(SUPPORT_ANDROID_MEMTRACK_HAL)
+        int (*unused_GetMemTrackRecords)(struct IMG_gralloc_module_t const *module,
+                                                          void **ppsRecords,
+                                                          size_t *puNumRecords);
+#endif /* defined(SUPPORT_ANDROID_MEMTRACK_HAL) */
+
+        const void *(*unused_GetBufferFormat)(int iFormat);
+        int (*GetBufferCPUAddresses)(gralloc_module_t const *module,
+                                buffer_handle_t handle,
+                                void **virt, uint32_t *size);
+        int (*PutBufferCPUAddresses)(gralloc_module_t const *module,
+                        buffer_handle_t handle);
+        void *(*GetDisplayDevice)(struct IMG_gralloc_module_t *module);
+}
+IMG_gralloc_module_t;
+
+#else
+
 typedef struct _IMG_gralloc_module_
 {
 	IMG_gralloc_module_public_t base;
@@ -43,6 +79,8 @@ typedef struct _IMG_gralloc_module_
 								 buffer_handle_t buffer);
 }
 IMG_gralloc_module_t;
+
+#endif
 
 #define HAL_PIXEL_FORMAT_UYVY         0x107
 #define HAL_PIXEL_FORMAT_INTEL_ZSL    0x109

@@ -90,6 +90,79 @@
  */
 #define MAX_SUB_ALLOCS (3)
 
+#ifdef LP_BLOBS
+
+#if defined(PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC)
+#define MAX_SRV_SYNC_OBJS    2
+#else
+#define MAX_SRV_SYNC_OBJS    4
+#endif
+
+typedef struct
+{
+	native_handle_t base;
+
+	/* These fields can be sent cross process. They are also valid
+	 * to duplicate within the same process.
+	 *
+	 * A table is stored within psPrivateData on gralloc_module_t (this
+	 * is obviously per-process) which maps stamps to a mapped
+	 * PVRSRV_MEMDESC in that process. Each map entry has a lock
+	 * count associated with it, satisfying the requirements of the
+	 * Android API. This also prevents us from leaking maps/allocations.
+	 *
+	 * This table has entries inserted either by alloc()
+	 * (alloc_device_t) or map() (gralloc_module_t). Entries are removed
+	 * by free() (alloc_device_t) and unmap() (gralloc_module_t).
+	 */
+
+#define IMG_NATIVE_HANDLE_NUMFDS (MAX_SRV_SYNC_OBJS + MAX_SUB_ALLOCS)
+	/* The `syncfd' field is used to export PVRSRV_CLIENT_SYNC_PRIM to
+	 * another process. Its producer/consumer rules should match the
+	 * PVRSRV_MEMDESC handles, except that there is only one sync
+	 * per N memdesc objects.
+	 *
+	 * This should be listed before `fd' because it is not variable
+	 * width. The problem with variable width is that in the case we
+	 * export framebuffer allocations, we may want to patch some of
+	 * the fds to (unused) ints, so we can't leave gaps.
+	 */
+	int aiSyncFD[MAX_SRV_SYNC_OBJS];
+
+	/* The `fd' field is used to "export" a meminfo to another process.
+	 * Therefore, it is allocated by alloc_device_t, and consumed by
+	 * gralloc_module_t.
+	 */
+	int fd[MAX_SUB_ALLOCS];
+
+#define IMG_NATIVE_HANDLE_NUMINTS ((sizeof(unsigned long long) / sizeof(int)) + 5)
+	/* A KERNEL unique identifier for any exported kernel meminfo. Each
+	 * exported kernel meminfo will have a unique stamp, but note that in
+	 * userspace, several meminfos across multiple processes could have
+	 * the same stamp. As the native_handle can be dup(2)'d, there could be
+	 * multiple handles with the same stamp but different file descriptors.
+	 */
+	unsigned long long ui64Stamp;
+
+	/* This is used for buffer usage validation when locking a buffer,
+	 * and also in WSEGL (for the composition bypass feature).
+	 */
+	int usage;
+
+	/* In order to do efficient cache flushes we need the buffer dimensions
+	 * and format. These are available on the ANativeWindowBuffer,
+	 * but the platform doesn't pass them down to the graphics HAL.
+	 *
+	 * These fields are also used in the composition bypass. In this
+	 * capacity, these are the "real" values for the backing allocation.
+	 */
+	int iWidth;
+	int iHeight;
+	int iFormat;
+	unsigned int uiBpp;
+}
+__attribute__((aligned(sizeof(int)),packed)) IMG_native_handle_t;
+#else
 typedef struct
 {
 	native_handle_t base;
@@ -179,6 +252,7 @@ typedef struct
 	int iNumSubAllocs;
 }
 __attribute__((aligned(sizeof(int)),packed)) IMG_native_handle_t;
+#endif
 
 typedef struct
 {
@@ -222,6 +296,52 @@ typedef struct IMG_buffer_format_public_t
 IMG_buffer_format_public_t;
 
 /* NOTE: This interface is deprecated. Use module->perform() instead. */
+#ifdef LP_BLOBS
+
+typedef struct IMG_gralloc_module_public_t
+{
+        gralloc_module_t base;
+        void *psDisplayDevice;
+
+        /* Gets the head of the linked list of all registered formats */
+        const void *(*GetBufferFormats)(void);
+
+        /* Functionality before this point should be in sync with SGX.
+         * After this point will be different.
+         */
+
+        /* Custom-blit components in lieu of overlay hardware */
+        int (*Blit)(struct IMG_gralloc_module_public_t const *module,
+                                 buffer_handle_t src, buffer_handle_t dest,
+                                 int w, int h, int x, int y,
+                                 int transform,
+                                 int async);
+
+        int (*Blit3)(struct IMG_gralloc_module_public_t const *module,
+                                 unsigned long long ui64SrcStamp, int iSrcWidth,
+                                 int iSrcHeight, int iSrcFormat, int eSrcRotation,
+                                 buffer_handle_t dest, int eDestRotation);
+
+#if defined(SUPPORT_ANDROID_MEMTRACK_HAL)
+        int (*GetMemTrackRecords)(struct IMG_gralloc_module_public_t const *module,
+                                                          IMG_memtrack_record_public_t **ppsRecords,
+                                                          size_t *puNumRecords);
+#endif /* defined(SUPPORT_ANDROID_MEMTRACK_HAL) */
+
+        /* Walk the above list and return only the specified format */
+        const IMG_buffer_format_public_t *(*GetBufferFormat)(int iFormat);
+/* intel hwc extension */
+        int (*getCpuAddress)(struct IMG_gralloc_module_public_t const *module,
+                                buffer_handle_t handle,
+                                void **virt, uint32_t *size);
+        int (*putCpuAddress)(struct IMG_gralloc_module_public_t const *module,
+                        buffer_handle_t handle);
+        void *(*getDisplayDevice)(struct IMG_gralloc_module_public_t *module);
+}
+IMG_gralloc_module_public_t;
+
+#else
+
 typedef struct IMG_gralloc_module_public_t
 {
 	gralloc_module_t base;
@@ -245,6 +365,8 @@ typedef struct IMG_gralloc_module_public_t
 	const IMG_buffer_format_public_t *(*GetBufferFormat)(int iFormat);
 }
 IMG_gralloc_module_public_t;
+
+#endif
 
 /* Helpers for using the non-type-safe perform() extension functions. Use
  * these helpers instead of calling perform() directly in your application.

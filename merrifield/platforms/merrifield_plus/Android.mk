@@ -132,6 +132,10 @@ ifeq ($(TARGET_HAS_MULTIPLE_DISPLAY),true)
    LOCAL_CFLAGS += -DTARGET_HAS_MULTIPLE_DISPLAY
 endif
 
+ifeq ($(INTEL_HWC_MOOREFIELD_HAS_LP_BLOBS),true)
+   LOCAL_CFLAGS += -DLP_BLOBS
+endif
+
 LOCAL_COPY_HEADERS := \
  ../../include/pvr/hal/hal_public.h \
  ../../include/pvr/hal/img_gralloc_public.h
