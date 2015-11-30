@@ -51,7 +51,7 @@ bool TngDisplayContext::initialize()
     }
 
     // init IMG display device
-    mIMGDisplayDevice = (((IMG_gralloc_module_public_t *)module)->getDisplayDevice((IMG_gralloc_module_public_t *)module));
+    mIMGDisplayDevice = (IMG_display_device_public_t *)(((IMG_gralloc_module_t *)module)->GetDisplayDevice((IMG_gralloc_module_t *)module));
     if (!mIMGDisplayDevice) {
         ETRACE("failed to get display device");
         return false;
