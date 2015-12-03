@@ -14,6 +14,7 @@
 // limitations under the License.
 */
 
+#include <string.h>
 #include <wsbm_pool.h>
 #include <wsbm_driver.h>
 #include <wsbm_manager.h>
