@@ -1122,6 +1122,9 @@ bool OverlayPlaneBase::colorSetup(BufferMapper& mapper)
         return false;
     }
 
+    if (mPipeConfig == (0x2 << 6))
+        return true;
+
     uint32_t format = mapper.getFormat();
     if (format != OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar &&
         format != OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar_Tiled) {
@@ -1147,8 +1150,7 @@ bool OverlayPlaneBase::colorSetup(BufferMapper& mapper)
     backBuffer->OCONFIG &= ~(1 << 5);
     backBuffer->OCONFIG |= (payload->csc_mode << 5);
 
-    // no level expansion for video on HDMI
-    if (payload->video_range || mPipeConfig == (0x2 << 6)) {
+    if  (payload->video_range) {
         // full range, no need to do level expansion
         backBuffer->OCLRC0 = 0x1000000;
         backBuffer->OCLRC1 = 0x80;
