@@ -71,8 +71,6 @@ IDisplayDevice* PlatfHwcomposer::createDisplayDevice(int disp,
             return new PlatfExternalDevice((uint32_t)disp, *this, dpm);
 #endif
 
-        case IDisplayDevice::DEVICE_TERTIARY:
-            return new DummyDevice((uint32_t)disp, *this);
         case IDisplayDevice::DEVICE_VIRTUAL:
             return new DummyDevice((uint32_t)disp, *this);
 
