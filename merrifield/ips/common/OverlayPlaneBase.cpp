@@ -1145,6 +1145,9 @@ bool OverlayPlaneBase::scalingSetup(BufferMapper& mapper)
 
 bool OverlayPlaneBase::colorSetup(BufferMapper& mapper)
 {
+#ifdef ASUS_ZENFONE2_LP_BLOBS
+    return true;
+#else
     CTRACE();
 
     OverlayBackBufferBlk *backBuffer = mBackBuffer[mCurrent]->buf;
@@ -1191,6 +1194,7 @@ bool OverlayPlaneBase::colorSetup(BufferMapper& mapper)
     }
 
     return true;
+#endif
 }
 
 bool OverlayPlaneBase::setDataBuffer(BufferMapper& grallocMapper)
