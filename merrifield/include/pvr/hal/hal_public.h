@@ -30,7 +30,7 @@
 
 #undef HAL_PIXEL_FORMAT_NV12
 
-#ifdef LP_BLOBS
+#ifdef ASUS_ZENFONE2_LP_BLOBS
 
 typedef struct IMG_gralloc_module_t
 {
