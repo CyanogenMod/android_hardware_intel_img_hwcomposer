@@ -90,7 +90,7 @@
  */
 #define MAX_SUB_ALLOCS (3)
 
-#ifdef LP_BLOBS
+#ifdef ASUS_ZENFONE2_LP_BLOBS
 
 #if defined(PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC)
 #define MAX_SRV_SYNC_OBJS    2
@@ -296,7 +296,7 @@ typedef struct IMG_buffer_format_public_t
 IMG_buffer_format_public_t;
 
 /* NOTE: This interface is deprecated. Use module->perform() instead. */
-#ifdef LP_BLOBS
+#ifdef ASUS_ZENFONE2_LP_BLOBS
 
 typedef struct IMG_gralloc_module_public_t
 {
