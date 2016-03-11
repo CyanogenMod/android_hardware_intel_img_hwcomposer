@@ -21,15 +21,15 @@
 
 typedef struct
 {
-	hwc_layer_1_t *psLayer;
-	uint32_t custom;
+    hwc_layer_1_t *psLayer;
+    uint32_t custom;
 }
 IMG_hwc_layer_t;
 
 typedef struct IMG_display_device_public
 {
-	int (*post)(struct IMG_display_device_public *dev,
-				IMG_hwc_layer_t *layers, int num_layers, int *releaseFenceFd);
+    int (*post)(struct IMG_display_device_public *dev,
+                IMG_hwc_layer_t *layers, int num_layers, int *releaseFenceFd);
 }
 IMG_display_device_public_t;
 

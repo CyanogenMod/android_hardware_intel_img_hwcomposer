@@ -17,6 +17,7 @@
 #include <PlatfBufferManager.h>
 #include <tangier/TngGrallocBuffer.h>
 #include <tangier/TngGrallocBufferMapper.h>
+#include <sync/sync.h>
 
 namespace android {
 namespace intel {
@@ -63,13 +64,21 @@ bool PlatfBufferManager::blit(buffer_handle_t srcHandle, buffer_handle_t destHan
 
 {
     IMG_gralloc_module_public_t *imgGrallocModule = (IMG_gralloc_module_public_t *) mGrallocModule;
+    int fenceFd;
+
     if (imgGrallocModule->Blit(imgGrallocModule, srcHandle,
                                 destHandle,
                                 destRect.w, destRect.h, destRect.x,
-                                destRect.y, 0, async)) {
+                                destRect.y, 0, -1, &fenceFd)) {
         ETRACE("Blit failed");
         return false;
     }
+
+    if (!async) {
+        sync_wait(fenceFd, -1);
+    }
+    close(fenceFd);
+
     return true;
 }
 

@@ -88,6 +88,7 @@ bool PlatfBufferManager::blit(buffer_handle_t srcHandle, buffer_handle_t destHan
     }
     close(fenceFd);
 #endif
+
     return true;
 }
 

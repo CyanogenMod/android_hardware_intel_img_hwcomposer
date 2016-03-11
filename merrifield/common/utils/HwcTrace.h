@@ -29,8 +29,8 @@ extern "C" {
 #define VTRACE(fmt,...)     ALOGV("%s: " fmt, __func__, ##__VA_ARGS__)
 #define DTRACE(fmt,...)     ALOGD("%s: " fmt, __func__, ##__VA_ARGS__)
 #define ITRACE(fmt,...)     ALOGI("%s: " fmt, __func__, ##__VA_ARGS__)
-#define WTRACE(fmt,...)     ALOGW("%s: " fmt,  __func__, ##__VA_ARGS__)
-#define ETRACE(fmt,...)     ALOGE("%s: " fmt,  __func__, ##__VA_ARGS__)
+#define WTRACE(fmt,...)     ALOGW("%s: " fmt, __func__, ##__VA_ARGS__)
+#define ETRACE(fmt,...)     ALOGE("%s: " fmt, __func__, ##__VA_ARGS__)
 
 
 // Function call tracing
