@@ -169,7 +169,7 @@ bool HwcLayerList::checkRgbOverlaySupported(HwcLayer *hwcLayer)
     if (srcW != dstW || srcH != dstH) {
         return false;
     }
-    return true;
+    return false;
 }
 
 bool HwcLayerList::checkCursorSupported(HwcLayer *hwcLayer)
