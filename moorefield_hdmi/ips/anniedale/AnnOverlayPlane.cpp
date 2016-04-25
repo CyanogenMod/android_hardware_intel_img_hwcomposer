@@ -175,19 +175,6 @@ bool AnnOverlayPlane::bufferOffsetSetup(BufferMapper& mapper)
 
     uint32_t format = mapper.getFormat();
     uint32_t gttOffsetInBytes = (mapper.getGttOffsetInPage(0) << 12);
-
-    if (format == HAL_PIXEL_FORMAT_BGRX_8888 ||
-        format == HAL_PIXEL_FORMAT_BGRA_8888) {
-        backBuffer->OCMD = 1 << 10;
-        // by pass YUV->RGB conversion, 8-bit output
-        backBuffer->OCONFIG |= (0x1 << 4) | (0x1 << 3);
-        backBuffer->OSTART_0Y = gttOffsetInBytes;
-        backBuffer->OSTART_1Y = gttOffsetInBytes;
-        backBuffer->OBUF_0Y = 0;
-        backBuffer->OBUF_1Y = 0;
-        return true;
-    }
-
     uint32_t yStride = mapper.getStride().yuv.yStride;
     uint32_t uvStride = mapper.getStride().yuv.uvStride;
     uint32_t h = mapper.getHeight();
@@ -197,6 +184,18 @@ bool AnnOverlayPlane::bufferOffsetSetup(BufferMapper& mapper)
     uint32_t yTileOffsetX, yTileOffsetY;
     uint32_t uTileOffsetX, uTileOffsetY;
     uint32_t vTileOffsetX, vTileOffsetY;
+
+    if (format == HAL_PIXEL_FORMAT_BGRX_8888 ||
+        format == HAL_PIXEL_FORMAT_BGRA_8888) {
+        // set source format XRGB
+        backBuffer->OCMD = OVERLAY_FORMAT_PLANAR_XRGB;
+        // by pass YUV->RGB conversion, 8-bit output
+        backBuffer->OCONFIG |= OVERLAY_CONFIG_BYPASS_DISABLE;
+        backBuffer->OSTART_0Y = gttOffsetInBytes;
+        backBuffer->OBUF_0Y = srcX * XRGB_BPP + srcY *
+            mapper.getStride().rgb.stride;
+        return true;
+    }
 
     // clear original format setting
     backBuffer->OCMD &= ~(0xf << 10);
@@ -339,8 +338,9 @@ bool AnnOverlayPlane::coordinateSetup(BufferMapper& mapper)
 
     backBuffer->SWIDTH = mapper.getCrop().w;
     backBuffer->SHEIGHT = mapper.getCrop().h;
-    backBuffer->SWIDTHSW = calculateSWidthSW(0, mapper.getCrop().w) << 2;
-    backBuffer->OSTRIDE = mapper.getStride().rgb.stride & (~0x3f);
+    backBuffer->OSTRIDE = mapper.getStride().rgb.stride;
+    backBuffer->SWIDTHSW = calculateSWidthSW(backBuffer->OBUF_0Y,
+            backBuffer->OSTRIDE) << 2;
     return true;
 };
 
@@ -404,13 +404,6 @@ bool AnnOverlayPlane::scalingSetup(BufferMapper& mapper)
     uint32_t dstHeight = h;
     uint32_t format = mapper.getFormat();
 
-    if (format == HAL_PIXEL_FORMAT_BGRX_8888 ||
-        format == HAL_PIXEL_FORMAT_BGRA_8888) {
-        backBuffer->YRGBSCALE = 1 << 15 | 0 << 3 | 0 << 20;
-        backBuffer->UVSCALEV = (1 << 16);
-        return true;
-    }
-
     if (mBobDeinterlace && !mTransform)
         deinterlace_factor = 2;
 
@@ -435,6 +428,10 @@ bool AnnOverlayPlane::scalingSetup(BufferMapper& mapper)
         srcHeight = srcWidth;
         srcWidth = tmp;
     }
+
+    if (format == HAL_PIXEL_FORMAT_BGRX_8888 ||
+            format == HAL_PIXEL_FORMAT_BGRA_8888)
+        uvratio = 1;
 
      // Y down-scale factor as a multiple of 4096
     if (srcWidth == dstWidth && srcHeight == dstHeight) {
