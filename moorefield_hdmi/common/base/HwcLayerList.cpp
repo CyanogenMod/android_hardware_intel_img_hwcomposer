@@ -290,9 +290,8 @@ bool HwcLayerList::initialize()
             if (!DisplayQuery::forceFbScaling(mDisplayIndex)) {
                 if (checkCursorSupported(hwcLayer)) {
                     mCursorCandidates.add(hwcLayer);
-                // RGB on overlay has issues in some cases - disable
-                //} else if (checkRgbOverlaySupported(hwcLayer)) {
-                //    rgbOverlayLayers.add(hwcLayer);
+                } else if (checkRgbOverlaySupported(hwcLayer)) {
+                    rgbOverlayLayers.add(hwcLayer);
                 } else if (checkSupported(DisplayPlane::PLANE_SPRITE, hwcLayer)) {
                     mSpriteCandidates.add(hwcLayer);
                 } else if (checkSupported(DisplayPlane::PLANE_OVERLAY, hwcLayer)) {
