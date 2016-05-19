@@ -46,6 +46,7 @@ void GrallocBufferBase::initStride()
 
     // setup stride
     switch (mFormat) {
+    case HAL_PIXEL_FORMAT_YV12:
     case HAL_PIXEL_FORMAT_INTEL_YV12:
     case HAL_PIXEL_FORMAT_I420:
         uint32_t yStride_align;
