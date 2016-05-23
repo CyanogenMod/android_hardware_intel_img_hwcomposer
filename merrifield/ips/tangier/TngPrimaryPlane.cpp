@@ -167,6 +167,7 @@ void TngPrimaryPlane::setZOrderConfig(ZOrderConfig& zorderConfig,
 
 bool TngPrimaryPlane::assignToDevice(int disp)
 {
+    DisplayPlane::assignToDevice(disp);
     return true;
 }
 
