@@ -214,7 +214,7 @@ bool AnnOverlayPlane::bufferOffsetSetup(BufferMapper& mapper)
     }
 
     switch(format) {
-    case HAL_PIXEL_FORMAT_YV12:    // YV12
+    case HAL_PIXEL_FORMAT_INTEL_YV12:    // YV12
         vSurface = ySurface + yStride * h;
         uSurface = vSurface + uvStride * (h / 2);
         yTileOffsetX = srcX;
