@@ -116,6 +116,10 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := hwcomposer.$(TARGET_BOARD_PLATFORM)
 LOCAL_CFLAGS += -DLINUX
 
+ifeq ($(BOARD_PANEL_IS_180_ROTATED), true)
+    $(warning  "Panel rotates 180")
+    LOCAL_CFLAGS += -DENABLE_ROTATION_180
+endif
 ifeq ($(INTEL_WIDI), true)
    LOCAL_SHARED_LIBRARIES += libhwcwidi libbinder
    LOCAL_CFLAGS += -DINTEL_WIDI
