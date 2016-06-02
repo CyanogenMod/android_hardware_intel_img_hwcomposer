@@ -377,7 +377,7 @@ BufferMapper* OverlayPlaneBase::getTTMMapper(BufferMapper& grallocMapper, struct
 
         // calculate stride
         switch (format) {
-        case HAL_PIXEL_FORMAT_YV12:
+        case HAL_PIXEL_FORMAT_INTEL_YV12:
         case HAL_PIXEL_FORMAT_I420:
             uint32_t yStride_align;
             yStride_align = DisplayQuery::getOverlayLumaStrideAlignment(grallocMapper.getFormat());
@@ -690,7 +690,7 @@ bool OverlayPlaneBase::bufferOffsetSetup(BufferMapper& mapper)
     backBuffer->OSTART_1V = backBuffer->OSTART_0V;
 
     switch(format) {
-    case HAL_PIXEL_FORMAT_YV12:    // YV12
+    case HAL_PIXEL_FORMAT_INTEL_YV12:    // YV12
         backBuffer->OBUF_0Y = 0;
         backBuffer->OBUF_0V = yStride * h;
         backBuffer->OBUF_0U = backBuffer->OBUF_0V + (uvStride * (h / 2));
@@ -799,7 +799,7 @@ bool OverlayPlaneBase::coordinateSetup(BufferMapper& mapper)
     uint32_t offsetu = backBuffer->OBUF_0U;
 
     switch (format) {
-    case HAL_PIXEL_FORMAT_YV12:              // YV12
+    case HAL_PIXEL_FORMAT_INTEL_YV12:        // YV12
     case HAL_PIXEL_FORMAT_I420:              // I420
     case HAL_PIXEL_FORMAT_NV12:              // NV12
     case OMX_INTEL_COLOR_FormatYUV420PackedSemiPlanar:          // NV12
