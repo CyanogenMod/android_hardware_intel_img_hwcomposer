@@ -214,9 +214,21 @@ bool AnnOverlayPlane::bufferOffsetSetup(BufferMapper& mapper)
     }
 
     switch(format) {
-    case HAL_PIXEL_FORMAT_INTEL_YV12:    // YV12
+    case HAL_PIXEL_FORMAT_YV12:    // YV12
         vSurface = ySurface + yStride * h;
         uSurface = vSurface + uvStride * (h / 2);
+        yTileOffsetX = srcX;
+        yTileOffsetY = srcY;
+        uTileOffsetX = srcX / 2;
+        uTileOffsetY = srcY / 2;
+        vTileOffsetX = uTileOffsetX;
+        vTileOffsetY = uTileOffsetY;
+        backBuffer->OCMD |= OVERLAY_FORMAT_PLANAR_YUV420;
+        break;
+    case HAL_PIXEL_FORMAT_INTEL_YV12:    // INTEL_YV12
+        // The height of HAL_PIXEL_FORMAT_INTEL_YV12 gralloc buffer has been aligned with 32 pixels.
+        vSurface = ySurface + yStride * align_to(h, 32);
+        uSurface = vSurface + uvStride * (align_to(h, 32) / 2);
         yTileOffsetX = srcX;
         yTileOffsetY = srcY;
         uTileOffsetX = srcX / 2;
