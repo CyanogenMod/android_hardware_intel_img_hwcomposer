@@ -57,7 +57,7 @@ void TngPrimaryPlane::setFramebufferTarget(buffer_handle_t handle)
     mContext.ctx.prim_ctx.pipe = mDevice;
     mContext.ctx.prim_ctx.stride = align_to((4 * align_to(mPosition.w, 32)), 64);
 #ifdef ENABLE_ROTATION_180
-    mContext.ctx.prim_ctx.linoff = (mPosition.h - 1) * mContext.ctx.prim_ctx.stride + mPosition.w * 4;
+    mContext.ctx.prim_ctx.linoff = (mPosition.h - 1) * mContext.ctx.prim_ctx.stride + (mPosition.w  - 1)* 4;
 #else
     mContext.ctx.prim_ctx.linoff = 0;
 #endif
