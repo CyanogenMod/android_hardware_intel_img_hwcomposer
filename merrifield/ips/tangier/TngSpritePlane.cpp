@@ -65,7 +65,7 @@ bool TngSpritePlane::setDataBuffer(BufferMapper& mapper)
     srcY = mapper.getCrop().y;
     stride = mapper.getStride().rgb.stride;
 #ifdef ENABLE_ROTATION_180
-    linoff = (mapper.getCrop().h + srcY - 1) * stride + (srcX + mapper.getCrop().w) * bpp;
+    linoff = (mapper.getCrop().h + srcY - 1) * stride + (srcX + mapper.getCrop().w - 1) * bpp;
 #else
     linoff = srcY * stride + srcX * bpp;
 #endif
