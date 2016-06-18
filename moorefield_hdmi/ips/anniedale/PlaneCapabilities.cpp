@@ -58,7 +58,6 @@ bool PlaneCapabilities::isFormatSupported(int planeType, HwcLayer *hwcLayer)
                 WLOGTRACE("180 degree rotation is not supported yet");
             }
             return trans ? false : true;
-        case HAL_PIXEL_FORMAT_YV12:
         case HAL_PIXEL_FORMAT_INTEL_YV12:
             return trans ? false: true;
         case HAL_PIXEL_FORMAT_NV12:
@@ -102,7 +101,6 @@ bool PlaneCapabilities::isSizeSupported(int planeType, HwcLayer *hwcLayer)
         }
     } else if (planeType == DisplayPlane::PLANE_OVERLAY) {
         switch (format) {
-        case HAL_PIXEL_FORMAT_YV12:
         case HAL_PIXEL_FORMAT_INTEL_YV12:
         case HAL_PIXEL_FORMAT_I420:
         case HAL_PIXEL_FORMAT_NV12:
