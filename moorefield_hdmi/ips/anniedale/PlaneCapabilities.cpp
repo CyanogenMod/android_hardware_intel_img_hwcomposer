@@ -25,6 +25,9 @@
 #define SPRITE_PLANE_MAX_STRIDE_TILED      16384
 #define SPRITE_PLANE_MAX_STRIDE_LINEAR     16384
 
+#define SPRITE_PLANE_MAX_WIDTH             4096
+#define SPRITE_PLANE_MAX_HEIGHT            4096
+
 #define OVERLAY_PLANE_MAX_STRIDE_PACKED    4096
 #define OVERLAY_PLANE_MAX_STRIDE_LINEAR    8192
 
@@ -173,6 +176,14 @@ bool PlaneCapabilities::isScalingSupported(int planeType, HwcLayer *hwcLayer)
     dstH = dest.bottom - dest.top;
 
     if (planeType == DisplayPlane::PLANE_SPRITE || planeType == DisplayPlane::PLANE_PRIMARY) {
+        if ((dstW - 1) <= 0 || (dstH - 1) <= 0 ||
+            (dstW - 1) >= SPRITE_PLANE_MAX_WIDTH ||
+            (dstH - 1) >= SPRITE_PLANE_MAX_HEIGHT) {
+            // Should check size in isSizeSupported().
+            DLOGTRACE("invalid destination size: %d x %d, fall back to GLES", dstW, dstH);
+            return false;
+        }
+
         // no scaling is supported
         return ((srcW == dstW) && (srcH == dstH)) ? true : false;
 
