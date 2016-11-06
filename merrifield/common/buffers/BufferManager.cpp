@@ -60,7 +60,7 @@ bool BufferManager::initialize()
     if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module)) {
         DEINIT_AND_RETURN_FALSE("failed to get gralloc module");
     }
-    mGrallocModule = (gralloc_module_t const*)module;
+    mGrallocModule = (gralloc_module_t*)module;
 
     gralloc_open(module, &mAllocDev);
     if (!mAllocDev) {
@@ -68,7 +68,7 @@ bool BufferManager::initialize()
     }
 
     // create a dummy data buffer
-    mDataBuffer = createDataBuffer(0);
+    mDataBuffer = createDataBuffer(mGrallocModule, 0);
     if (!mDataBuffer) {
         DEINIT_AND_RETURN_FALSE("failed to create data buffer");
     }
@@ -142,7 +142,7 @@ void BufferManager::unlockDataBuffer(DataBuffer *buffer)
 
 DataBuffer* BufferManager::get(buffer_handle_t handle)
 {
-    return createDataBuffer(handle);
+    return createDataBuffer(mGrallocModule, handle);
 }
 
 void BufferManager::put(DataBuffer *buffer)
@@ -168,7 +168,7 @@ BufferMapper* BufferManager::map(DataBuffer& buffer)
     // create a new buffer mapper and add it to pool
     do {
         VTRACE("new buffer, will add it");
-        mapper = createBufferMapper(buffer);
+        mapper = createBufferMapper(mGrallocModule, buffer);
         if (!mapper) {
             ETRACE("failed to allocate mapper");
             break;
@@ -258,7 +258,7 @@ buffer_handle_t BufferManager::allocFrameBuffer(int width, int height, int *stri
             break;
         }
 
-        mapper = createBufferMapper(*buffer);
+        mapper = createBufferMapper(mGrallocModule, *buffer);
         if (!mapper) {
             ETRACE("failed to create buffer mapper");
             break;

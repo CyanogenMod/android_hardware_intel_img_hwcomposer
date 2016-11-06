@@ -43,25 +43,30 @@ void PlatfBufferManager::deinitialize()
     BufferManager::deinitialize();
 }
 
-DataBuffer* PlatfBufferManager::createDataBuffer(buffer_handle_t handle)
+DataBuffer* PlatfBufferManager::createDataBuffer(gralloc_module_t *module,
+                                                 buffer_handle_t handle)
 {
     return new TngGrallocBuffer(handle);
 }
 
-BufferMapper* PlatfBufferManager::createBufferMapper(DataBuffer& buffer)
+BufferMapper* PlatfBufferManager::createBufferMapper(gralloc_module_t *module,
+                                                        DataBuffer& buffer)
 {
-    return new TngGrallocBufferMapper(*mGrallocModule, buffer);
+    if (!module)
+        return 0;
+
+    return new TngGrallocBufferMapper(*(IMG_gralloc_module_public_t*)module,
+                                        buffer);
 }
 
 bool PlatfBufferManager::blit(buffer_handle_t srcHandle, buffer_handle_t destHandle,
                               const crop_t& destRect, bool filter, bool async)
 
 {
+    IMG_gralloc_module_public_t *imgGrallocModule = (IMG_gralloc_module_public_t *) mGrallocModule;
     int fenceFd;
 
-    if (mGrallocModule->perform(mGrallocModule,
-                                GRALLOC_MODULE_BLIT_HANDLE_TO_HANDLE_IMG,
-                                srcHandle,
+    if (imgGrallocModule->Blit(imgGrallocModule, srcHandle,
                                 destHandle,
                                 destRect.w, destRect.h, destRect.x,
                                 destRect.y, 0, -1, &fenceFd)) {

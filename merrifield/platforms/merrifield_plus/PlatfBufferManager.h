@@ -31,8 +31,9 @@ public:
     void deinitialize();
 
 protected:
-    DataBuffer* createDataBuffer(buffer_handle_t handle);
-    BufferMapper* createBufferMapper(DataBuffer& buffer);
+    DataBuffer* createDataBuffer(gralloc_module_t *module, buffer_handle_t handle);
+    BufferMapper* createBufferMapper(gralloc_module_t *module,
+                                        DataBuffer& buffer);
     bool blit(buffer_handle_t srcHandle, buffer_handle_t destHandle,
               const crop_t& destRect, bool filter, bool async);
 };
